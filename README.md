@@ -6,8 +6,11 @@ The clustering algorithm is based on the paper by P. Ge et al at IEEE TRANSACTIO
 ## Installation
 
 ```bash
-conda create -n py38 python=3.8
-conda activate py38
+conda create -n py37 python=3.7
+conda activate py37
 conda install -c anaconda numpy
 conda install --channel conda-forge pymatgen
+
+# Optional, for Jupyter notebooks
+conda install -c conda-forge jupyterlab
 ```
