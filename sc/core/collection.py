@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+import os
+
 from pymatgen import MPRester
 
 from sc.utils.logger import log
 
 
 class Collection:
-    """Container for data pulled directly from the Materials Project."""
+    """Container for data pulled directly from the Materials Project.
+    """
 
     def __init__(
         self, api_key, patterns, max_atoms=200, icsd_only=False,
@@ -59,3 +62,26 @@ class Collection:
         log.info(f"ICSD only: {icsd_only}")
         log.info(f"Data type: {data_type}")
         log.info(f"Found {len(mp_data)} structures.")
+
+        self.patterns = patterns
+        self.max_atoms = max_atoms
+        self.icsd_only = icsd_only
+        self.data_type = data_type
+
+    def process_structures(self):
+        """Runs the raw Materials Project data through the processing pipeline.
+        This includes getting structural and spectral information."""
+
+        raise NotImplementedError
+
+    def download_CONTCAR(self, path):
+        """Creates a directory structure for storing the CONTCAR files and
+        saves to disk.
+
+        Parameters
+        ----------
+        path : str
+            The path to the location to create and save the CONTCAR files.
+        """
+
+        raise NotImplementedError
