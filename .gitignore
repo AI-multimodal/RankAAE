@@ -1,1 +1,4 @@
 *.pyc
+.trash_COLLECTION
+*.log
+.ipynb_checkpoints/
