@@ -10,7 +10,7 @@ setup(
     packages=find_packages(where="sc"),
     url='https://www.bnl.gov/cfn/',
     license='GPL',
-    author='xiaohuiqu',
+    author='Xiaohui Qu, Matthew Carbone',
     author_email='xiaqu@bnl.gov; mrc2215@columbia.edu',
     description='Semi-supervised Clustering',
     python_requires='>=3.7',
