@@ -8,8 +8,10 @@ The clustering algorithm is based on the paper by P. Ge et al at IEEE TRANSACTIO
 ```bash
 conda create -n py37 python=3.7
 conda activate py37
-conda install -c anaconda numpy
-conda install --channel conda-forge pymatgen
+pip install -U setuptools
+git clone git@github.com:xhqu1981/semi_clustering.git
+cd semi_clustering
+python setup.py develop
 
 # Optional, for Jupyter notebooks
 conda install -c conda-forge jupyterlab
