@@ -31,8 +31,6 @@ class CoordNumSpectraDataset(Dataset):
 
         self.sampling_weights_per_sample = self.sampling_weights_per_cn[np.argmax(self.cn, axis=1)]
 
-
-
     def __len__(self):
         return self.cn.shape[0]
 
@@ -51,14 +49,14 @@ class ToTensor(object):
 
 
 def get_train_val_test_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15),
-                              sampling_exponent=0.6, n_coord_num=3):
+                                   sampling_exponent=0.6, n_coord_num=3):
     transform_list = transforms.Compose([ToTensor()])
     ds_train,  ds_val, ds_test = [CoordNumSpectraDataset(
             csv_fn, p, train_val_test_ratios, sampling_exponent, n_coord_num=n_coord_num, transform=transform_list)
         for p in ["train", "val", "test"]]
 
     train_sampler = WeightedRandomSampler(ds_train.sampling_weights_per_sample, replacement=True,
-                                         num_samples=math.ceil(len(ds_train)/batch_size)*batch_size)
+                                          num_samples=math.ceil(len(ds_train)/batch_size)*batch_size)
     train_loader = DataLoader(ds_train,
                               batch_size=batch_size,
                               sampler=train_sampler,
