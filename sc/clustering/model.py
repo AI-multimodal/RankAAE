@@ -250,7 +250,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
-        super(P_net, self).__init__()
+        super(Decoder, self).__init__()
 
         self.main = nn.Sequential(
             DecodingBlock(in_channels=nclasses + nstyle, out_channels=8, in_len=1, excitation=1,
