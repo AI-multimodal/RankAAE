@@ -6,6 +6,7 @@ from sc.clustering.trainer import Trainer
 import optuna
 import os
 import yaml
+import time
 
 
 class GpuQueue:
@@ -23,11 +24,12 @@ class GpuQueue:
 
 
 class Objective:
-    def __init__(self, gpu_queue: GpuQueue, trainer_args, opt_config):
+    def __init__(self, gpu_queue: GpuQueue, trainer_args, opt_config, base_trail_number):
         super().__init__()
         self.gpu_queue = gpu_queue
         self.trainer_args = trainer_args
         self.opt_config = opt_config
+        self.base_trail_number = base_trail_number
 
     def __call__(self, trial: Trial):
         with self.gpu_queue.one_gpu_per_process() as gpu_i:
@@ -43,7 +45,8 @@ class Objective:
                     kwargs[k] = trial.suggest_loguniform(name=k, low=low, high=high)
                 elif v["sampling"] == 'categorical':
                     kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
-            work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials/'
+            work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
+                       f'/{self.base_trail_number+trial.number:05d}_{time.time_ns() - 1597090000000000000}'
             trainer = Trainer.from_data(self.trainer_args.data_file,
                                         igpu=gpu_i,
                                         max_epoch=self.trainer_args.max_epoch,
@@ -93,8 +96,9 @@ def main():
         storage=f'sqlite:///{work_dir}/{args.name}.db',
         load_if_exists=True,
         )
+    base_trail_number = len(study.trials)
     gq = GpuQueue(args.gpus)
-    obj = Objective(gq, args, opt_config)
+    obj = Objective(gq, args, opt_config, base_trail_number)
     study.optimize(obj, n_trials=args.trials, n_jobs=args.jobs)
 
     print("Number of finished trials: ", len(study.trials))
