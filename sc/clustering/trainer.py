@@ -188,7 +188,7 @@ class Trainer:
                 zero_conc_selector = (cn_in < self.zero_conc_thresh)
                 zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
                 zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
-                zero_conc_selector = zero_conc_selector.resize(cn_in.size()[0], self.nclasses)
+                zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
                 pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
                 pure_selector = pure_selector.to(self.device)
                 zero_conc_selector = zero_conc_selector.to(self.device)
@@ -340,7 +340,7 @@ class Trainer:
             zero_conc_selector = (cn_in < self.zero_conc_thresh)
             zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
             zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
-            zero_conc_selector = zero_conc_selector.resize(cn_in.size()[0], self.nclasses)
+            zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
             zero_conc_selector = zero_conc_selector.to(self.device)
             bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-3, dtype=torch.float,
                                       device=self.device)
