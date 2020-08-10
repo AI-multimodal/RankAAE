@@ -51,10 +51,10 @@ class Trainer:
                                                     device=device).to(device)
         self.padding4smooth = nn.ReplicationPad1d(padding=(gau_kernel_size - 1) // 2).to(device)
 
-        self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
-
-        example_spec = iter(train_loader).next()[0]
-        self.tb_writer.add_graph(DummyDualAAE(use_cnn_dis), example_spec)
+        if verbose:
+            self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
+            example_spec = iter(train_loader).next()[0]
+            self.tb_writer.add_graph(DummyDualAAE(use_cnn_dis), example_spec)
 
         self.grad_rev_beta = grad_rev_beta
         self.alpha_flat_step = alpha_flat_step
@@ -279,25 +279,26 @@ class Trainer:
                 # Init gradients
                 self.zerograd()
 
-                # record losses
-                loss_dict = {
-                    'recon_loss': recon_loss.item(),
-                    'I_loss': I_loss.item(),
-                    'Smooth': Smooth_loss.item()
-                }
-                self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
-                loss_dict = {
-                    'h_loss': h_loss.item()
-                }
-                self.tb_writer.add_scalars("CR/train", loss_dict, global_step=epoch)
-                loss_dict = {
-                    'cat_loss': cat_semisupervise_loss.item()
-                }
-                self.tb_writer.add_scalars("Supervise/train", loss_dict, global_step=epoch)
-                loss_dict = {
-                    'G_loss': G_loss.item()
-                }
-                self.tb_writer.add_scalars("Adversarial/train", loss_dict, global_step=epoch)
+                if self.verbose:
+                    # record losses
+                    loss_dict = {
+                        'recon_loss': recon_loss.item(),
+                        'I_loss': I_loss.item(),
+                        'Smooth': Smooth_loss.item()
+                    }
+                    self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
+                    loss_dict = {
+                        'h_loss': h_loss.item()
+                    }
+                    self.tb_writer.add_scalars("CR/train", loss_dict, global_step=epoch)
+                    loss_dict = {
+                        'cat_loss': cat_semisupervise_loss.item()
+                    }
+                    self.tb_writer.add_scalars("Supervise/train", loss_dict, global_step=epoch)
+                    loss_dict = {
+                        'G_loss': G_loss.item()
+                    }
+                    self.tb_writer.add_scalars("Adversarial/train", loss_dict, global_step=epoch)
 
             self.encoder.eval()
             self.decoder.eval()
@@ -314,7 +315,8 @@ class Trainer:
             loss_dict = {
                 'recon_loss': recon_loss.item()
             }
-            self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
+            if self.verbose:
+                self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
 
             style_np = z.detach().clone().numpy().T
             style_shapiro = [1.0 - shapiro(x).statistic for x in style_np]
@@ -334,7 +336,8 @@ class Trainer:
                 'Max Divid': cat_accuracy,
                 'Group Sum': cat_sum_accuracy
             }
-            self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
+            if self.verbose:
+                self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
 
             pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
             pure_selector = pure_selector.to(self.device)
@@ -344,7 +347,8 @@ class Trainer:
             loss_dict = {
                 'h_loss': h_loss.item(),
             }
-            self.tb_writer.add_scalars("CR/val", loss_dict, global_step=epoch)
+            if self.verbose:
+                self.tb_writer.add_scalars("CR/val", loss_dict, global_step=epoch)
 
             zero_conc_selector = (cn_in < self.zero_conc_thresh)
             zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
@@ -358,7 +362,8 @@ class Trainer:
             loss_dict = {
                 'cat_loss': cat_semisupervise_loss.item()
             }
-            self.tb_writer.add_scalars("Supervise/val", loss_dict, global_step=epoch)
+            if self.verbose:
+                self.tb_writer.add_scalars("Supervise/val", loss_dict, global_step=epoch)
 
             z_fake_gauss = z
             z_real_gauss = torch.randn_like(z, requires_grad=True, device=self.device)
@@ -373,7 +378,8 @@ class Trainer:
             loss_dict = {
                 'G_loss': G_loss.item()
             }
-            self.tb_writer.add_scalars("Adversarial/val", loss_dict, global_step=epoch)
+            if self.verbose:
+                self.tb_writer.add_scalars("Adversarial/val", loss_dict, global_step=epoch)
 
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
@@ -392,14 +398,16 @@ class Trainer:
             if epoch % 25 == 0:
                 spec_out = self.decoder(con_c, dis_c).reshape(self.nclasses, self.ntest_per_spectra, -1).\
                     clone().cpu().detach().numpy()
-                fig = self.get_cluster_plot(spec_out)
-                self.tb_writer.add_figure("Spectra", fig, global_step=epoch)
+                if self.verbose:
+                    fig = self.get_cluster_plot(spec_out)
+                    self.tb_writer.add_figure("Spectra", fig, global_step=epoch)
 
                 spec_in, _ = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
                 spec_in = spec_in.to(self.device)
                 z, _ = self.encoder(spec_in)
-                fig = self.get_style_distribution_plot(z.clone().cpu().detach().numpy())
-                self.tb_writer.add_figure("Style Value Distribution", fig, global_step=epoch)
+                if self.verbose:
+                    fig = self.get_style_distribution_plot(z.clone().cpu().detach().numpy())
+                    self.tb_writer.add_figure("Style Value Distribution", fig, global_step=epoch)
 
         # save model
         model_dict = {"Encoder": self.encoder,
