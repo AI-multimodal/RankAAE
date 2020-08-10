@@ -13,6 +13,7 @@ from sc.clustering.dataloader import get_train_val_test_dataloaders
 from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
 from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor
+from scipy.stats import shapiro
 
 
 class Trainer:
@@ -173,6 +174,7 @@ class Trainer:
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chk = None
+        cat_accuracy, style_shapiro, style_mean, style_std = [None] * 4
         for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
@@ -314,6 +316,11 @@ class Trainer:
             }
             self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
 
+            style_np = z.detach().clone().numpy().T
+            style_shapiro = [1.0 - shapiro(x).statistic for x in style_np]
+            style_mean = np.fabs(style_np.mean(axis=1)).tolist()
+            style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
+
             class_probs = y.detach().cpu().numpy()
             class_pred = class_probs.argmax(axis=-1) // self.n_subclasses
             class_true = cn_in.detach().cpu().numpy().argmax(axis=-1)
@@ -402,6 +409,9 @@ class Trainer:
                    f'{self.work_dir}/final.pt')
         if best_chk is not None:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
+
+        metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
+        return metrics
 
     @classmethod
     def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000,

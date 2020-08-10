@@ -20,7 +20,8 @@ def main():
                                 max_epoch=args.max_epoch,
                                 verbose=args.verbose,
                                 work_dir=work_dir)
-    trainer.train()
+    metrics = trainer.train()
+    print(metrics)
     trainer.test_models(args.data_file, work_dir=work_dir)
 
 
