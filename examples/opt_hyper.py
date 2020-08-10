@@ -92,7 +92,7 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
 
     study = optuna.multi_objective.create_study(
-        directions=["minimize"] * 7,
+        directions=['maximize'] * 3 + ["minimize"] * 4,
         study_name=args.name,
         storage=f'sqlite:///{work_dir}/{args.name}.db',
         load_if_exists=True,

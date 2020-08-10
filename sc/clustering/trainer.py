@@ -319,7 +319,7 @@ class Trainer:
                 self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
 
             style_np = z.detach().clone().numpy().T
-            style_shapiro = [1.0 - shapiro(x).statistic for x in style_np]
+            style_shapiro = [shapiro(x).statistic for x in style_np]
             style_mean = np.fabs(style_np.mean(axis=1)).tolist()
             style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
 
@@ -419,14 +419,6 @@ class Trainer:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
         metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
-        for i in range(len(metrics)):
-            if i+1 in [2, 3]:
-                digits = 4
-            elif i+1 in [4, 5, 6, 7]:
-                digits = 1
-            else:
-                digits = 2
-            metrics[i] = round(metrics[i], digits)
         return metrics
 
     @classmethod
