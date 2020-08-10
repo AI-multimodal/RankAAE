@@ -8,6 +8,26 @@ import os
 import yaml
 import time
 import matplotlib.pyplot as plt
+import numpy as np
+from optuna.pruners import HyperbandPruner
+
+
+class TrainerCallBack:
+    def __init__(self, merge_objectives, trial: Trial):
+        super().__init__()
+        self.merge_objectives = merge_objectives
+        self.trial = trial
+
+    def __call__(self, epoch, metrics):
+        if self.merge_objectives:
+            weights = [100, 50.0, 50.0, -1.0, -1.0, -1.0, -1.0]
+            metrics = (np.array(weights) * np.array(metrics)).sum()
+        else:
+            metrics = metrics[0]
+
+        self.trial.report(metrics, epoch)
+        if self.trial.should_prune():
+            raise optuna.TrialPruned()
 
 
 class GpuQueue:
@@ -25,12 +45,15 @@ class GpuQueue:
 
 
 class Objective:
-    def __init__(self, gpu_queue: GpuQueue, trainer_args, opt_config, base_trail_number):
+    def __init__(self, gpu_queue: GpuQueue, trainer_args, opt_config, base_trail_number,
+                 single_objective, merge_objectives):
         super().__init__()
         self.gpu_queue = gpu_queue
         self.trainer_args = trainer_args
         self.opt_config = opt_config
         self.base_trail_number = base_trail_number
+        self.single_objective = single_objective
+        self.merge_objectives = merge_objectives
 
     def __call__(self, trial: Trial):
         with self.gpu_queue.one_gpu_per_process() as gpu_i:
@@ -54,7 +77,17 @@ class Objective:
                                         verbose=self.trainer_args.verbose,
                                         work_dir=work_dir,
                                         **kwargs)
-            metrics = trainer.train()
+            if self.single_objective:
+                trainer_callback = TrainerCallBack(self.merge_objectives, trial)
+            else:
+                trainer_callback = None
+            metrics = trainer.train(trainer_callback)
+            if self.single_objective:
+                if self.merge_objectives:
+                    weights = [100, 50.0, 50.0, -1.0, -1.0, -1.0, -1.0]
+                    metrics = (np.array(weights) * np.array(metrics)).sum()
+                else:
+                    metrics = metrics[0]
         return metrics
 
 
@@ -80,6 +113,10 @@ def main():
                         help='Number of total trails to evaluate model')
     parser.add_argument('-s', "--single", action="store_true",
                         help='Optimize first metric only, this option will activate pruner')
+    parser.add_argument('-m', "--merge_objectives", action="store_true",
+                        help='Merge all all metrix into one')
+    parser.add_argument("--min_resource", type=int, default=50,
+                        help='Min Resource for HyperbandPruner')
     args = parser.parse_args()
 
     plt.switch_backend('Agg')
@@ -90,30 +127,42 @@ def main():
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-
-    study = optuna.multi_objective.create_study(
-        directions=['maximize'] * 3 + ["minimize"] * 4,
-        study_name=args.name,
-        storage=f'sqlite:///{work_dir}/{args.name}.db',
-        load_if_exists=True,
+    single_objective = args.single
+    merge_objectives = args.merge_objectives
+    if single_objective:
+        study = optuna.create_study(
+            direction='maximize',
+            study_name=args.name,
+            storage=f'sqlite:///{work_dir}/{args.name}.db',
+            load_if_exists=True,
+            pruner=HyperbandPruner(min_resource=args.min_resource)
         )
+    else:
+        study = optuna.multi_objective.create_study(
+            directions=['maximize'] * 3 + ["minimize"] * 4,
+            study_name=args.name,
+            storage=f'sqlite:///{work_dir}/{args.name}.db',
+            load_if_exists=True)
     base_trail_number = len(study.trials)
     gq = GpuQueue(args.gpus)
-    obj = Objective(gq, args, opt_config, base_trail_number)
+    obj = Objective(gq, args, opt_config, base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, n_jobs=args.jobs)
 
     print("Number of finished trials: ", len(study.trials))
-    print("Pareto front:")
-
-    trials = {str(trial.values): trial for trial in study.get_pareto_front_trials()}
-    trials = list(trials.values())
-    trials.sort(key=lambda t: t.values)
-
-    for trial in trials:
-        print("  Trial#{}".format(trial.number))
-        print("    Values: ".format(trial.values))
-        print("    Params: {}".format(trial.params))
-        print()
+    if single_objective:
+        print(f"Best Trial#: {study.best_trial.number}")
+        print(f"Best Value:  {study.best_value}")
+        print(f"Best Params: {study.best_params}")
+    else:
+        print("Pareto front:")
+        trials = {str(trial.values): trial for trial in study.get_pareto_front_trials()}
+        trials = list(trials.values())
+        trials.sort(key=lambda t: t.values)
+        for trial in trials:
+            print("  Trial#{}".format(trial.number))
+            print("    Values: ".format(trial.values))
+            print("    Params: {}".format(trial.params))
+            print()
 
 
 if __name__ == '__main__':

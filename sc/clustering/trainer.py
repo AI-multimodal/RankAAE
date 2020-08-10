@@ -128,7 +128,7 @@ class Trainer:
                          ax=ax)
         return fig
 
-    def train(self):
+    def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
             print(para_info)
@@ -394,6 +394,9 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
+            metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
+            if callback is not None:
+                callback(epoch, metrics)
             # plot images
             if epoch % 25 == 0:
                 spec_out = self.decoder(con_c, dis_c).reshape(self.nclasses, self.ntest_per_spectra, -1).\
@@ -418,7 +421,7 @@ class Trainer:
         if best_chk is not None:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
-        metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
+
         return metrics
 
     @classmethod
