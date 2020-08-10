@@ -7,7 +7,6 @@ import optuna
 import os
 import yaml
 import time
-import matplotlib.pyplot as plt
 import numpy as np
 from optuna.pruners import HyperbandPruner
 
@@ -119,7 +118,11 @@ def main():
                         help='Min Resource for HyperbandPruner')
     args = parser.parse_args()
 
-    plt.switch_backend('Agg')
+    if 'SLURM_ARRAY_TASK_ID' in os.environ:
+        task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
+        sleep_seconds = task_id * 3
+        print(f"Task ID is {task_id}, will sleep {sleep_seconds} seconds before start")
+        time.sleep(sleep_seconds)
 
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
