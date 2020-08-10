@@ -83,11 +83,15 @@ def main():
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
 
-    work_dir = {os.path.expandvars(os.path.expanduser(args.work_dir))}
+    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
+    if not os.path.exists(work_dir):
+        os.makedirs(work_dir, exist_ok=True)
+
     study = optuna.multi_objective.create_study(
         directions=["minimize"] * 7,
         study_name=args.name,
         storage=f'sqlite:///{work_dir}/{args.name}.db',
+        load_if_exists=True,
         )
     gq = GpuQueue(args.gpus)
     obj = Objective(gq, args, opt_config)
