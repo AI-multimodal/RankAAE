@@ -1,5 +1,6 @@
 import argparse
 from sc.clustering.trainer import Trainer
+import os
 
 
 def main():
@@ -10,13 +11,17 @@ def main():
                         help='Maximum iterations')
     parser.add_argument('-v', '--verbose', action="store_true",
                         help='Maximum iterations')
+    parser.add_argument('-w', "--work_dir", type=str, default='.',
+                        help="Working directory to write the output files")
     args = parser.parse_args()
 
+    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     trainer = Trainer.from_data(args.data_file,
                                 max_epoch=args.max_epoch,
-                                verbose=args.verbose)
+                                verbose=args.verbose,
+                                work_dir=work_dir)
     trainer.train()
-    trainer.test_models(args.data_file)
+    trainer.test_models(args.data_file, work_dir=work_dir)
 
 
 if __name__ == '__main__':

@@ -24,7 +24,8 @@ class Trainer:
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5, verbose=True):
+                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
+                 verbose=True, work_dir='.'):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -49,7 +50,7 @@ class Trainer:
                                                     device=device).to(device)
         self.padding4smooth = nn.ReplicationPad1d(padding=(gau_kernel_size - 1) // 2).to(device)
 
-        self.tb_writer = SummaryWriter(log_dir=tb_logdir)
+        self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
 
         example_spec = iter(train_loader).next()[0]
         self.tb_writer.add_graph(DummyDualAAE(use_cnn_dis), example_spec)
@@ -68,6 +69,7 @@ class Trainer:
         self.n_coord_num = n_coord_num
         self.n_subclasses = n_subclasses
         self.verbose = verbose
+        self.work_dir = work_dir
 
     def sample_categorical(self):
         """
@@ -167,7 +169,7 @@ class Trainer:
 
         # train network
         last_best = 0.0
-        chkpt_dir = "checkpoints"
+        chkpt_dir = f"{self.work_dir}/checkpoints"
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chk = None
@@ -397,9 +399,9 @@ class Trainer:
                       "Decoder": self.decoder,
                       "Style Discriminator": self.discriminator}
         torch.save(model_dict,
-                   'final.pt')
+                   f'{self.work_dir}/final.pt')
         if best_chk is not None:
-            shutil.copy2(best_chk, 'best.pt')
+            shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
     @classmethod
     def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000,
@@ -410,7 +412,7 @@ class Trainer:
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
-                  verbose=True):
+                  verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
@@ -445,14 +447,14 @@ class Trainer:
                           sch_factor=sch_factor, sch_patience=sch_patience,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
-                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, verbose=verbose)
+                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, verbose=verbose, work_dir=work_dir)
         return trainer
 
     @staticmethod
     def test_models(csv_fn, n_coord_num=3, n_subclasses=3,
-                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6):
-        final_spuncat = torch.load('final.pt', map_location=torch.device('cpu'))
-        best_spuncat = torch.load('best.pt', map_location=torch.device('cpu'))
+                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.'):
+        final_spuncat = torch.load(f'{work_dir}/final.pt', map_location=torch.device('cpu'))
+        best_spuncat = torch.load(f'{work_dir}/best.pt', map_location=torch.device('cpu'))
 
         transform_list = transforms.Compose([ToTensor()])
         dataset_train, dataset_val, dataset_test = [CoordNumSpectraDataset(
@@ -492,9 +494,10 @@ class Trainer:
                             ax.set_xlabel(f"Subclass {i % 3 + 1}")
                 title = f"All Classes and Styles #{istyle}"
                 fig.suptitle(title, y=0.91)
-                if not os.path.exists("reports"):
-                    os.makedirs("reports")
-                plt.savefig(f"reports/{title}.pdf", dpi=600)
+                report_dir = os.path.join(work_dir, "reports")
+                if not os.path.exists(report_dir):
+                    os.makedirs(report_dir)
+                plt.savefig(f"{report_dir}/{title}.pdf", dpi=600)
         
         cluster_grid_plot(final_spuncat["Decoder"])
 
@@ -514,9 +517,10 @@ class Trainer:
             title = f'{title_base}'
             fig.suptitle(title, y=0.91)
 
-            if not os.path.exists("reports"):
-                os.makedirs("reports")
-            plt.savefig(f'reports/{title}.pdf', dpi=300, bbox_inches='tight')
+            report_dir = os.path.join(work_dir, "reports")
+            if not os.path.exists(report_dir):
+                os.makedirs(report_dir)
+            plt.savefig(f'{report_dir}/{title}.pdf', dpi=300, bbox_inches='tight')
 
         plot_style_distributions(final_spuncat["Encoder"], dataset_test, 
                                  title_base="Style Distribution on FEFF Test Set")
@@ -533,9 +537,10 @@ class Trainer:
                 plt.plot(spec)
 
             plt.title(title)
-            if not os.path.exists("reports"):
-                os.makedirs("reports")
-            plt.savefig(f'reports/{title}.pdf', dpi=300)
+            report_dir = os.path.join(work_dir, "reports")
+            if not os.path.exists(report_dir):
+                os.makedirs(report_dir)
+            plt.savefig(f'{report_dir}/{title}.pdf', dpi=300)
 
         plot_cluster_centers(final_spuncat["Decoder"], title='final cluster center')
         plot_cluster_centers(best_spuncat["Decoder"], title='best cluster center')
@@ -557,9 +562,10 @@ class Trainer:
             plt.title(title)
             plt.xlabel("Prediction")
             plt.ylabel("True Value")
-            if not os.path.exists("reports"):
-                os.makedirs("reports")
-            plt.savefig(f'reports/{title_base}.pdf', dpi=300, bbox_inches='tight')
+            report_dir = os.path.join(work_dir, "reports")
+            if not os.path.exists(report_dir):
+                os.makedirs(report_dir)
+            plt.savefig(f'{report_dir}/{title_base}.pdf', dpi=300, bbox_inches='tight')
             return cm, cat_accuracy
 
         compute_confusion_matrix(final_spuncat["Encoder"], dataset_train,
