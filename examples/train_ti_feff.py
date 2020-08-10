@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 from sc.clustering.trainer import Trainer
 import os
