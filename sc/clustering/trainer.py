@@ -126,8 +126,9 @@ class Trainer:
         return fig
 
     def train(self):
-        para_info = torch.__config__.parallel_info()
-        print(para_info)
+        if self.verbose:
+            para_info = torch.__config__.parallel_info()
+            print(para_info)
 
         # loss function
         mse_dis = nn.MSELoss().to(self.device)
