@@ -7,6 +7,7 @@ import optuna
 import os
 import yaml
 import time
+import matplotlib.pyplot as plt
 
 
 class GpuQueue:
@@ -54,8 +55,6 @@ class Objective:
                                         work_dir=work_dir,
                                         **kwargs)
             metrics = trainer.train()
-            trainer.test_models(self.trainer_args.data_file,
-                                work_dir=work_dir)
         return metrics
 
 
@@ -82,6 +81,8 @@ def main():
     parser.add_argument('-s', "--single", action="store_true",
                         help='Optimize first metric only, this option will activate pruner')
     args = parser.parse_args()
+
+    plt.switch_backend('Agg')
 
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
