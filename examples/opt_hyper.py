@@ -85,6 +85,7 @@ def main():
 
     work_dir = {os.path.expandvars(os.path.expanduser(args.work_dir))}
     study = optuna.multi_objective.create_study(
+        directions=["minimize"] * 7,
         study_name=args.name,
         storage=f'sqlite:///{work_dir}/{args.name}.db',
         )
