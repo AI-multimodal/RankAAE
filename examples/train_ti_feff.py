@@ -16,6 +16,7 @@ def main():
                                 max_epoch=args.max_epoch,
                                 verbose=args.verbose)
     trainer.train()
+    trainer.test_models(args.data_file)
 
 
 if __name__ == '__main__':
