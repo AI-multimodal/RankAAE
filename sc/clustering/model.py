@@ -249,7 +249,7 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
+    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False):
         super(Decoder, self).__init__()
 
         self.main = nn.Sequential(
@@ -275,10 +275,12 @@ class Decoder(nn.Module):
 
         self.nclasses = nclasses
         self.nstyle = nstyle
+        self.debug = debug
 
     def forward(self, z_gauss, y):
-        assert z_gauss.size()[1] == self.nstyle
-        assert y.size()[1] == self.nclasses
+        if self.debug:
+            assert z_gauss.size()[1] == self.nstyle
+            assert y.size()[1] == self.nclasses
         x = torch.cat([z_gauss, y], dim=1)
         x = x.unsqueeze(dim=2)
         spec = self.main(x)
