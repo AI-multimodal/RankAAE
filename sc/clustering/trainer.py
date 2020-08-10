@@ -24,7 +24,7 @@ class Trainer:
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5):
+                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5, verbose=True):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -67,6 +67,7 @@ class Trainer:
         self.lr_ratio_CR = lr_ratio_CR
         self.n_coord_num = n_coord_num
         self.n_subclasses = n_subclasses
+        self.verbose = verbose
 
     def sample_categorical(self):
         """
@@ -148,7 +149,7 @@ class Trainer:
         sol_list = [RE_solver, I_solver, Smooth_solver, Cat_solver, h_solver, G_solver]
         schedulers = [
             ReduceLROnPlateau(sol, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
-                              verbose=True)
+                              verbose=self.verbose)
             for sol in sol_list]
 
         # fixed random variables, for plot spectra
@@ -407,18 +408,21 @@ class Trainer:
                   sch_factor=0.25, sch_patience=300,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6):
+                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
+                  verbose=True):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
         
         use_cuda = torch.cuda.is_available()
         if use_cuda:
-            print("Use GPU")
+            if verbose:
+                print("Use GPU")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:
-            print("Use Slow CPU!")
+            if verbose:
+                print("Use Slow CPU!")
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
@@ -433,14 +437,14 @@ class Trainer:
             i.to(device)
 
         trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
-                          val_sampling_weights_per_cn=dl_val.sampling_weights_per_cn, 
+                          val_sampling_weights_per_cn=dl_val.dataset.sampling_weights_per_cn,
                           nstyle=nstyle, n_coord_num=n_coord_num, n_subclasses=n_subclasses,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
-                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR)
+                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, verbose=verbose)
         return trainer
 
     @staticmethod
