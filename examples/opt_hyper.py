@@ -76,7 +76,7 @@ def main():
                         help='Number of total trails to evaluate model')
     parser.add_argument('--name', type=str, default='opt_daae',
                         help='Number of total trails to evaluate model')
-    parser.add_argument('-s', "--single", type=str, action="store_true",
+    parser.add_argument('-s', "--single", action="store_true",
                         help='Optimize first metric only, this option will activate pruner')
     args = parser.parse_args()
 
