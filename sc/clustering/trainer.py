@@ -411,6 +411,14 @@ class Trainer:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
         metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
+        for i in range(len(metrics)):
+            if i+1 in [2, 3]:
+                digits = 4
+            elif i+1 in [4, 5, 6, 7]:
+                digits = 1
+            else:
+                digits = 2
+            metrics[i] = round(metrics[i], digits)
         return metrics
 
     @classmethod
