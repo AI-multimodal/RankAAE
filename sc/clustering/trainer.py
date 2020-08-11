@@ -318,7 +318,7 @@ class Trainer:
             if self.verbose:
                 self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
 
-            style_np = z.detach().clone().numpy().T
+            style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
             style_mean = np.fabs(style_np.mean(axis=1)).tolist()
             style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
