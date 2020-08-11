@@ -4,10 +4,9 @@ with open("requirements.txt") as f_req:
     required_list = [line.rstrip() for line in f_req.readlines()]
 
 setup(
-    name='sc',
+    name='Semi Clustering',
     version='0.1',
-    package_dir={"": "sc"},
-    packages=find_packages(where="sc"),
+    packages=['sc'],
     url='https://www.bnl.gov/cfn/',
     license='GPL',
     author='Xiaohui Qu, Matthew Carbone',
