@@ -32,9 +32,11 @@ class TrainerCallBack:
 
 
 class GpuQueue:
-    def __init__(self, n_gpus):
+    def __init__(self, n_gpus, n_jobs):
         self.queue = multiprocessing.Manager().Queue()
         all_idxs = list(range(n_gpus)) if n_gpus > 0 else [None]
+        assert n_jobs % n_gpus == 0
+        all_idxs = all_idxs * (n_jobs//n_gpus)
         for idx in all_idxs:
             self.queue.put(idx)
 
@@ -149,7 +151,7 @@ def main():
             storage=f'sqlite:///{work_dir}/{args.name}.db',
             load_if_exists=True)
     base_trail_number = len(study.trials)
-    gq = GpuQueue(args.gpus)
+    gq = GpuQueue(args.gpus, args.jobs)
     obj = Objective(gq, args, opt_config, base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, n_jobs=args.jobs)
 
