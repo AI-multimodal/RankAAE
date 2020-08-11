@@ -1,3 +1,11 @@
-pymatgen>=2020.4.2
 numpy>=1.18.5
-setuptools>=49.2.0
+pymatgen>=2020.4.2
+optuna>=2.0.0
+scipy>=1.5.0
+torch>=1.6.0
+torchvision>=0.7.0
+seaborn>=0.10.1
+pandas>=1.0.5
+matplotlib>=3.2.2
+PyYAML>=5.3.1
+scikit_learn>=0.23.2
