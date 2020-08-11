@@ -122,8 +122,8 @@ def main():
                         help='Min Resource for HyperbandPruner')
     args = parser.parse_args()
 
-    if 'SLURM_ARRAY_TASK_ID' in os.environ:
-        task_id = int(os.environ['SLURM_ARRAY_TASK_ID'])
+    if 'SLURM_PROCID' in os.environ:
+        task_id = int(os.environ['SLURM_PROCID'])
         sleep_seconds = task_id * 3
         print(f"Task ID is {task_id}, will sleep {sleep_seconds} seconds before start")
         time.sleep(sleep_seconds)
