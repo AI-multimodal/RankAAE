@@ -36,16 +36,15 @@ class TrainerCallBack:
 class GpuQueue:
     def __init__(self, n_gpus, n_jobs):
         self.queue = multiprocessing.Manager().Queue()
-        all_idxs = list(range(n_gpus)) if n_gpus > 0 else [None]
-        assert n_jobs % n_gpus == 0
-        all_idxs = all_idxs * (n_jobs//n_gpus)
+        all_idxs = list(range(n_jobs)) if n_gpus > 0 else [None]
+        self.n_gpus = n_gpus
         for idx in all_idxs:
             self.queue.put(idx)
 
     @contextmanager
     def one_gpu_per_process(self):
         current_idx = self.queue.get()
-        yield current_idx
+        yield current_idx % self.n_gpus
         self.queue.put(current_idx)
 
 
