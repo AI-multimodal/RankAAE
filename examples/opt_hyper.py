@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import socket
 from contextlib import contextmanager
 import multiprocessing
 from optuna.trial import Trial
@@ -11,6 +12,7 @@ import yaml
 import time
 import numpy as np
 from optuna.pruners import HyperbandPruner
+import subprocess
 
 
 class TrainerCallBack:
@@ -122,16 +124,30 @@ def main():
                         help='Min Resource for HyperbandPruner')
     args = parser.parse_args()
 
+    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
+
+    task_id = 0
+    job_id = 0
     if 'SLURM_PROCID' in os.environ:
         task_id = int(os.environ['SLURM_PROCID'])
+        job_id = int(os.environ['SLURM_JOB_ID'])
         sleep_seconds = task_id * 3
         print(f"Task ID is {task_id}, will sleep {sleep_seconds} seconds before start")
         time.sleep(sleep_seconds)
 
+    hostname = socket.gethostname().split('.', 1)[0]
+    if not os.path.exists(f'{work_dir}/resource_usage_{job_id}'):
+        os.makedirs(f'{work_dir}/resource_usage_{job_id}', exist_ok=True)
+    cpu_log_file = open(f'{work_dir}/resource_usage_{job_id}/cpu_{task_id}_{hostname}.txt', 'wt')
+    subprocess.Popen(['/usr/bin/top', '-i', '-b', '-d', '31'],
+                     stdout=cpu_log_file)
+    gpu_log_file = open(f'{work_dir}/resource_usage_{job_id}/gpu_{task_id}_{hostname}.txt', 'wt')
+    subprocess.Popen(['/usr/bin/nvidia-smi', '-l', '37'],
+                     stdout=gpu_log_file)
+
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
 
-    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
     single_objective = args.single
