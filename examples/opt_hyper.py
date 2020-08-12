@@ -93,7 +93,7 @@ def main():
                         help="Working directory to write the output files")
     parser.add_argument('-g', '--gpu_i', type=int, default=0,
                         help='ID for GPU to use')
-    parser.add_argument('-h', '--db_hostname', type=str, default='127.0.0.1',
+    parser.add_argument('-a', '--db_address', type=str, default='127.0.0.1',
                         help='hostname for the Redis DB sever')
     parser.add_argument('-p', '--db_port', type=int, default=6379,
                         help='Socket port for the Redis DB sever')
@@ -118,7 +118,7 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
     single_objective = args.single
     merge_objectives = args.merge_objectives
-    storage = optuna.storages.RedisStorage(url=f'redis://{args.db_hostname}:{args.db_port}')
+    storage = optuna.storages.RedisStorage(url=f'redis://{args.db_address}:{args.db_port}')
 
     if single_objective:
         study = optuna.create_study(

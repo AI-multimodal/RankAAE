@@ -38,7 +38,7 @@ fi
 
 seq ${num_jobs} | parallel -j ${num_jobs} "
 sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-python ${py_fn} -g \$(({%} % 4)) -h ${hn} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_${hn}.txt
+python ${py_fn} -g \$(({%} % 4)) -a ${hn} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_${hn}.txt
 "
 
 redis-cli -h ${hn} shutdown
