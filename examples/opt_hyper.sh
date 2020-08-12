@@ -18,7 +18,7 @@ then
     mkdir "${res_dir}"
 fi
 
-nvida-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_`hostname -s`.txt &
+nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_`hostname -s`.txt &
 top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_`hostname -s`.txt &
 
 log_dir=optuna_run_${SLURM_JOB_ID}
