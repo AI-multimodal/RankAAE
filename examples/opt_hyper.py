@@ -93,7 +93,7 @@ def main():
                         help="Working directory to write the output files")
     parser.add_argument('-g', '--gpu_i', type=int, default=0,
                         help='ID for GPU to use')
-    parser.add_argument('-h', 'db_hostname', type=str, default='127.0.0.1',
+    parser.add_argument('-h', '--db_hostname', type=str, default='127.0.0.1',
                         help='hostname for the Redis DB sever')
     parser.add_argument('-p', '--db_port', type=int, default=6379,
                         help='Socket port for the Redis DB sever')
