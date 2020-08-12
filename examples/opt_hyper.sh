@@ -2,11 +2,11 @@
 
 num_jobs=$1
 head_node=$2   ## can be obtained from ${SLURMD_NODENAME}
-sh_fn=`realpath ${BASH_SOURCE}`
+sh_fn=$(realpath "${BASH_SOURCE}")
 py_fn=${sh_fn/.sh/.py}
 
 export CONDA_SHLVL=1
-export CONDA_PROMPT_MODIFIER=(/hpcgpfs01/software/cfn-jupyter/software/xas_m    l)
+export CONDA_PROMPT_MODIFIER=(/hpcgpfs01/software/cfn-jupyter/software/xas_ml)
 export CONDA_EXE=/sdcc/u/xiaqu/program/miniconda3/bin/conda
 export PATH=/hpcgpfs01/software/cfn-jupyter/software/xas_ml/bin:$PATH
 export CONDA_PREFIX=/hpcgpfs01/software/cfn-jupyter/software/xas_ml
@@ -23,7 +23,7 @@ hn=$(hostname -s)
 nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_${hn}.txt &
 top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_${hn}.txt &
 
-if [[ ${hn} == ${head_node} ]]
+if [[ ${hn} == "${head_node}" ]]
 then
     echo Land on head node, start Redis
     sed -i "s/^bind.*/bind ${hn}/" redis.conf
@@ -38,7 +38,7 @@ fi
 
 seq ${num_jobs} | parallel -j ${num_jobs} "
 sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-python ${py_fn} -g \$(({%} % 4)) -a ${hn} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_{#}_${hn}.txt
+python ${py_fn} -g \$(({%} % 4)) -a ${head_node} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_{#}_${hn}.txt
 "
 
 redis-cli -h ${hn} shutdown
