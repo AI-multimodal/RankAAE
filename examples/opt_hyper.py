@@ -110,7 +110,7 @@ def main():
                         help="Working directory to write the output files")
     parser.add_argument('-g', '--gpus', type=int, default=4,
                         help='Number of GPUs')
-    parser.add_argument('-j', '--jobs', type=int, default=4,
+    parser.add_argument('-j', '--jobs', type=int, default=8,
                         help='Number of Optuna trial jobs')
     parser.add_argument('-t', '--trials', type=int, default=50,
                         help='Number of total trails to evaluate model')
