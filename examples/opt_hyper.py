@@ -2,10 +2,7 @@
 
 import argparse
 import os
-import socket
-import subprocess
 import time
-import platform
 
 import numpy as np
 import optuna
@@ -96,6 +93,10 @@ def main():
                         help="Working directory to write the output files")
     parser.add_argument('-g', '--gpu_i', type=int, default=0,
                         help='ID for GPU to use')
+    parser.add_argument('-h', 'db_hostname', type=str, default='127.0.0.1',
+                        help='hostname for the Redis DB sever')
+    parser.add_argument('-p', '--db_port', type=int, default=6379,
+                        help='Socket port for the Redis DB sever')
     parser.add_argument('-t', '--trials', type=int, default=50,
                         help='Number of total trails to evaluate model')
     parser.add_argument('--name', type=str, default='opt_daae',
@@ -117,11 +118,13 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
     single_objective = args.single
     merge_objectives = args.merge_objectives
+    storage = optuna.storages.RedisStorage(url=f'redis://{args.db_hostname}:{args.db_port}')
+
     if single_objective:
         study = optuna.create_study(
             direction='maximize',
             study_name=args.name,
-            storage=f'sqlite:///{work_dir}/{args.name}.db',
+            storage=storage,
             load_if_exists=True,
             pruner=HyperbandPruner(min_resource=args.min_resource)
         )
@@ -129,7 +132,7 @@ def main():
         study = optuna.multi_objective.create_study(
             directions=['maximize'] * 3 + ["minimize"] * 4,
             study_name=args.name,
-            storage=f'sqlite:///{work_dir}/{args.name}.db',
+            storage=storage,
             load_if_exists=True)
     base_trail_number = len(study.trials)
     obj = Objective(args.gpu_i, args, opt_config, base_trail_number, single_objective, merge_objectives)

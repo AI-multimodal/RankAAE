@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 num_jobs=$1
+head_node=$2   ## can be obtained from ${SLURMD_NODENAME}
 sh_fn=`realpath ${BASH_SOURCE}`
 py_fn=${sh_fn/.sh/.py}
 
@@ -18,8 +19,16 @@ then
     mkdir "${res_dir}"
 fi
 
-nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_`hostname -s`.txt &
-top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_`hostname -s`.txt &
+hn=$(hostname -s)
+nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_${hn}.txt &
+top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_${hn}.txt &
+
+if [[ ${hn} == ${head_node} ]]
+then
+    echo Land on head node, start Redis
+    sed -i "s/^bind.*/bind ${hn}/" redis.conf
+    redis-server redis.conf &
+fi
 
 log_dir=optuna_run_${SLURM_JOB_ID}
 if [[ ! -d ${log_dir} ]]
@@ -29,5 +38,7 @@ fi
 
 seq ${num_jobs} | parallel -j ${num_jobs} "
 sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-python ${py_fn} -g \$(({%} % 4)) ${@:2} &> ${log_dir}/opt_${SLURM_PROCID}_`hostname -s`.txt
+python ${py_fn} -g \$(({%} % 4)) -h ${hn} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_${hn}.txt
 "
+
+redis-cli -h ${hn} shutdown
