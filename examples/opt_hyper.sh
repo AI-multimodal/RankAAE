@@ -30,8 +30,6 @@ then
     redis-server redis.conf &
 fi
 
-sleep 5
-
 log_dir=optuna_run_${SLURM_JOB_ID}
 if [[ ! -d ${log_dir} ]]
 then
