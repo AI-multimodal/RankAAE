@@ -110,26 +110,6 @@ def main():
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
 
-    task_id = 0
-    job_id = 0
-    if 'SLURM_PROCID' in os.environ:
-        task_id = int(os.environ['SLURM_PROCID'])
-        job_id = int(os.environ['SLURM_JOB_ID'])
-        sleep_seconds = task_id * 3
-        print(f"Task ID is {task_id}, will sleep {sleep_seconds} seconds before start")
-        time.sleep(sleep_seconds)
-
-    if platform.system() == 'Linux':
-        hostname = socket.gethostname().split('.', 1)[0]
-        if not os.path.exists(f'{work_dir}/resource_usage_{job_id}'):
-            os.makedirs(f'{work_dir}/resource_usage_{job_id}', exist_ok=True)
-        cpu_log_file = open(f'{work_dir}/resource_usage_{job_id}/cpu_{task_id}_{hostname}.txt', 'wt')
-        subprocess.Popen(['/usr/bin/top', '-i', '-b', '-d', '31'],
-                         stdout=cpu_log_file)
-        gpu_log_file = open(f'{work_dir}/resource_usage_{job_id}/gpu_{task_id}_{hostname}.txt', 'wt')
-        subprocess.Popen(['/usr/bin/nvidia-smi', '-l', '37'],
-                         stdout=gpu_log_file)
-
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
 
