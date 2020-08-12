@@ -28,6 +28,6 @@ then
 fi
 
 seq ${num_jobs} | parallel -j ${num_jobs} "
-sleep \$(( ({#}-1) * 3 ))
+sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
 python ${py_fn} -g \$(({%} % 4)) ${@:2} &> ${log_dir}/opt_${SLURM_PROCID}_`hostname -s`.txt
 "
