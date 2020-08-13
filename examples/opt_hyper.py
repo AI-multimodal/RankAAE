@@ -58,7 +58,7 @@ class Objective:
             elif v["sampling"] == 'categorical':
                 kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
         work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
-                   f'/{self.base_trail_number+trial.number:05d}_{time.time_ns() - 1597090000000000000}'
+                   f'/{trial.number:05d}_{time.time_ns() - 1597090000000000000}'
         trainer = Trainer.from_data(self.trainer_args.data_file,
                                     igpu=self.igpu,
                                     max_epoch=self.trainer_args.max_epoch,
