@@ -26,7 +26,7 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
-                 verbose=True, work_dir='.'):
+                 verbose=True, work_dir='.', supervise_use_mse=True):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -71,6 +71,7 @@ class Trainer:
         self.n_subclasses = n_subclasses
         self.verbose = verbose
         self.work_dir = work_dir
+        self.supervise_use_mse = supervise_use_mse
 
     def sample_categorical(self):
         """
@@ -232,7 +233,10 @@ class Trainer:
                 # Init gradients
                 self.zerograd()
                 _, y = self.encoder(spec_in)
-                cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
+                if self.supervise_use_mse:
+                    cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
+                else:
+                    cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
 
                 cat_semisupervise_loss.backward()
                 Cat_solver.step()
@@ -357,7 +361,10 @@ class Trainer:
             zero_conc_selector = zero_conc_selector.to(self.device)
             bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-3, dtype=torch.float,
                                       device=self.device)
-            cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
+            if self.supervise_use_mse:
+                cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
+            else:
+                cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
 
             loss_dict = {
                 'cat_loss': cat_semisupervise_loss.item()
