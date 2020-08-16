@@ -197,7 +197,7 @@ class Trainer:
                 pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
                 pure_selector = pure_selector.to(self.device)
                 zero_conc_selector = zero_conc_selector.to(self.device)
-                bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-3, dtype=torch.float,
+                bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-100, dtype=torch.float,
                                           device=self.device)
 
                 # Init gradients
