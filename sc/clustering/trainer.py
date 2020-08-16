@@ -26,7 +26,7 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
-                 verbose=True, work_dir='.', supervise_use_mse=True):
+                 verbose=True, work_dir='.', supervise_use_mse=False):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -236,7 +236,8 @@ class Trainer:
                 if self.supervise_use_mse:
                     cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
                 else:
-                    cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
+                    y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0-1.0E-100)
+                    cat_semisupervise_loss = bce_loss(y_sel, bce_eps)
 
                 cat_semisupervise_loss.backward()
                 Cat_solver.step()
@@ -364,7 +365,8 @@ class Trainer:
             if self.supervise_use_mse:
                 cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
             else:
-                cat_semisupervise_loss = bce_loss(y[zero_conc_selector], bce_eps)
+                y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0 - 1.0E-100)
+                cat_semisupervise_loss = bce_loss(y_sel, bce_eps)
 
             loss_dict = {
                 'cat_loss': cat_semisupervise_loss.item()
