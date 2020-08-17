@@ -107,6 +107,8 @@ def main():
                         help='Merge all all metrix into one')
     parser.add_argument("--min_resource", type=int, default=50,
                         help='Min Resource for HyperbandPruner')
+    parser.add_argument("--timeout", type=int, default=150,
+                        help='Maximum time allowed per trial')
     args = parser.parse_args()
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
@@ -136,7 +138,7 @@ def main():
             load_if_exists=True)
     base_trail_number = len(study.trials)
     obj = Objective(args.gpu_i, args, opt_config, base_trail_number, single_objective, merge_objectives)
-    study.optimize(obj, n_trials=args.trials)
+    study.optimize(obj, n_trials=args.trials, timeout=args.timeout)
 
     print("Number of finished trials: ", len(study.trials))
     if single_objective:
