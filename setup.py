@@ -13,5 +13,15 @@ setup(
     author_email='xiaqu@bnl.gov; mrc2215@columbia.edu',
     description='Semi-supervised Clustering',
     python_requires='>=3.7',
-    install_requires=required_list
+    install_requires=required_list,
+    entry_points={
+        "console_scripts": [
+            "train_sc = sc.cmd.train_sc:main",
+            "test_model = sc.cmd.test_model:main"
+        ]
+    },
+    scripts=[
+        "sc/cmd/opt_hyper.sh"
+    ]
 )
+

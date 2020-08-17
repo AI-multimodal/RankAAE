@@ -485,7 +485,8 @@ class Trainer:
 
     @staticmethod
     def test_models(csv_fn, n_coord_num=3, n_subclasses=3,
-                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.'):
+                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
+                    final_model_name='fina.pt', best_model_name='best.pt'):
         final_spuncat = torch.load(f'{work_dir}/final.pt', map_location=torch.device('cpu'))
         best_spuncat = torch.load(f'{work_dir}/best.pt', map_location=torch.device('cpu'))
 
