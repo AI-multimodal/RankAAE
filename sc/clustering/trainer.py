@@ -403,7 +403,7 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy] + style_shapiro + style_mean + style_std
+            metrics = [cat_accuracy] + style_shapiro
             if callback is not None:
                 callback(epoch, metrics)
             # plot images
