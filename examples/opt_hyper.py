@@ -62,7 +62,7 @@ class Objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
         else:
             trainer_callback = None
-        metrics = None
+        metrics = 0.0
         for _ in range(max_redo):
             try:
                 work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
