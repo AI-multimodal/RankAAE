@@ -49,7 +49,7 @@ fi
 
 seq ${num_jobs} | parallel -j ${num_jobs} "
 sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-python opt_hyper_single -g \$(({%} % ${num_gpus})) -a ${head_node} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_{#}_${hn}.txt
+opt_hyper_single -g \$(({%} % ${num_gpus})) -a ${head_node} ${@:3} &> ${log_dir}/opt_${SLURM_PROCID}_{#}_${hn}.txt
 "
 
 redis-cli -h ${hn} shutdown
