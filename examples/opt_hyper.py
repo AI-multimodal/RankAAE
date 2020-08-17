@@ -19,11 +19,11 @@ class TrainerCallBack:
         super().__init__()
         self.merge_objectives = merge_objectives
         self.trial = trial
+        self.metric_weights = [1.0] * 3
 
     def __call__(self, epoch, metrics):
         if self.merge_objectives:
-            weights = [100, 50.0, 50.0, -1.0, -1.0, -1.0, -1.0]
-            metrics = (np.array(weights) * np.array(metrics)).sum()
+            metrics = (np.array(self.metric_weights) * np.array(metrics)).sum()
         else:
             metrics = metrics[0]
 
@@ -85,8 +85,7 @@ class Objective:
             print(f"Can't fix train error after tied {max_redo} times")
         if self.single_objective:
             if self.merge_objectives:
-                weights = [100, 50.0, 50.0, -1.0, -1.0, -1.0, -1.0]
-                metrics = (np.array(weights) * np.array(metrics)).sum()
+                metrics = (np.array(trainer_callback.metric_weights) * np.array(metrics)).sum()
             else:
                 metrics = metrics[0]
         return metrics
