@@ -9,6 +9,7 @@ import optuna
 import yaml
 from optuna.pruners import HyperbandPruner
 from optuna.trial import Trial
+from optuna.exceptions import OptunaError, TrialPruned
 
 from sc.clustering.trainer import Trainer
 
@@ -28,7 +29,7 @@ class TrainerCallBack:
 
         self.trial.report(metrics, epoch)
         if self.trial.should_prune():
-            raise optuna.TrialPruned()
+            raise TrialPruned()
 
 
 class Objective:
@@ -42,7 +43,7 @@ class Objective:
         self.single_objective = single_objective
         self.merge_objectives = merge_objectives
 
-    def __call__(self, trial: Trial):
+    def __call__(self, trial: Trial, max_redo=5):
         kwargs = {}
         for k, v in self.opt_config.items():
             if v["sampling"] != 'the categorical':
@@ -57,19 +58,31 @@ class Objective:
                 kwargs[k] = trial.suggest_loguniform(name=k, low=low, high=high)
             elif v["sampling"] == 'categorical':
                 kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
-        work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
-                   f'/{trial.number:05d}_{time.time_ns() - 1597090000000000000}'
-        trainer = Trainer.from_data(self.trainer_args.data_file,
-                                    igpu=self.igpu,
-                                    max_epoch=self.trainer_args.max_epoch,
-                                    verbose=self.trainer_args.verbose,
-                                    work_dir=work_dir,
-                                    **kwargs)
         if self.single_objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
         else:
             trainer_callback = None
-        metrics = trainer.train(trainer_callback)
+        metrics = None
+        for _ in range(max_redo):
+            try:
+                work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
+                           f'/{trial.number:05d}_{time.time_ns() - 1597090000000000000}'
+                trainer = Trainer.from_data(self.trainer_args.data_file,
+                                            igpu=self.igpu,
+                                            max_epoch=self.trainer_args.max_epoch,
+                                            verbose=self.trainer_args.verbose,
+                                            work_dir=work_dir,
+                                            **kwargs)
+                metrics = trainer.train(trainer_callback)
+                redo = False
+            except OptunaError:
+                raise
+            except RuntimeError:
+                redo = True
+            if not redo:
+                break
+        else:
+            print(f"Can't fix train error after tied {max_redo} times")
         if self.single_objective:
             if self.merge_objectives:
                 weights = [100, 50.0, 50.0, -1.0, -1.0, -1.0, -1.0]
