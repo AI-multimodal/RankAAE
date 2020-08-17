@@ -103,7 +103,10 @@ class DecodingBlock(nn.Module):
     def __init__(self, in_channels, out_channels, in_len, excitation=4, dropout_rate=0.2):
         super(DecodingBlock, self).__init__()
         out_len = in_len * 4
-        self.bn1 = nn.BatchNorm1d(in_channels, affine=False)
+        if in_len > 1:
+            self.bn1 = nn.BatchNorm1d(in_channels, affine=False)
+        else:
+            self.bn1 = None
         self.relu1 = nn.PReLU(num_parameters=out_channels, init=0.01)
         self.conv1 = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=2, stride=2)
         self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
@@ -133,7 +136,10 @@ class DecodingBlock(nn.Module):
         self.relu_short = nn.PReLU(num_parameters=out_channels, init=0.01)
 
     def forward(self, x):
-        out = self.bn1(x)
+        if self.bn1 is not None:
+            out = self.bn1(x)
+        else:
+            out = x
         residual = out
         out = self.conv1(out)
         out = self.relu1(out)
@@ -234,6 +240,7 @@ class Encoder(nn.Module):
         )
         self.lin1 = nn.Linear(32, nclasses)
         self.lin3 = nn.Linear(32, nstyle)
+        self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
 
     def forward(self, spec):
         batch_size = spec.size()[0]
@@ -242,7 +249,9 @@ class Encoder(nn.Module):
         output = output.reshape(batch_size, 32)
 
         z_gauss = self.lin3(output)
-        y = nn.functional.softmax(self.lin1(output), dim=1)
+        z_gauss = self.bn_style(z_gauss)
+        y = self.lin1(output)
+        y = nn.functional.softmax(y, dim=1)
 
         return z_gauss, y
 
