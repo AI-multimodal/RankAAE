@@ -23,7 +23,7 @@ class Trainer:
                  n_coord_num=3, n_subclasses=3, batch_size=111, max_epoch=300,
                  tb_logdir="runs", zero_conc_thresh=0.05, use_cnn_dis=False,
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
-                 sch_factor=0.25, sch_patience=300,
+                 sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
                  verbose=True, work_dir='.', supervise_use_mse=False):
@@ -61,6 +61,7 @@ class Trainer:
         self.alpha_limit = alpha_limit
         self.sch_factor = sch_factor
         self.sch_patience = sch_patience
+        self.spec_noise = spec_noise
         self.lr_ratio_Reconn = lr_ratio_Reconn
         self.lr_ratio_Mutual = lr_ratio_Mutual
         self.lr_ratio_Smooth = lr_ratio_Smooth
@@ -190,6 +191,8 @@ class Trainer:
 
             for spec_in, cn_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
+                spec_target = spec_in.clone()
+                spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 zero_conc_selector = (cn_in < self.zero_conc_thresh)
                 zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
                 zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
@@ -249,7 +252,7 @@ class Trainer:
                 z, y = self.encoder(spec_in)
                 spec_re = self.decoder(z, y)
 
-                recon_loss = mse_dis(spec_re, spec_in)
+                recon_loss = mse_dis(spec_re, spec_target)
                 recon_loss.backward()
                 RE_solver.step()
 
