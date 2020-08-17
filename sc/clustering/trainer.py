@@ -441,7 +441,7 @@ class Trainer:
                   n_coord_num=3, n_subclasses=3, nstyle=2,
                   dropout_rate=0.5, grad_rev_dropout_rate=0.5, grad_rev_noise=0.1, grad_rev_beta=1.1,
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
-                  sch_factor=0.25, sch_patience=300,
+                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
@@ -477,7 +477,7 @@ class Trainer:
                           nstyle=nstyle, n_coord_num=n_coord_num, n_subclasses=n_subclasses,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
-                          sch_factor=sch_factor, sch_patience=sch_patience,
+                          sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
                           lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, verbose=verbose, work_dir=work_dir)
