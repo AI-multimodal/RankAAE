@@ -119,7 +119,7 @@ def main():
                         help='Merge all all metrix into one')
     parser.add_argument("--min_resource", type=int, default=50,
                         help='Min Resource for HyperbandPruner')
-    parser.add_argument("--timeout", type=int, default=150,
+    parser.add_argument("--timeout", type=int, default=None,
                         help='Maximum time allowed per trial')
     args = parser.parse_args()
 
