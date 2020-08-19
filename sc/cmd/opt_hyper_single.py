@@ -109,7 +109,7 @@ def main():
                         help='hostname for the Redis DB sever')
     parser.add_argument('-p', '--db_port', type=int, default=6379,
                         help='Socket port for the Redis DB sever')
-    parser.add_argument('-t', '--trials', type=int, default=50,
+    parser.add_argument('-t', '--trials', type=int, default=None,
                         help='Number of total trails to evaluate model')
     parser.add_argument('--name', type=str, default='opt_daae',
                         help='Number of total trails to evaluate model')
