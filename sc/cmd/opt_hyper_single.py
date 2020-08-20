@@ -77,7 +77,9 @@ class Objective:
                 redo = False
             except OptunaError:
                 raise
-            except RuntimeError:
+            except RuntimeError as ex:
+                print(f"Trail ##{trial.number} failed with RuntimeError \"{ex.args}\"")
+                time.sleep(5)
                 redo = True
             if not redo:
                 break
