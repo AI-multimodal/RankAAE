@@ -217,8 +217,10 @@ class Trainer:
                 fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
                                                device=self.device)
                 fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-
-                G_loss = nll_loss(real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
+                G_loss = nll_loss(real_gauss_pred[~real_gauss_pred.isnan().any(dim=-1)],
+                                  real_gauss_label[~real_gauss_pred.isnan().any(dim=-1)]) + \
+                         nll_loss(fake_gauss_pred[~fake_gauss_pred.isnan().any(dim=-1)],
+                                  fake_guass_lable[~fake_gauss_pred.isnan().any(dim=-1)])
                 G_loss.backward()
                 G_solver.step()
 
@@ -240,7 +242,8 @@ class Trainer:
                     cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
                 else:
                     y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0-1.0E-100)
-                    cat_semisupervise_loss = bce_loss(y_sel, bce_eps)
+                    cat_semisupervise_loss = bce_loss(y_sel[~y_sel.isnan()],
+                                                      bce_eps[~y_sel.isnan()])
 
                 cat_semisupervise_loss.backward()
                 Cat_solver.step()
@@ -369,7 +372,8 @@ class Trainer:
                 cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
             else:
                 y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0 - 1.0E-100)
-                cat_semisupervise_loss = bce_loss(y_sel, bce_eps)
+                cat_semisupervise_loss = bce_loss(y_sel[~y_sel.isnan()],
+                                                  bce_eps[~y_sel.isnan()])
 
             loss_dict = {
                 'cat_loss': cat_semisupervise_loss.item()
@@ -386,7 +390,10 @@ class Trainer:
             fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
 
-            G_loss = nll_loss(real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
+            G_loss = nll_loss(real_gauss_pred[~real_gauss_pred.isnan().any(dim=-1)],
+                              real_gauss_label[~real_gauss_pred.isnan().any(dim=-1)]) + \
+                     nll_loss(fake_gauss_pred[~fake_gauss_pred.isnan().any(dim=-1)],
+                              fake_guass_lable[~fake_gauss_pred.isnan().any(dim=-1)],)
             loss_dict = {
                 'G_loss': G_loss.item()
             }
