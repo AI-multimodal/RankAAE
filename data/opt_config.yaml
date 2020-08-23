@@ -19,8 +19,8 @@ grad_rev_noise:
   low: 0.001
   sampling: loguniform
 spec_noise:
-  high: 0.5
-  low: 0.001
+  high: 0.1
+  low: 0.0001
   sampling: loguniform
 lr_ratio_Style:
   high: 5.0
