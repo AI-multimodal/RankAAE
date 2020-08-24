@@ -33,7 +33,7 @@ class TrainerCallBack:
 
 
 class Objective:
-    def __init__(self, igpu, trainer_args, opt_config, base_trail_number,
+    def __init__(self, igpu, trainer_args, opt_config, fixed_config, base_trail_number,
                  single_objective, merge_objectives):
         super().__init__()
         self.igpu = igpu
@@ -42,6 +42,7 @@ class Objective:
         self.base_trail_number = base_trail_number
         self.single_objective = single_objective
         self.merge_objectives = merge_objectives
+        self.fixed_config = fixed_config
 
     def __call__(self, trial: Trial, max_redo=5):
         kwargs = {}
@@ -62,6 +63,8 @@ class Objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
         else:
             trainer_callback = None
+        trainer_config = self.fixed_config.copy()
+        trainer_config.update(kwargs)
         metrics = 0.0
         for _ in range(max_redo):
             try:
@@ -72,7 +75,7 @@ class Objective:
                                             max_epoch=self.trainer_args.max_epoch,
                                             verbose=self.trainer_args.verbose,
                                             work_dir=work_dir,
-                                            **kwargs)
+                                            **trainer_config)
                 metrics = trainer.train(trainer_callback)
                 redo = False
             except OptunaError:
@@ -97,6 +100,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, required=True,
                         help='Config for parameter to optimize in YAML format')
+    parser.add_argument('--fixed_params', type=str, default=None,
+                        help='Config for fixed parameters to in YAML format')
     parser.add_argument('-d', '--data_file', type=str, required=True,
                         help='File name of the dataset in CSV format')
     parser.add_argument('-e', '--max_epoch', type=int, default=2000,
@@ -130,6 +135,15 @@ def main():
     with open(args.config) as f:
         opt_config = yaml.full_load(f)
 
+    if args.fixed_params is None:
+        fixed_config = dict()
+    else:
+        with open(args.fixed_params) as f:
+            fixed_config = yaml.full_load(f)
+    oc = sorted(set(opt_config.keys()))
+    if len(oc) > 0:
+        raise ValueError(f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
+
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
     single_objective = args.single
@@ -151,7 +165,7 @@ def main():
             storage=storage,
             load_if_exists=True)
     base_trail_number = len(study.trials)
-    obj = Objective(args.gpu_i, args, opt_config, base_trail_number, single_objective, merge_objectives)
+    obj = Objective(args.gpu_i, args, opt_config, fixed_config, base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, timeout=args.timeout)
 
     print("Number of finished trials: ", len(study.trials))
