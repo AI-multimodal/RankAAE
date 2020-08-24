@@ -140,7 +140,7 @@ def main():
     else:
         with open(args.fixed_params) as f:
             fixed_config = yaml.full_load(f)
-    oc = sorted(set(opt_config.keys()))
+    oc = sorted(set(opt_config.keys()) & set(fixed_config.keys()))
     if len(oc) > 0:
         raise ValueError(f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
 
