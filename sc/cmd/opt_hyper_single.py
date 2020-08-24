@@ -132,13 +132,13 @@ def main():
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
 
-    with open(args.config) as f:
+    with open(os.path.expandvars(os.path.expanduser(args.config))) as f:
         opt_config = yaml.full_load(f)
 
     if args.fixed_params is None:
         fixed_config = dict()
     else:
-        with open(args.fixed_params) as f:
+        with open(os.path.expandvars(os.path.expanduser(args.fixed_params))) as f:
             fixed_config = yaml.full_load(f)
     oc = sorted(set(opt_config.keys()) & set(fixed_config.keys()))
     if len(oc) > 0:
