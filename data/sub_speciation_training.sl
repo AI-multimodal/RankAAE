@@ -2,7 +2,7 @@
 #SBATCH -p long
 #SBATCH -J optuna
 #SBATCH --time=1-00:00:00
-#SBATCH --nodes=4
+#SBATCH --nodes=8
 #SBATCH --gres=gpu:4
 #SBATCH -c 36
 
@@ -28,6 +28,6 @@ then
 fi
 
 
-srun -n ${SLURM_JOB_NUM_NODES} --ntasks-per-node 1 -c 36 opt_hyper.sh 8 ${SLURMD_NODENAME} -s -m -d ti_feff_cn_spec.csv -c opt_config.yaml
+srun -n ${SLURM_JOB_NUM_NODES} --ntasks-per-node 1 -c 36 opt_hyper.sh 8 ${SLURMD_NODENAME} -s -m -d ti_feff_cn_spec.csv -c opt_config.yaml --fixed_params fix_config.yaml
 
 
