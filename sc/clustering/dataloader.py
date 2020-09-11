@@ -17,7 +17,8 @@ class CoordNumSpectraDataset(Dataset):
         assert split_portion in portion_options
         i_prev = portion_options.index(split_portion)
         df = full_df[sum(n_train_val_test[:i_prev]):sum(n_train_val_test[:i_prev+1])]
-        assert df.columns.to_list()[:n_coord_num + 1] == ['CN_4', 'CN_5', 'CN_6', 'ENE_4965.000']
+        assert df.columns.to_list()[:n_coord_num + 1] == ['CN_4', 'CN_5', 'CN_6']
+        assert "ENE_" in df.columns.to_list()[n_coord_num + 1]
         data = df.to_numpy()
         self.cn = data[:, :n_coord_num]
         self.spec = data[:, n_coord_num:]
