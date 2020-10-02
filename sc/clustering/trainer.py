@@ -455,7 +455,7 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy] + style_shapiro + [recon_loss.item(), h_loss.item(), avg_I]
+            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), h_loss.item(), avg_I]
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:

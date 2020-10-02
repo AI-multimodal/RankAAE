@@ -20,7 +20,7 @@ class TrainerCallBack:
         super().__init__()
         self.merge_objectives = merge_objectives
         self.trial = trial
-        self.metric_weights = [1.0] * 3 + [-1.0] + [-1.0E-2] * 2
+        self.metric_weights = [1.0] * 2 + [-1.0] + [-1.0E-2] * 2
 
     def __call__(self, epoch, metrics):
         if self.merge_objectives:
