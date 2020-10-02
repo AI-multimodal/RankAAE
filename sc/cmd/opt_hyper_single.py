@@ -110,7 +110,7 @@ def main():
     parser.add_argument('-e', '--max_epoch', type=int, default=2000,
                         help='Maximum iterations')
     parser.add_argument('-v', '--verbose', action="store_true",
-                        help='Maximum iterations')
+                        help='Show more information')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
     parser.add_argument('-g', '--gpu_i', type=int, default=0,
