@@ -23,6 +23,7 @@ class CoordNumSpectraDataset(Dataset):
         self.cn = data[:, :n_coord_num]
         self.spec = data[:, n_coord_num:]
         self.transform = transform
+        self.atom_index = df.index.to_list()
 
         train_df = full_df[:n_train_val_test[0]]
         sampling_weights_per_cn = 1.0 / train_df.to_numpy()[:, :n_coord_num].mean(axis=0)
