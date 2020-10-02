@@ -150,7 +150,7 @@ def main():
         raise ValueError(f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
 
     if args.chem_dict is not None:
-        with open("bvs_q_cn_st.pkl", 'rb') as f:
+        with open(os.path.expandvars(os.path.expanduser(args.chem_dict)), 'rb') as f:
             fixed_config["chem_dict"] = pickle.load(f)
 
     if not os.path.exists(work_dir):
