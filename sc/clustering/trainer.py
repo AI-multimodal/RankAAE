@@ -13,7 +13,7 @@ from sc.clustering.dataloader import get_train_val_test_dataloaders
 from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
 from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor
-from scipy.stats import shapiro
+from scipy.stats import shapiro, spearmanr
 
 
 class Trainer:
@@ -26,7 +26,7 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
-                 verbose=True, work_dir='.', supervise_use_mse=False):
+                 chem_dict=None, verbose=True, work_dir='.', supervise_use_mse=False):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -70,6 +70,7 @@ class Trainer:
         self.lr_ratio_CR = lr_ratio_CR
         self.n_coord_num = n_coord_num
         self.n_subclasses = n_subclasses
+        self.chem_dict = chem_dict
         self.verbose = verbose
         self.work_dir = work_dir
         self.supervise_use_mse = supervise_use_mse
@@ -130,6 +131,32 @@ class Trainer:
                          ax=ax)
         return fig
 
+    def compute_first_two_style_bvs_spearman(self, styles_np, iclasses_np):
+        val_ds = self.val_loader.dataset
+        if "val_bvs" not in self.__dict__:
+            keys_bvs_val = sorted(set(self.chem_dict['bvs'].keys()) & set(val_ds.atom_index))
+            keys_bvs_val = list(filter(lambda k: self.chem_dict['bvs'][k] > 1.0E-5, keys_bvs_val))
+            self.val_bvs_idx = np.array([ai in keys_bvs_val for ai in val_ds.atom_index])
+            self.val_bvs = np.array([self.chem_dict['bvs'][tuple(ai)]
+                                     for ai in np.array(val_ds.atom_index)[self.val_bvs_idx].tolist()])
+        styles_with_bvs = styles_np[self.val_bvs_idx]
+        iclasses_with_bvs = iclasses_np[self.val_bvs_idx]
+
+        bvs_mean_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].mean()
+                                        for i in range(self.nclasses * self.n_subclasses)])
+        bvs_std_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].st()
+                                      for i in range(self.nclasses * self.n_subclasses)])
+        styles_mean_per_iclass = np.array([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
+                                           for i in range(self.nclasses * self.n_subclasses)])
+
+        normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
+            bvs_std_per_iclass[iclasses_with_bvs]
+        centered_style_val_for_bvs = styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]
+        sm = [spearmanr(centered_style_val_for_bvs[:, i], normed_val_bvs).correlation
+              for i in range(self.nstyle)]
+        max_cor, sec_cor = np.sort(np.fabs(sm))[::-1][:2]
+        return max_cor, sec_cor
+
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
@@ -188,7 +215,8 @@ class Trainer:
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
-
+            n_batch = len(self.train_loader)
+            avg_I = 0.0
             for spec_in, cn_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
@@ -275,6 +303,8 @@ class Trainer:
                 I_loss.backward()
                 I_solver.step()
 
+                avg_I += I_loss.item()
+
                 # Init gradients
                 self.zerograd()
 
@@ -311,6 +341,7 @@ class Trainer:
                     }
                     self.tb_writer.add_scalars("Adversarial/train", loss_dict, global_step=epoch)
 
+            avg_I /= n_batch
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
@@ -335,7 +366,8 @@ class Trainer:
             style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
 
             class_probs = y.detach().cpu().numpy()
-            class_pred = class_probs.argmax(axis=-1) // self.n_subclasses
+            iclasses = class_probs.argmax(axis=-1)
+            class_pred = iclasses // self.n_subclasses
             class_true = cn_in.detach().cpu().numpy().argmax(axis=-1)
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
 
@@ -349,6 +381,15 @@ class Trainer:
             }
             if self.verbose:
                 self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
+
+            if self.chem_dict is not None:
+                max_style_bvs_cor, sec_style_bvs_cor = self.compute_first_two_style_bvs_spearman(style_np, iclasses)
+                loss_dict = {
+                    'Max': max_style_bvs_cor,
+                    'Second': sec_style_bvs_cor
+                }
+                if self.verbose:
+                    self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
 
             pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
             pure_selector = pure_selector.to(self.device)
@@ -413,7 +454,9 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy] + style_shapiro + [recon_loss.item(), h_loss.item(), I_loss.item()]
+            metrics = [cat_accuracy] + style_shapiro + [recon_loss.item(), h_loss.item(), avg_I]
+            if self.chem_dict is not None:
+                metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
                 callback(epoch, metrics)
             # plot images
@@ -452,7 +495,7 @@ class Trainer:
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
-                  verbose=True, work_dir='.'):
+                  chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
@@ -487,7 +530,8 @@ class Trainer:
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
-                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, verbose=verbose, work_dir=work_dir)
+                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, chem_dict=chem_dict,
+                          verbose=verbose, work_dir=work_dir)
         return trainer
 
     @staticmethod

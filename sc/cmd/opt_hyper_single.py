@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import pickle
 import time
 
 import numpy as np
@@ -61,6 +62,8 @@ class Objective:
                 kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
         if self.single_objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
+            if "chem_dict" in self.fixed_config:
+                trainer_callback.metric_weights += [1.0, -0.5]
         else:
             trainer_callback = None
         trainer_config = self.fixed_config.copy()
@@ -128,6 +131,8 @@ def main():
                         help='Min Resource for HyperbandPruner')
     parser.add_argument("--timeout", type=int, default=None,
                         help='Maximum time allowed per trial')
+    parser.add_argument("--chem_dict", type=str, default=None,
+                        help='File name for auxiliary chemical information')
     args = parser.parse_args()
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
@@ -143,6 +148,10 @@ def main():
     oc = sorted(set(opt_config.keys()) & set(fixed_config.keys()))
     if len(oc) > 0:
         raise ValueError(f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
+
+    if args.chem_dict is not None:
+        with open("bvs_q_cn_st.pkl", 'rb') as f:
+            fixed_config["chem_dict"] = pickle.load(f)
 
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
