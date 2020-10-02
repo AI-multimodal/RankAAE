@@ -152,6 +152,7 @@ class Trainer:
         styles_mean_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
                                            if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
                                            for i in range(self.nclasses)])
+        bvs_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
 
         normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
