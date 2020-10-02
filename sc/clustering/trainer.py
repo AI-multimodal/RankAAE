@@ -132,6 +132,7 @@ class Trainer:
         return fig
 
     def compute_first_two_style_bvs_spearman(self, styles_np, iclasses_np):
+        styles_np = styles_np.T
         val_ds = self.val_loader.dataset
         if "val_bvs" not in self.__dict__:
             keys_bvs_val = sorted(set(self.chem_dict['bvs'].keys()) & set(val_ds.atom_index))
