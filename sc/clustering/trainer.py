@@ -145,7 +145,7 @@ class Trainer:
 
         bvs_mean_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].mean()
                                         for i in range(self.nclasses * self.n_subclasses)])
-        bvs_std_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].st()
+        bvs_std_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].std()
                                       for i in range(self.nclasses * self.n_subclasses)])
         styles_mean_per_iclass = np.array([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
                                            for i in range(self.nclasses * self.n_subclasses)])
