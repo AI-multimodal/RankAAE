@@ -145,13 +145,13 @@ class Trainer:
 
         bvs_mean_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].mean()
                                         if (iclasses_with_bvs == i).any() else 0.0
-                                        for i in range(self.nclasses * self.n_subclasses)])
+                                        for i in range(self.nclasses)])
         bvs_std_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].std()
                                        if (iclasses_with_bvs == i).any() else 0.0
-                                       for i in range(self.nclasses * self.n_subclasses)])
-        styles_mean_per_iclass = np.array([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
-                                           if (iclasses_with_bvs == i).any() else 0.0
-                                           for i in range(self.nclasses * self.n_subclasses)])
+                                       for i in range(self.nclasses)])
+        styles_mean_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
+                                           if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
+                                           for i in range(self.nclasses)])
 
         normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
