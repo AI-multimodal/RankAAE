@@ -152,7 +152,11 @@ class Trainer:
         styles_mean_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
                                            if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
                                            for i in range(self.nclasses)])
+        styles_std_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].std(axis=0)
+                                           if (iclasses_with_bvs == i).any() else np.ones(self.nstyle)
+                                           for i in range(self.nclasses)])
         bvs_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
+        styles_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
         cor_sign_per_iclass = np.sign(
             [[spearmanr(styles_with_bvs[iclasses_with_bvs == ic, iy],
                         self.val_bvs[iclasses_with_bvs == ic]).correlation
@@ -163,7 +167,8 @@ class Trainer:
         normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
         normed_val_bvs = (cor_sign_per_iclass[iclasses_with_bvs].T * normed_val_bvs).T
-        centered_style_val_for_bvs = styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]
+        centered_style_val_for_bvs = (styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]) / \
+            styles_std_per_iclass[iclasses_with_bvs]
         sm = [spearmanr(centered_style_val_for_bvs[:, i], normed_val_bvs[:, i]).correlation
               for i in range(self.nstyle)]
         max_cor, sec_cor = np.sort(np.fabs(sm))[::-1][:2]
