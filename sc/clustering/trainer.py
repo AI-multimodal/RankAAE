@@ -155,8 +155,8 @@ class Trainer:
         styles_std_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].std(axis=0)
                                            if (iclasses_with_bvs == i).any() else np.ones(self.nstyle)
                                            for i in range(self.nclasses)])
-        bvs_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
-        styles_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
+        bvs_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
+        styles_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
         cor_sign_per_iclass = np.sign(
             [[spearmanr(styles_with_bvs[iclasses_with_bvs == ic, iy],
                         self.val_bvs[iclasses_with_bvs == ic]).correlation
