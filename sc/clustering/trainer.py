@@ -153,11 +153,17 @@ class Trainer:
                                            if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
                                            for i in range(self.nclasses)])
         bvs_std_per_iclass[bvs_std_per_iclass < 1.0E-5] = 1.0E-5
-
+        cor_sign_per_iclass = np.array(
+            [[spearmanr(styles_with_bvs[iclasses_with_bvs == ic, iy],
+                        self.val_bvs[iclasses_with_bvs == ic]).correlation
+              for iy in range(self.nstyle)]
+             for ic in range(self.nclasses)])
+        cor_sign_per_iclass[np.fabs(cor_sign_per_iclass)<0.1] = 1.0
         normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
+        normed_val_bvs = (cor_sign_per_iclass[iclasses_with_bvs].T * normed_val_bvs).T
         centered_style_val_for_bvs = styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]
-        sm = [spearmanr(centered_style_val_for_bvs[:, i], normed_val_bvs).correlation
+        sm = [spearmanr(centered_style_val_for_bvs[:, i], normed_val_bvs[:, i]).correlation
               for i in range(self.nstyle)]
         max_cor, sec_cor = np.sort(np.fabs(sm))[::-1][:2]
         return max_cor, sec_cor
