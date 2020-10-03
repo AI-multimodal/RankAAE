@@ -158,7 +158,7 @@ class Trainer:
                         self.val_bvs[iclasses_with_bvs == ic]).correlation
               for iy in range(self.nstyle)]
              for ic in range(self.nclasses)])
-        cor_sign_per_iclass[np.fabs(cor_sign_per_iclass)<0.1] = 1.0
+        cor_sign_per_iclass[np.fabs(cor_sign_per_iclass) < 0.1] = 1.0
         normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
         normed_val_bvs = (cor_sign_per_iclass[iclasses_with_bvs].T * normed_val_bvs).T
