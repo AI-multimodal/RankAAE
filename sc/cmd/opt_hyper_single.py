@@ -48,7 +48,7 @@ class Objective:
     def __call__(self, trial: Trial, max_redo=5):
         kwargs = {}
         for k, v in self.opt_config.items():
-            if v["sampling"] != 'the categorical':
+            if v["sampling"] != 'categorical':
                 low, high = v["low"], v["high"]
             else:
                 low, high = None, None
@@ -69,13 +69,17 @@ class Objective:
         trainer_config = self.fixed_config.copy()
         trainer_config.update(kwargs)
         metrics = 0.0
+        if "batchsize" in kwargs:
+            max_epoch = self.trainer_args.max_epoch // kwargs["batchsize"]
+        else:
+            max_epoch = self.trainer_args.max_epoch
         for _ in range(max_redo):
             try:
                 work_dir = f'{os.path.expandvars(os.path.expanduser(self.trainer_args.work_dir))}/trials' \
                            f'/{trial.number:05d}_{time.time_ns() - 1597090000000000000}'
                 trainer = Trainer.from_data(self.trainer_args.data_file,
                                             igpu=self.igpu,
-                                            max_epoch=self.trainer_args.max_epoch,
+                                            max_epoch=max_epoch,
                                             verbose=self.trainer_args.verbose,
                                             work_dir=work_dir,
                                             **trainer_config)
