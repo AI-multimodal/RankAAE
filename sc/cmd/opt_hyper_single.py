@@ -70,7 +70,7 @@ class Objective:
         trainer_config.update(kwargs)
         metrics = 0.0
         if "batchsize" in kwargs:
-            max_epoch = self.trainer_args.max_epoch // kwargs["batchsize"]
+            max_epoch = (self.trainer_args.max_epoch * kwargs["batchsize"]) // 512
         else:
             max_epoch = self.trainer_args.max_epoch
         for _ in range(max_redo):
