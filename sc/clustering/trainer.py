@@ -385,7 +385,7 @@ class Trainer:
             style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
 
             style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
-                                             for j1, j2 in itertools.combinations(style_np.shape[0], 2)]))
+                                             for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)]))
 
             class_probs = y.detach().cpu().numpy()
             iclasses = class_probs.argmax(axis=-1)
