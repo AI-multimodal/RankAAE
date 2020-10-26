@@ -126,7 +126,7 @@ def main():
     parser.add_argument('-t', '--trials', type=int, default=None,
                         help='Number of total trails to evaluate model')
     parser.add_argument('--name', type=str, default='opt_daae',
-                        help='Number of total trails to evaluate model')
+                        help='Database name')
     parser.add_argument('-s', "--single", action="store_true",
                         help='Optimize first metric only, this option will activate pruner')
     parser.add_argument('-m', "--merge_objectives", action="store_true",
