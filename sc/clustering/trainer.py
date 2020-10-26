@@ -1,3 +1,5 @@
+import itertools
+
 import torch
 from torch import nn
 import numpy as np
@@ -382,6 +384,9 @@ class Trainer:
             style_mean = np.fabs(style_np.mean(axis=1)).tolist()
             style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
 
+            style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
+                                             for j1, j2 in itertools.combinations(style_np.shape[0], 2)]))
+
             class_probs = y.detach().cpu().numpy()
             iclasses = class_probs.argmax(axis=-1)
             class_pred = iclasses // self.n_subclasses
@@ -471,7 +476,7 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), h_loss.item(), avg_I]
+            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), h_loss.item(), avg_I, style_coupling]
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
