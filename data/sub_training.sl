@@ -1,11 +1,12 @@
 #!/bin/bash
 #SBATCH -p long
-#SBATCH -J best_param
+#SBATCH -J test50
 #SBATCH --time=1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:4
 #SBATCH -c 36
 
+total_jobs=50
 
 export CONDA_SHLVL=1
 export CONDA_PROMPT_MODIFIER=(/hpcgpfs01/software/cfn-jupyter/software/xas_ml)
@@ -48,7 +49,7 @@ then
     mkdir "${log_dir}"
 fi
 
-seq ${num_jobs} | parallel -j ${num_jobs} "
+seq ${total_jobs} | parallel -j ${num_jobs} "
 sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-train_sc -g \$(({%} % ${num_gpus})) -w training/job_{#} -c fix_train_config.yaml -d ti_feff_cn_spec.csv -v &> ${log_dir}/job_${SLURM_PROCID}_{#}_${hn}.txt
+train_sc -g \$(({%} % ${num_gpus})) -w training/job_{#} -c fix_config.yaml -d ti_feff_cn_spec.csv -v &> ${log_dir}/job_${SLURM_PROCID}_{#}_${hn}.txt
 "
