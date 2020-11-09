@@ -240,7 +240,7 @@ class Trainer:
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                valid_cn_selector = (cn_in >= 0).all(axis=1).repeat(1, self.nclasses)
+                valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1).repeat(1, self.nclasses)
                 zero_conc_selector = (cn_in < self.zero_conc_thresh)
                 zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
                 zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
@@ -428,7 +428,7 @@ class Trainer:
             if self.verbose:
                 self.tb_writer.add_scalars("CR/val", loss_dict, global_step=epoch)
 
-            valid_cn_selector = (cn_in >= 0).all(axis=1).repeat(1, self.nclasses)
+            valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1).repeat(1, self.nclasses)
             zero_conc_selector = (cn_in < self.zero_conc_thresh)
             zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
             zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
