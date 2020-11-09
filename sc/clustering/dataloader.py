@@ -26,12 +26,12 @@ class CoordNumSpectraDataset(Dataset):
         self.atom_index = df.index.to_list()
 
         train_df = full_df[:n_train_val_test[0]]
-        sampling_weights_per_cn = 1.0 / train_df.to_numpy()[:, :n_coord_num].mean(axis=0)
+        sampling_weights_per_cn = 1.0 / np.fabs(train_df.to_numpy()[:, :n_coord_num]).mean(axis=0)
         sampling_weights_per_cn **= sampling_exponent
         sampling_weights_per_cn /= sampling_weights_per_cn.sum()
         self.sampling_weights_per_cn = sampling_weights_per_cn
 
-        self.sampling_weights_per_sample = self.sampling_weights_per_cn[np.argmax(self.cn, axis=1)]
+        self.sampling_weights_per_sample = self.sampling_weights_per_cn[np.argmax(np.fabs(self.cn), axis=1)]
 
     def __len__(self):
         return self.cn.shape[0]

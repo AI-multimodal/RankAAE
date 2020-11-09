@@ -240,11 +240,14 @@ class Trainer:
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
+                valid_cn_selector = (cn_in >= 0).all(axis=1).repeat(1, self.nclasses)
                 zero_conc_selector = (cn_in < self.zero_conc_thresh)
                 zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
                 zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
                 zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
-                pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
+                zero_conc_selector = (zero_conc_selector & valid_cn_selector)
+                pure_selector = (np.fabs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
+                # Currently, every spectra is site specific, i.e., pure.
                 pure_selector = pure_selector.to(self.device)
                 zero_conc_selector = zero_conc_selector.to(self.device)
                 bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-100, dtype=torch.float,
@@ -390,7 +393,7 @@ class Trainer:
             class_probs = y.detach().cpu().numpy()
             iclasses = class_probs.argmax(axis=-1)
             class_pred = iclasses // self.n_subclasses
-            class_true = cn_in.detach().cpu().numpy().argmax(axis=-1)
+            class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
 
             class_sum_pred = class_probs.reshape(class_probs.shape[0], cn_in.size()[1], self.n_subclasses).sum(
@@ -413,7 +416,8 @@ class Trainer:
                 if self.verbose:
                     self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
 
-            pure_selector = (cn_in.max(dim=-1).values > 1.0 - self.zero_conc_thresh)
+            pure_selector = (np.fabs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
+            # Currently, every spectra is site specific, i.e., pure.
             pure_selector = pure_selector.to(self.device)
             h1_loss = self.d_entropy2(y[pure_selector])
             h2_loss = -self.d_entropy1(y[pure_selector])
@@ -424,10 +428,12 @@ class Trainer:
             if self.verbose:
                 self.tb_writer.add_scalars("CR/val", loss_dict, global_step=epoch)
 
+            valid_cn_selector = (cn_in >= 0).all(axis=1).repeat(1, self.nclasses)
             zero_conc_selector = (cn_in < self.zero_conc_thresh)
             zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
             zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
             zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
+            zero_conc_selector = (zero_conc_selector & valid_cn_selector)
             zero_conc_selector = zero_conc_selector.to(self.device)
             bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-3, dtype=torch.float,
                                       device=self.device)
@@ -658,7 +664,7 @@ class Trainer:
             _, y = encoder(spec_in)
             class_probs = y.detach().cpu().numpy()
             class_pred = class_probs.argmax(axis=-1) // n_subclasses
-            class_true = cn_in.detach().cpu().numpy().argmax(axis=-1)
+            class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
             cm = confusion_matrix(class_true, class_pred)
             cn_labels = [f'CN{i}' for i in range(4, 4 + n_coord_num)]
