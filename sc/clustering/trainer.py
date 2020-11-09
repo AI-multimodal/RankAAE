@@ -246,7 +246,7 @@ class Trainer:
                 zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
                 zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
                 zero_conc_selector = (zero_conc_selector & valid_cn_selector)
-                pure_selector = (np.fabs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
+                pure_selector = (torch.abs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
                 # Currently, every spectra is site specific, i.e., pure.
                 pure_selector = pure_selector.to(self.device)
                 zero_conc_selector = zero_conc_selector.to(self.device)
@@ -416,7 +416,7 @@ class Trainer:
                 if self.verbose:
                     self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
 
-            pure_selector = (np.fabs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
+            pure_selector = (torch.abs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
             # Currently, every spectra is site specific, i.e., pure.
             pure_selector = pure_selector.to(self.device)
             h1_loss = self.d_entropy2(y[pure_selector])
