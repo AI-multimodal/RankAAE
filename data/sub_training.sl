@@ -16,7 +16,7 @@ export CONDA_PREFIX=/hpcgpfs01/software/cfn-jupyter/software/xas_ml
 export CONDA_PYTHON_EXE=/sdcc/u/xiaqu/program/miniconda3/bin/python
 export CONDA_DEFAULT_ENV=/hpcgpfs01/software/cfn-jupyter/software/xas_ml
 
-gpu_type=$(nvidia-smi | head -n 8 | tail -n 1 | tr -s ' ' | cut -d ' ' -f 4)
+gpu_type=$(nvidia-smi | grep Tesla | head -n 1 | tr -s ' ' | cut -d ' ' -f 4)
 gpu_type=${gpu_type%-*}
 
 echo $gpu_type

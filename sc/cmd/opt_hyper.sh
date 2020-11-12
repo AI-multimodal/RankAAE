@@ -3,7 +3,7 @@
 num_jobs=$1
 head_node=$2   ## can be obtained from ${SLURMD_NODENAME}
 
-gpu_type=$(nvidia-smi | head -n 8 | tail -n 1 | tr -s ' ' | cut -d ' ' -f 4)
+gpu_type=$(nvidia-smi | grep Tesla | head -n 1 | tr -s ' ' | cut -d ' ' -f 4)
 gpu_type=${gpu_type%-*}
 
 if [[ ${gpu_type} == "P100" ]]
