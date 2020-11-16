@@ -394,10 +394,14 @@ class Trainer:
             iclasses = class_probs.argmax(axis=-1)
             class_pred = iclasses // self.n_subclasses
             class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
+            valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
+            class_pred = class_pred[valid_cn_selector]
+            class_true = class_true[valid_cn_selector]
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
 
             class_sum_pred = class_probs.reshape(class_probs.shape[0], cn_in.size()[1], self.n_subclasses).sum(
                 axis=2).argmax(axis=-1)
+            class_sum_pred = class_sum_pred[valid_cn_selector]
             cat_sum_accuracy = f1_score(class_true, class_sum_pred, average='weighted')
 
             loss_dict = {
@@ -665,6 +669,9 @@ class Trainer:
             class_probs = y.detach().cpu().numpy()
             class_pred = class_probs.argmax(axis=-1) // n_subclasses
             class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
+            valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
+            class_pred = class_pred[valid_cn_selector]
+            class_true = class_true[valid_cn_selector]
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
             cm = confusion_matrix(class_true, class_pred)
             cn_labels = [f'CN{i}' for i in range(4, 4 + n_coord_num)]
