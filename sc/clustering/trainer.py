@@ -28,7 +28,8 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
-                 chem_dict=None, verbose=True, work_dir='.', supervise_use_mse=False):
+                 chem_dict=None, verbose=True, work_dir='.', supervise_use_mse=False,
+                 use_flex_spec_target=False):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -76,6 +77,7 @@ class Trainer:
         self.verbose = verbose
         self.work_dir = work_dir
         self.supervise_use_mse = supervise_use_mse
+        self.use_flex_spec_target = use_flex_spec_target
 
     def sample_categorical(self):
         """
@@ -305,7 +307,14 @@ class Trainer:
                 z, y = self.encoder(spec_in)
                 spec_re = self.decoder(z, y)
 
-                recon_loss = mse_dis(spec_re, spec_target)
+                if not self.use_flex_spec_target:
+                    recon_loss = mse_dis(spec_re, spec_target)
+                else:
+                    spec_scale = torch.abs(spec_re.mean(dim=1)) / torch.abs(spec_target.mean(dim=1))
+                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.5
+                    spec_scale = spec_scale.detach()
+                    recon_loss += mse_dis(spec_re, spec_target * spec_scale)
+
                 recon_loss.backward()
                 RE_solver.step()
 
