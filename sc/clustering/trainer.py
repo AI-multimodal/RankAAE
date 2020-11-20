@@ -311,8 +311,9 @@ class Trainer:
                     recon_loss = mse_dis(spec_re, spec_target)
                 else:
                     spec_scale = torch.abs(spec_re.mean(dim=1)) / torch.abs(spec_target.mean(dim=1))
-                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.5
+                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.1
                     spec_scale = spec_scale.detach()
+                    spec_scale = torch.clamp(spec_scale, min=0.7, max=1.3)
                     recon_loss += mse_dis(spec_re, spec_target * spec_scale)
 
                 recon_loss.backward()
