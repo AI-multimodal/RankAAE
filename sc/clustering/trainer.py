@@ -537,6 +537,7 @@ class Trainer:
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
+                  use_flex_spec_target=False,
                   chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
@@ -573,6 +574,7 @@ class Trainer:
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
                           lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, chem_dict=chem_dict,
+                          use_flex_spec_target=use_flex_spec_target,
                           verbose=verbose, work_dir=work_dir)
         return trainer
 
