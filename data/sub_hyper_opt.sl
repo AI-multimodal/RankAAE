@@ -27,6 +27,8 @@ then
     echo
 fi
 
+redis-server redis.conf &
+sleep 10
 
 srun -n ${SLURM_JOB_NUM_NODES} --ntasks-per-node 1 -c 36 opt_hyper.sh 8 ${SLURMD_NODENAME} -s -m -d ti_feff_cn_spec.csv -c opt_config.yaml --fixed_params fix_config.yaml
 

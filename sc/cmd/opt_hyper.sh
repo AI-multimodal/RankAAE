@@ -34,12 +34,12 @@ hn=$(hostname -s)
 nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_${hn}.txt &
 top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_${hn}.txt &
 
-if [[ ${hn} == "${head_node}" ]]
-then
-    echo Land on head node, start Redis
-    sed -i "s/^bind.*/bind ${hn}/" redis.conf
-    redis-server redis.conf &
-fi
+#####if [[ ${hn} == "${head_node}" ]]
+#####then
+#####    echo Land on head node, start Redis
+#####    sed -i "s/^bind.*/bind ${hn}/" redis.conf
+#####    redis-server redis.conf &
+#####fi
 
 log_dir=optuna_run_${SLURM_JOB_ID}
 if [[ ! -d ${log_dir} ]]
