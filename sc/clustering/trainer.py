@@ -599,8 +599,8 @@ class Trainer:
                 one_hot = np.zeros((n_coord_num * n_subclasses * nspec_pc, n_coord_num * n_subclasses))
                 one_hot[list(range(n_coord_num * n_subclasses * nspec_pc)), Idx] = 1
 
-                c = np.linspace(*[-1, 1], n_coord_num * n_subclasses).reshape(1, -1)
-                c = np.repeat(c, nspec_pc, 0).reshape(-1, 1)
+                c = np.linspace(*[-2, 2], nspec_pc).reshape(1, -1)
+                c = np.repeat(c, n_coord_num * n_subclasses, 0).reshape(-1, 1)
                 c2 = np.hstack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1))
 
                 dis_c = torch.tensor(one_hot, dtype=torch.float, requires_grad=False)
