@@ -22,12 +22,12 @@ class Trainer:
 
     def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
                  val_sampling_weights_per_cn, base_lr=0.0001, nstyle=2,
-                 n_coord_num=3, n_subclasses=3, batch_size=111, max_epoch=300,
+                 n_coord_num=3, batch_size=111, max_epoch=300,
                  tb_logdir="runs", zero_conc_thresh=0.05, use_cnn_dis=False,
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
+                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
                  chem_dict=None, verbose=True, work_dir='.', supervise_use_mse=False,
                  use_flex_spec_target=False):
 
@@ -35,7 +35,7 @@ class Trainer:
         self.decoder = decoder.to(device)
         self.discriminator = discriminator.to(device)
 
-        self.nclasses = n_coord_num * n_subclasses
+        self.nclasses = n_coord_num
         self.nstyle = nstyle
 
         self.val_weights_per_cn = torch.tensor(val_sampling_weights_per_cn, dtype=torch.float, device=device)
@@ -70,9 +70,7 @@ class Trainer:
         self.lr_ratio_Smooth = lr_ratio_Smooth
         self.lr_ratio_Supervise = lr_ratio_Supervise
         self.lr_ratio_Style = lr_ratio_Style
-        self.lr_ratio_CR = lr_ratio_CR
         self.n_coord_num = n_coord_num
-        self.n_subclasses = n_subclasses
         self.chem_dict = chem_dict
         self.verbose = verbose
         self.work_dir = work_dir
@@ -120,8 +118,8 @@ class Trainer:
             for spec, color in zip(sl, colors):
                 ax.plot(spec, lw=1.5, c=color)
                 if i % 3 == 0:
-                    ax.set_ylabel(f"{i // self.n_subclasses + 4} Folds Coordinated")
-                if i >= (self.n_coord_num - 1) * self.n_subclasses:
+                    ax.set_ylabel(f"{i + 4} Folds Coordinated")
+                if i >= (self.n_coord_num - 1):
                     ax.set_xlabel(f"Subclass {i % 3 + 1}")
         title = "All Classes and Styles"
         fig.suptitle(title, y=0.91)
@@ -195,12 +193,11 @@ class Trainer:
                                lr=self.lr_ratio_Mutual * self.base_lr)
         Smooth_solver = optim.AdamW([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
         Cat_solver = optim.AdamW([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
-        h_solver = optim.AdamW([{'params': self.encoder.parameters()}], lr=self.lr_ratio_CR * self.base_lr)
         G_solver = optim.AdamW([{'params': self.discriminator.parameters()}, {'params': self.encoder.parameters()}],
                                lr=self.lr_ratio_Style * self.base_lr,
                                betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
-        sol_list = [RE_solver, I_solver, Smooth_solver, Cat_solver, h_solver, G_solver]
+        sol_list = [RE_solver, I_solver, Smooth_solver, Cat_solver, G_solver]
         schedulers = [
             ReduceLROnPlateau(sol, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                               verbose=self.verbose)
@@ -224,7 +221,6 @@ class Trainer:
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chk = None
-        cat_accuracy, style_shapiro, style_mean, style_std = [None] * 4
         for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
@@ -242,18 +238,7 @@ class Trainer:
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1).repeat(1, self.nclasses)
-                zero_conc_selector = (cn_in < self.zero_conc_thresh)
-                zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
-                zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
-                zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
-                zero_conc_selector = (zero_conc_selector & valid_cn_selector)
-                pure_selector = (torch.abs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
-                # Currently, every spectra is site specific, i.e., pure.
-                pure_selector = pure_selector.to(self.device)
-                zero_conc_selector = zero_conc_selector.to(self.device)
-                bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-100, dtype=torch.float,
-                                          device=self.device)
+                valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1)
 
                 # Init gradients
                 self.zerograd()
@@ -278,24 +263,13 @@ class Trainer:
 
                 # Init gradients
                 self.zerograd()
-
-                # H loss
-                _, y = self.encoder(spec_in[pure_selector])
-                h1_loss = self.d_entropy2(y)
-                h2_loss = -self.d_entropy1(y)
-                h_loss = 0.5 * h1_loss + h2_loss
-                h_loss.backward()
-                h_solver.step()
-
-                # Init gradients
-                self.zerograd()
                 _, y = self.encoder(spec_in)
+                vi_super = valid_cn_selector & (~y.isnan()).all(dim=1)
                 if self.supervise_use_mse:
-                    cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
+                    cat_semisupervise_loss = mse_dis(y[vi_super], cn_in[vi_super])
                 else:
-                    y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0-1.0E-100)
-                    cat_semisupervise_loss = bce_loss(y_sel[~y_sel.isnan()],
-                                                      bce_eps[~y_sel.isnan()])
+                    y_sel = torch.clamp(y, min=1.0E-100, max=1.0-1.0E-100)
+                    cat_semisupervise_loss = bce_loss(y_sel[vi_super], cn_in[vi_super])
 
                 cat_semisupervise_loss.backward()
                 Cat_solver.step()
@@ -330,7 +304,7 @@ class Trainer:
                 X_sample = self.decoder(z, y)
                 z_recon, y_recon = self.encoder(X_sample)
 
-                I_loss = criterionQ_dis(torch.log(y_recon), target) + mse_dis(z_recon[:, :-1], z[:, :-1])
+                I_loss = criterionQ_dis(torch.log(y_recon), target) + mse_dis(z_recon, z)
 
                 I_loss.backward()
                 I_solver.step()
@@ -361,10 +335,6 @@ class Trainer:
                     }
                     self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
                     loss_dict = {
-                        'h_loss': h_loss.item()
-                    }
-                    self.tb_writer.add_scalars("CR/train", loss_dict, global_step=epoch)
-                    loss_dict = {
                         'cat_loss': cat_semisupervise_loss.item()
                     }
                     self.tb_writer.add_scalars("Supervise/train", loss_dict, global_step=epoch)
@@ -394,15 +364,13 @@ class Trainer:
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
-            style_mean = np.fabs(style_np.mean(axis=1)).tolist()
-            style_std = np.fabs(style_np.std(axis=1) - np.ones(self.nstyle)).tolist()
 
             style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
                                              for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)]))
 
             class_probs = y.detach().cpu().numpy()
             iclasses = class_probs.argmax(axis=-1)
-            class_pred = iclasses // self.n_subclasses
+            class_pred = iclasses
             class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
             valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
             class_pred = class_pred[valid_cn_selector]
@@ -430,33 +398,13 @@ class Trainer:
                 if self.verbose:
                     self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
 
-            pure_selector = (torch.abs(cn_in.max(dim=-1).values) > 1.0 - self.zero_conc_thresh)
-            # Currently, every spectra is site specific, i.e., pure.
-            pure_selector = pure_selector.to(self.device)
-            h1_loss = self.d_entropy2(y[pure_selector])
-            h2_loss = -self.d_entropy1(y[pure_selector])
-            h_loss = 0.5 * h1_loss + h2_loss
-            loss_dict = {
-                'h_loss': h_loss.item(),
-            }
-            if self.verbose:
-                self.tb_writer.add_scalars("CR/val", loss_dict, global_step=epoch)
-
-            valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1).repeat(1, self.nclasses)
-            zero_conc_selector = (cn_in < self.zero_conc_thresh)
-            zero_conc_selector = zero_conc_selector.unsqueeze(dim=2)
-            zero_conc_selector = zero_conc_selector.repeat(1, 1, self.nclasses // cn_in.size()[1])
-            zero_conc_selector = zero_conc_selector.reshape([cn_in.size()[0], self.nclasses])
-            zero_conc_selector = (zero_conc_selector & valid_cn_selector)
-            zero_conc_selector = zero_conc_selector.to(self.device)
-            bce_eps = torch.full_like(zero_conc_selector[zero_conc_selector], fill_value=1.0E-3, dtype=torch.float,
-                                      device=self.device)
+            valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1)
+            vi_super = valid_cn_selector & (~y.isnan()).all(dim=1)
             if self.supervise_use_mse:
-                cat_semisupervise_loss = mse_dis(y[zero_conc_selector], bce_eps)
+                cat_semisupervise_loss = mse_dis(y[vi_super], cn_in[vi_super])
             else:
-                y_sel = torch.clamp(y[zero_conc_selector], min=1.0E-100, max=1.0 - 1.0E-100)
-                cat_semisupervise_loss = bce_loss(y_sel[~y_sel.isnan()],
-                                                  bce_eps[~y_sel.isnan()])
+                y_sel = torch.clamp(y, min=1.0E-100, max=1.0 - 1.0E-100)
+                cat_semisupervise_loss = bce_loss(y_sel[vi_super], cn_in[vi_super])
 
             loss_dict = {
                 'cat_loss': cat_semisupervise_loss.item()
@@ -496,7 +444,7 @@ class Trainer:
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), h_loss.item(), avg_I, style_coupling]
+            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_I, style_coupling]
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
@@ -530,12 +478,12 @@ class Trainer:
 
     @classmethod
     def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000,
-                  n_coord_num=3, n_subclasses=3, nstyle=2,
+                  n_coord_num=3, nstyle=2,
                   dropout_rate=0.5, grad_rev_dropout_rate=0.5, grad_rev_noise=0.1, grad_rev_beta=1.1,
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
-                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_CR=0.5,
+                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False,
                   chem_dict=None, verbose=True, work_dir='.'):
@@ -555,8 +503,8 @@ class Trainer:
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
-        encoder = Encoder(nclasses=n_coord_num * n_subclasses, nstyle=nstyle, dropout_rate=dropout_rate)
-        decoder = Decoder(nclasses=n_coord_num * n_subclasses, nstyle=nstyle, dropout_rate=dropout_rate)
+        encoder = Encoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
@@ -567,13 +515,13 @@ class Trainer:
 
         trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
                           val_sampling_weights_per_cn=dl_val.dataset.sampling_weights_per_cn,
-                          nstyle=nstyle, n_coord_num=n_coord_num, n_subclasses=n_subclasses,
+                          nstyle=nstyle, n_coord_num=n_coord_num,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
-                          lr_ratio_Style=lr_ratio_Style, lr_ratio_CR=lr_ratio_CR, chem_dict=chem_dict,
+                          lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict,
                           use_flex_spec_target=use_flex_spec_target,
                           verbose=verbose, work_dir=work_dir)
         return trainer
@@ -582,8 +530,8 @@ class Trainer:
     def test_models(csv_fn, n_coord_num=3, n_subclasses=3,
                     train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
                     final_model_name='fina.pt', best_model_name='best.pt'):
-        final_spuncat = torch.load(f'{work_dir}/final.pt', map_location=torch.device('cpu'))
-        best_spuncat = torch.load(f'{work_dir}/best.pt', map_location=torch.device('cpu'))
+        final_spuncat = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
+        best_spuncat = torch.load(f'{work_dir}/{best_model_name}', map_location=torch.device('cpu'))
 
         transform_list = transforms.Compose([ToTensor()])
         dataset_train, dataset_val, dataset_test = [CoordNumSpectraDataset(
