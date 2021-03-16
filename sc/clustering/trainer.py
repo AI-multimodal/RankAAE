@@ -108,19 +108,16 @@ class Trainer:
     def get_cluster_idx(Y_pred):
         return Y_pred.argmax(dim=1).cpu()
 
-    def get_cluster_plot(self, spec_list, nsub=3):
+    def get_cluster_plot(self, spec_list):
         assert spec_list.shape[0] == self.nclasses
         assert spec_list.shape[1] == self.ntest_per_spectra
         # noinspection PyTypeChecker
-        fig, ax_list = plt.subplots(self.nclasses // nsub, nsub, sharex=True, sharey=True, figsize=(9, 12))
+        fig, ax_list = plt.subplots(self.nclasses, 1, sharex=True, sharey=True, figsize=(9, 12))
         colors = sns.color_palette("husl", self.ntest_per_spectra)
         for i, (sl, ax) in enumerate(zip(spec_list, ax_list.ravel())):
             for spec, color in zip(sl, colors):
                 ax.plot(spec, lw=1.5, c=color)
-                if i % 3 == 0:
-                    ax.set_ylabel(f"{i + 4} Folds Coordinated")
-                if i >= (self.n_coord_num - 1):
-                    ax.set_xlabel(f"Subclass {i % 3 + 1}")
+                ax.set_ylabel(f"{i + 4} Folds Coordinated")
         title = "All Classes and Styles"
         fig.suptitle(title, y=0.91)
         return fig
@@ -377,14 +374,8 @@ class Trainer:
             class_true = class_true[valid_cn_selector]
             cat_accuracy = f1_score(class_true, class_pred, average='weighted')
 
-            class_sum_pred = class_probs.reshape(class_probs.shape[0], cn_in.size()[1], self.n_subclasses).sum(
-                axis=2).argmax(axis=-1)
-            class_sum_pred = class_sum_pred[valid_cn_selector]
-            cat_sum_accuracy = f1_score(class_true, class_sum_pred, average='weighted')
-
             loss_dict = {
-                'Max Divid': cat_accuracy,
-                'Group Sum': cat_sum_accuracy
+                'Classification': cat_accuracy
             }
             if self.verbose:
                 self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
@@ -527,7 +518,7 @@ class Trainer:
         return trainer
 
     @staticmethod
-    def test_models(csv_fn, n_coord_num=3, n_subclasses=3,
+    def test_models(csv_fn, n_coord_num=3,
                     train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
                     final_model_name='fina.pt', best_model_name='best.pt'):
         final_spuncat = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
@@ -543,32 +534,27 @@ class Trainer:
             decoder.eval()
             for istyle in range(decoder.nstyle):
                 nspec_pc = 10
-                Idx = np.arange(n_coord_num * n_subclasses).repeat(nspec_pc)
-                one_hot = np.zeros((n_coord_num * n_subclasses * nspec_pc, n_coord_num * n_subclasses))
-                one_hot[list(range(n_coord_num * n_subclasses * nspec_pc)), Idx] = 1
+                Idx = np.arange(n_coord_num).repeat(nspec_pc)
+                one_hot = np.zeros((n_coord_num * nspec_pc, n_coord_num))
+                one_hot[list(range(n_coord_num * nspec_pc)), Idx] = 1
 
                 c = np.linspace(*[-2, 2], nspec_pc).reshape(1, -1)
-                c = np.repeat(c, n_coord_num * n_subclasses, 0).reshape(-1, 1)
+                c = np.repeat(c, n_coord_num, 0).reshape(-1, 1)
                 c2 = np.hstack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1))
 
                 dis_c = torch.tensor(one_hot, dtype=torch.float, requires_grad=False)
                 con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
 
-                spec_out = decoder(con_c, dis_c).reshape(n_coord_num * n_subclasses, nspec_pc,
-                                                         -1).clone().cpu().detach().numpy()
+                spec_out = decoder(con_c, dis_c).reshape(n_coord_num, nspec_pc, -1).clone().cpu().detach().numpy()
                 plt.figure()
-                nsub = n_subclasses
                 # noinspection PyTypeChecker
-                fig, ax_list = plt.subplots(n_coord_num * n_subclasses // nsub, nsub,
+                fig, ax_list = plt.subplots(n_coord_num, 1,
                                             sharex=True, sharey=True, figsize=(9, 12))
                 colors = sns.color_palette("coolwarm", nspec_pc)
                 for i, (sl, ax) in enumerate(zip(spec_out, ax_list.ravel())):
                     for spec, color in zip(sl, colors):
                         ax.plot(spec, lw=1.5, c=color)
-                        if i % 3 == 0:
-                            ax.set_ylabel(f"{i // n_subclasses + 4} Folds Coordinated")
-                        if i >= (n_coord_num - 1) * n_subclasses:
-                            ax.set_xlabel(f"Subclass {i % 3 + 1}")
+                        ax.set_ylabel(f"{i + 4} Folds Coordinated")
                 title = f"All Classes and Styles #{istyle}"
                 fig.suptitle(title, y=0.91)
                 report_dir = os.path.join(work_dir, "reports")
@@ -602,7 +588,7 @@ class Trainer:
         plot_style_distributions(final_spuncat["Encoder"], dataset_test, 
                                  title_base="Style Distribution on FEFF Test Set")
 
-        def plot_cluster_centers(p, nclasses=n_coord_num * n_subclasses, title='final cluster center'):
+        def plot_cluster_centers(p, nclasses=n_coord_num, title='final cluster center'):
             p.eval()
             nstyle = p.nstyle
             one_hot = torch.eye(nclasses)
@@ -627,7 +613,7 @@ class Trainer:
             spec_in, cn_in = [torch.stack(x, dim=0) for x in zip(*list(ds))]
             _, y = encoder(spec_in)
             class_probs = y.detach().cpu().numpy()
-            class_pred = class_probs.argmax(axis=-1) // n_subclasses
+            class_pred = class_probs.argmax(axis=-1)
             class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
             valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
             class_pred = class_pred[valid_cn_selector]
