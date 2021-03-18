@@ -37,8 +37,7 @@ def main():
                                 **trainer_config)
     metrics = trainer.train()
     print(metrics)
-    n_subclasses = trainer_config.get("n_subclasses", 3)
-    trainer.test_models(args.data_file, work_dir=work_dir, n_subclasses=n_subclasses)
+    trainer.test_models(args.data_file, work_dir=work_dir)
 
 
 if __name__ == '__main__':
