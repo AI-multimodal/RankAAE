@@ -240,6 +240,7 @@ class Trainer:
             avg_mutual_info = 0.0
             for spec_in, cn_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
+                cn_in = cn_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
 
