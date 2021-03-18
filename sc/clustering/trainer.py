@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch.optim as optim
+import torch_optimizer as ex_optim
 import shutil
 import os
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -27,7 +28,7 @@ class Trainer:
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
+                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, optimizer_name="AdamW",
                  chem_dict=None, verbose=True, work_dir='.',
                  use_flex_spec_target=False, short_circuit_cn=True):
 
@@ -76,6 +77,7 @@ class Trainer:
         self.work_dir = work_dir
         self.use_flex_spec_target = use_flex_spec_target
         self.short_circuit_cn = short_circuit_cn
+        self.optimizer_name = optimizer_name
 
     def sample_categorical(self):
         """
@@ -179,20 +181,24 @@ class Trainer:
             para_info = torch.__config__.parallel_info()
             print(para_info)
 
+        opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
+                        "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
+        opt_cls = opt_cls_dict[self.optimizer_name]
+
         # loss function
         mse_dis = nn.MSELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
 
-        reconn_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                    lr=self.lr_ratio_Reconn * self.base_lr)
-        mutual_info_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                         lr=self.lr_ratio_Mutual * self.base_lr)
-        smooth_solver = optim.AdamW([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
-        cn_solver = optim.AdamW([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
-        adversarial_solver = optim.AdamW([{'params': self.discriminator.parameters()},
-                                          {'params': self.encoder.parameters()}],
-                                         lr=self.lr_ratio_Style * self.base_lr,
-                                         betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
+        reconn_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
+                                lr=self.lr_ratio_Reconn * self.base_lr)
+        mutual_info_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
+                                     lr=self.lr_ratio_Mutual * self.base_lr)
+        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
+        cn_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
+        adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
+                                      {'params': self.encoder.parameters()}],
+                                     lr=self.lr_ratio_Style * self.base_lr,
+                                     betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
         sol_list = [reconn_solver, mutual_info_solver, smooth_solver, cn_solver, adversarial_solver]
         schedulers = [
@@ -445,7 +451,7 @@ class Trainer:
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
-                  use_flex_spec_target=False, short_circuit_cn=True,
+                  use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
                   chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
@@ -481,7 +487,7 @@ class Trainer:
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
-                          lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict,
+                          lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict, optimizer_name=optimizer_name,
                           use_flex_spec_target=use_flex_spec_target, short_circuit_cn=short_circuit_cn,
                           verbose=verbose, work_dir=work_dir)
         return trainer
