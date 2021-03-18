@@ -28,8 +28,8 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
-                 chem_dict=None, verbose=True, work_dir='.', supervise_use_mse=False,
-                 use_flex_spec_target=False):
+                 chem_dict=None, verbose=True, work_dir='.',
+                 use_flex_spec_target=False, short_circuit_cn=True):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -74,8 +74,8 @@ class Trainer:
         self.chem_dict = chem_dict
         self.verbose = verbose
         self.work_dir = work_dir
-        self.supervise_use_mse = supervise_use_mse
         self.use_flex_spec_target = use_flex_spec_target
+        self.short_circuit_cn = short_circuit_cn
 
     def sample_categorical(self):
         """
@@ -133,37 +133,38 @@ class Trainer:
     def compute_first_two_style_bvs_spearman(self, styles_np, iclasses_np):
         styles_np = styles_np.T
         val_ds = self.val_loader.dataset
-        if "val_bvs" not in self.__dict__:
+        if self.chem_dict is not None and "val_bvs" not in self.chem_dict:
             keys_bvs_val = sorted(set(self.chem_dict['bvs'].keys()) & set(val_ds.atom_index))
             keys_bvs_val = list(filter(lambda k: self.chem_dict['bvs'][k] > 1.0E-5, keys_bvs_val))
-            self.val_bvs_idx = np.array([ai in keys_bvs_val for ai in val_ds.atom_index])
-            self.val_bvs = np.array([self.chem_dict['bvs'][tuple(ai)]
-                                     for ai in np.array(val_ds.atom_index)[self.val_bvs_idx].tolist()])
-        styles_with_bvs = styles_np[self.val_bvs_idx]
-        iclasses_with_bvs = iclasses_np[self.val_bvs_idx]
+            self.chem_dict['val_bvs_idx'] = np.array([ai in keys_bvs_val for ai in val_ds.atom_index])
+            self.chem_dict['val_bvs'] = np.array([
+                self.chem_dict['bvs'][tuple(ai)]
+                for ai in np.array(val_ds.atom_index)[self.chem_dict['val_bvs_idx']].tolist()])
+        styles_with_bvs = styles_np[self.chem_dict['val_bvs_idx']]
+        iclasses_with_bvs = iclasses_np[self.chem_dict['val_bvs_idx']]
 
-        bvs_mean_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].mean()
+        bvs_mean_per_iclass = np.array([self.chem_dict['val_bvs'][iclasses_with_bvs == i].mean()
                                         if (iclasses_with_bvs == i).any() else 0.0
                                         for i in range(self.nclasses)])
-        bvs_std_per_iclass = np.array([self.val_bvs[iclasses_with_bvs == i].std()
+        bvs_std_per_iclass = np.array([self.chem_dict['val_bvs'][iclasses_with_bvs == i].std()
                                        if (iclasses_with_bvs == i).any() else 1.0
                                        for i in range(self.nclasses)])
         styles_mean_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
                                            if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
                                            for i in range(self.nclasses)])
         styles_std_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].std(axis=0)
-                                           if (iclasses_with_bvs == i).any() else np.ones(self.nstyle)
-                                           for i in range(self.nclasses)])
+                                          if (iclasses_with_bvs == i).any() else np.ones(self.nstyle)
+                                          for i in range(self.nclasses)])
         bvs_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
         styles_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
         cor_sign_per_iclass = np.sign(
             [[spearmanr(styles_with_bvs[iclasses_with_bvs == ic, iy],
-                        self.val_bvs[iclasses_with_bvs == ic]).correlation
+                        self.chem_dict['val_bvs'][iclasses_with_bvs == ic]).correlation
               for iy in range(self.nstyle)]
              for ic in range(self.nclasses)])
         cor_sign_per_iclass[np.isnan(cor_sign_per_iclass)] = 1.0
         cor_sign_per_iclass[np.fabs(cor_sign_per_iclass) < 0.1] = 1.0
-        normed_val_bvs = (self.val_bvs - bvs_mean_per_iclass[iclasses_with_bvs]) / \
+        normed_val_bvs = (self.chem_dict['val_bvs'] - bvs_mean_per_iclass[iclasses_with_bvs]) / \
             bvs_std_per_iclass[iclasses_with_bvs]
         normed_val_bvs = (cor_sign_per_iclass[iclasses_with_bvs].T * normed_val_bvs).T
         centered_style_val_for_bvs = (styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]) / \
@@ -180,30 +181,29 @@ class Trainer:
 
         # loss function
         mse_dis = nn.MSELoss().to(self.device)
-        criterionQ_dis = nn.NLLLoss().to(self.device)
-        bce_loss = nn.BCELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
 
-        RE_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                lr=self.lr_ratio_Reconn * self.base_lr)
-        I_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                               lr=self.lr_ratio_Mutual * self.base_lr)
-        Smooth_solver = optim.AdamW([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
-        Cat_solver = optim.AdamW([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
-        G_solver = optim.AdamW([{'params': self.discriminator.parameters()}, {'params': self.encoder.parameters()}],
-                               lr=self.lr_ratio_Style * self.base_lr,
-                               betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
+        reconn_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
+                                    lr=self.lr_ratio_Reconn * self.base_lr)
+        mutual_info_solver = optim.AdamW([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
+                                         lr=self.lr_ratio_Mutual * self.base_lr)
+        smooth_solver = optim.AdamW([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
+        cn_solver = optim.AdamW([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
+        adversarial_solver = optim.AdamW([{'params': self.discriminator.parameters()},
+                                          {'params': self.encoder.parameters()}],
+                                         lr=self.lr_ratio_Style * self.base_lr,
+                                         betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
-        sol_list = [RE_solver, I_solver, Smooth_solver, Cat_solver, G_solver]
+        sol_list = [reconn_solver, mutual_info_solver, smooth_solver, cn_solver, adversarial_solver]
         schedulers = [
             ReduceLROnPlateau(sol, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                               verbose=self.verbose)
             for sol in sol_list]
 
         # fixed random variables, for plot spectra
-        Idx = np.arange(self.nclasses).repeat(self.ntest_per_spectra)
+        idx = np.arange(self.nclasses).repeat(self.ntest_per_spectra)
         one_hot = np.zeros((self.nclasses * self.ntest_per_spectra, self.nclasses))
-        one_hot[range(self.nclasses * self.ntest_per_spectra), Idx] = 1
+        one_hot[range(self.nclasses * self.ntest_per_spectra), idx] = 1
 
         c = np.linspace(*self.noise_test_range, self.ntest_per_spectra).reshape(1, -1)
         c = np.repeat(c, self.nclasses, 0).reshape(-1, 1)
@@ -218,6 +218,7 @@ class Trainer:
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chk = None
+        metrics = None
         for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
@@ -230,54 +231,43 @@ class Trainer:
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
             n_batch = len(self.train_loader)
-            avg_I = 0.0
+            avg_mutual_info = 0.0
             for spec_in, cn_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1)
 
-                # Init gradients
+                # Init gradients, adversarial loss
                 self.zerograd()
-
-                # D loss
                 z_real_gauss = torch.randn(self.batch_size, self.nstyle, requires_grad=True, device=self.device)
                 z_fake_gauss, _ = self.encoder(spec_in)
-
                 real_gauss_label = torch.ones(self.batch_size, dtype=torch.long, requires_grad=False,
                                               device=self.device)
                 real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-
                 fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
                                                device=self.device)
                 fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-                G_loss = nll_loss(real_gauss_pred[~real_gauss_pred.isnan().any(dim=-1)],
-                                  real_gauss_label[~real_gauss_pred.isnan().any(dim=-1)]) + \
-                         nll_loss(fake_gauss_pred[~fake_gauss_pred.isnan().any(dim=-1)],
-                                  fake_guass_lable[~fake_gauss_pred.isnan().any(dim=-1)])
-                G_loss.backward()
-                G_solver.step()
+                adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) + \
+                    nll_loss(fake_gauss_pred, fake_guass_lable)
+                adversarial_loss.backward()
+                adversarial_solver.step()
 
-                # Init gradients
+                # Init gradients, coordination number loss
                 self.zerograd()
                 _, y = self.encoder(spec_in)
-                vi_super = valid_cn_selector & (~y.isnan()).all(dim=1)
-                if self.supervise_use_mse:
-                    cat_semisupervise_loss = mse_dis(y[vi_super], cn_in[vi_super])
-                else:
-                    y_sel = torch.clamp(y, min=1.0E-100, max=1.0-1.0E-100)
-                    cat_semisupervise_loss = bce_loss(y_sel[vi_super], cn_in[vi_super])
+                i_cn_in = cn_in.argmax(dim=1)
+                cn_loss = nll_loss(y, i_cn_in)
+                cn_loss.backward()
+                cn_solver.step()
 
-                cat_semisupervise_loss.backward()
-                Cat_solver.step()
-
-                # Init gradients
+                # Init gradients, reconstruction loss
                 self.zerograd()
-
-                # recon_x
                 z, y = self.encoder(spec_in)
+                if self.short_circuit_cn:
+                    y = cn_in.clone()
+                else:
+                    y = torch.exp(y)
                 spec_re = self.decoder(z, y)
-
                 if not self.use_flex_spec_target:
                     recon_loss = mse_dis(spec_re, spec_target)
                 else:
@@ -286,39 +276,29 @@ class Trainer:
                     spec_scale = spec_scale.detach()
                     spec_scale = torch.clamp(spec_scale, min=0.7, max=1.3)
                     recon_loss += mse_dis(spec_re, (spec_target.T * spec_scale).T)
-
                 recon_loss.backward()
-                RE_solver.step()
+                reconn_solver.step()
 
-                # Init gradients
+                # Init gradients, mutual information loss
                 self.zerograd()
-
-                # recon y and d
                 y, idx = self.sample_categorical()
                 z = torch.randn(self.batch_size, self.nstyle, requires_grad=False, device=self.device)
                 target = torch.tensor(idx, dtype=torch.long, requires_grad=False, device=self.device)
+                x_sample = self.decoder(z, y)
+                z_recon, y_recon = self.encoder(x_sample)
+                mutual_info_loss = nll_loss(y_recon, target) + mse_dis(z_recon, z)
+                mutual_info_loss.backward()
+                mutual_info_solver.step()
+                avg_mutual_info += mutual_info_loss.item()
 
-                X_sample = self.decoder(z, y)
-                z_recon, y_recon = self.encoder(X_sample)
-
-                I_loss = criterionQ_dis(torch.log(y_recon), target) + mse_dis(z_recon, z)
-
-                I_loss.backward()
-                I_solver.step()
-
-                avg_I += I_loss.item()
-
-                # Init gradients
+                # Init gradients, smoothness loss
                 self.zerograd()
-
-                X_sample = self.decoder(z, y)
-                # smoothed regulation
-                X_sample_padded = self.padding4smooth(X_sample.unsqueeze(dim=1))
-                spec_smoothed = self.gaussian_smoothing(X_sample_padded).squeeze(dim=1)
-                Smooth_loss = mse_dis(X_sample, spec_smoothed)
-
+                x_sample = self.decoder(z, y)
+                x_sample_padded = self.padding4smooth(x_sample.unsqueeze(dim=1))
+                spec_smoothed = self.gaussian_smoothing(x_sample_padded).squeeze(dim=1)
+                Smooth_loss = mse_dis(x_sample, spec_smoothed)
                 Smooth_loss.backward()
-                Smooth_solver.step()
+                smooth_solver.step()
 
                 # Init gradients
                 self.zerograd()
@@ -326,21 +306,21 @@ class Trainer:
                 if self.verbose:
                     # record losses
                     loss_dict = {
-                        'recon_loss': recon_loss.item(),
-                        'I_loss': I_loss.item(),
+                        'Recon': recon_loss.item(),
+                        'Mutual Info': mutual_info_loss.item(),
                         'Smooth': Smooth_loss.item()
                     }
                     self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
                     loss_dict = {
-                        'cat_loss': cat_semisupervise_loss.item()
+                        'Classification': cn_loss.item()
                     }
                     self.tb_writer.add_scalars("Supervise/train", loss_dict, global_step=epoch)
                     loss_dict = {
-                        'G_loss': G_loss.item()
+                        'Adversarial': adversarial_loss.item()
                     }
                     self.tb_writer.add_scalars("Adversarial/train", loss_dict, global_step=epoch)
 
-            avg_I /= n_batch
+            avg_mutual_info /= n_batch
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
@@ -354,7 +334,7 @@ class Trainer:
             spec_diff = ((spec_re - spec_in) ** 2).mean(dim=1)
             recon_loss = (spec_diff * tw).sum()
             loss_dict = {
-                'recon_loss': recon_loss.item()
+                'Recon': recon_loss.item()
             }
             if self.verbose:
                 self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
@@ -372,14 +352,15 @@ class Trainer:
             valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
             class_pred = class_pred[valid_cn_selector]
             class_true = class_true[valid_cn_selector]
-            cat_accuracy = f1_score(class_true, class_pred, average='weighted')
+            cn_accuracy = f1_score(class_true, class_pred, average='weighted')
 
             loss_dict = {
-                'Classification': cat_accuracy
+                'F1 Score': cn_accuracy
             }
             if self.verbose:
                 self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
 
+            max_style_bvs_cor, sec_style_bvs_cor = None, None
             if self.chem_dict is not None:
                 max_style_bvs_cor, sec_style_bvs_cor = self.compute_first_two_style_bvs_spearman(style_np, iclasses)
                 loss_dict = {
@@ -389,35 +370,24 @@ class Trainer:
                 if self.verbose:
                     self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
 
-            valid_cn_selector = (cn_in >= 0).all(axis=1).unsqueeze(dim=1)
-            vi_super = valid_cn_selector & (~y.isnan()).all(dim=1)
-            if self.supervise_use_mse:
-                cat_semisupervise_loss = mse_dis(y[vi_super], cn_in[vi_super])
-            else:
-                y_sel = torch.clamp(y, min=1.0E-100, max=1.0 - 1.0E-100)
-                cat_semisupervise_loss = bce_loss(y_sel[vi_super], cn_in[vi_super])
-
+            i_cn_in = cn_in.argmax(dim=1)
+            cn_loss = nll_loss(y, i_cn_in)
             loss_dict = {
-                'cat_loss': cat_semisupervise_loss.item()
+                'Classification': cn_loss.item()
             }
             if self.verbose:
                 self.tb_writer.add_scalars("Supervise/val", loss_dict, global_step=epoch)
 
             z_fake_gauss = z
             z_real_gauss = torch.randn_like(z, requires_grad=True, device=self.device)
-
             real_gauss_label = torch.ones(spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-
             fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
 
-            G_loss = nll_loss(real_gauss_pred[~real_gauss_pred.isnan().any(dim=-1)],
-                              real_gauss_label[~real_gauss_pred.isnan().any(dim=-1)]) + \
-                     nll_loss(fake_gauss_pred[~fake_gauss_pred.isnan().any(dim=-1)],
-                              fake_guass_lable[~fake_gauss_pred.isnan().any(dim=-1)],)
+            adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
             loss_dict = {
-                'G_loss': G_loss.item()
+                'Adversarial': adversarial_loss.item()
             }
             if self.verbose:
                 self.tb_writer.add_scalars("Adversarial/val", loss_dict, global_step=epoch)
@@ -425,17 +395,17 @@ class Trainer:
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
-            if cat_accuracy > last_best * 1.01:
-                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{cat_accuracy:05.4g}.pt"
+            if cn_accuracy > last_best * 1.01:
+                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{cn_accuracy:05.4g}.pt"
                 torch.save(model_dict,
                            chk_fn)
-                last_best = cat_accuracy
+                last_best = cn_accuracy
                 best_chk = chk_fn
 
             for sch in schedulers:
                 sch.step(torch.tensor(last_best))
 
-            metrics = [cat_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_I, style_coupling]
+            metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
@@ -464,7 +434,6 @@ class Trainer:
         if best_chk is not None:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
-
         return metrics
 
     @classmethod
@@ -476,7 +445,7 @@ class Trainer:
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
-                  use_flex_spec_target=False,
+                  use_flex_spec_target=False, short_circuit_cn=True,
                   chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
@@ -513,7 +482,7 @@ class Trainer:
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
                           lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict,
-                          use_flex_spec_target=use_flex_spec_target,
+                          use_flex_spec_target=use_flex_spec_target, short_circuit_cn=short_circuit_cn,
                           verbose=verbose, work_dir=work_dir)
         return trainer
 

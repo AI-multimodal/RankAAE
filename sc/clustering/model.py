@@ -15,7 +15,7 @@ class ReverseLayerF(Function):
     @staticmethod
     def backward(ctx, grad_output):
         grad_input = grad_output.clone()
-        grad_input = grad_output.neg() * ctx.alpha
+        grad_input = grad_input.neg() * ctx.alpha
         return grad_input, None
 
 
@@ -199,30 +199,30 @@ class GaussianSmoothing(nn.Module):
         self.register_buffer('weight', kernel.to(device))
         self.groups = channels
 
-    def forward(self, input):
+    def forward(self, x):
         """
         Apply gaussian filter to input.
         Arguments:
-            input (torch.Tensor): Input to apply gaussian filter on.
+            x (torch.Tensor): Input to apply gaussian filter on.
         Returns:
             filtered (torch.Tensor): Filtered output.
         """
 
-        if len(input.size()) - 2 == 1:
+        if len(x.size()) - 2 == 1:
             conv = nn.functional.conv1d
-        elif len(input.size()) - 2 == 2:
+        elif len(x.size()) - 2 == 2:
             conv = nn.functional.conv2d
-        elif len(input.size()) - 2 == 3:
+        elif len(x.size()) - 2 == 3:
             conv = nn.functional.conv3d
         else:
             raise RuntimeError(
-                'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(len(input.size()) - 2)
+                'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(len(x.size()) - 2)
             )
-        return conv(input, weight=self.weight, groups=self.groups)
+        return conv(x, weight=self.weight, groups=self.groups)
 
 
 class Encoder(nn.Module):
-    ''' front end part of discriminator and Q'''
+    """ front end part of discriminator and Q"""
 
     def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
         super(Encoder, self).__init__()
@@ -241,6 +241,7 @@ class Encoder(nn.Module):
         self.lin1 = nn.Linear(32, nclasses)
         self.lin3 = nn.Linear(32, nstyle)
         self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
+        self.lsm = nn.LogSoftmax(dim=1)
 
     def forward(self, spec):
         batch_size = spec.size()[0]
@@ -251,7 +252,7 @@ class Encoder(nn.Module):
         z_gauss = self.lin3(output)
         z_gauss = self.bn_style(z_gauss)
         y = self.lin1(output)
-        y = nn.functional.softmax(y, dim=1)
+        y = self.lsm(y, dim=1)
 
         return z_gauss, y
 
@@ -279,7 +280,7 @@ class Decoder(nn.Module):
                           excitation=2, dropout_rate=dropout_rate),
             nn.BatchNorm1d(2, affine=False),
             nn.Conv1d(2, 1, kernel_size=1, stride=1),
-            nn.Softplus(beta=2)
+            nn.ReLU()
         )
 
         self.nclasses = nclasses
@@ -309,11 +310,6 @@ class DiscriminatorCNN(nn.Module):
         self.main = nn.Sequential(
             nn.BatchNorm1d(1, affine=False),
             nn.Conv1d(1, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2, padding_mode='replicate'),
-            nn.PReLU(num_parameters=channels, init=0.01)  ,
-
-            nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, channels, kernel_size=kernel_size,
-                      padding=(kernel_size-1)//2, padding_mode='replicate'),
             nn.PReLU(num_parameters=channels, init=0.01),
 
             nn.BatchNorm1d(channels, affine=False),
@@ -322,7 +318,13 @@ class DiscriminatorCNN(nn.Module):
             nn.PReLU(num_parameters=channels, init=0.01),
 
             nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2, padding_mode='replicate'),
+            nn.Conv1d(channels, channels, kernel_size=kernel_size,
+                      padding=(kernel_size-1)//2, padding_mode='replicate'),
+            nn.PReLU(num_parameters=channels, init=0.01),
+
+            nn.BatchNorm1d(channels, affine=False),
+            nn.Conv1d(channels, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2,
+                      padding_mode='replicate'),
             nn.PReLU(num_parameters=channels, init=0.01),
 
             nn.BatchNorm1d(channels, affine=False),
@@ -350,6 +352,7 @@ class DiscriminatorCNN(nn.Module):
         x = x.squeeze(dim=1)
         out = self.post(x)
         return out
+
 
 class DiscriminatorFC(nn.Module):
     def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1):
@@ -380,7 +383,6 @@ class DiscriminatorFC(nn.Module):
         )
         self.nstyle = nstyle
         self.noise = noise
-
 
     def forward(self, x, alpha):
         if self.training:
