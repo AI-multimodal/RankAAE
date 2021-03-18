@@ -252,7 +252,7 @@ class Encoder(nn.Module):
         z_gauss = self.lin3(output)
         z_gauss = self.bn_style(z_gauss)
         y = self.lin1(output)
-        y = self.lsm(y, dim=1)
+        y = self.lsm(y)
 
         return z_gauss, y
 
