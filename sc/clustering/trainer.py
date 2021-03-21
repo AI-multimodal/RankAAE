@@ -335,6 +335,7 @@ class Trainer:
             spec_in = spec_in.to(self.device)
             cn_in = cn_in.to(self.device)
             z, y = self.encoder(spec_in)
+            y = torch.exp(y)
             spec_re = self.decoder(z, y)
             tw = cn_in @ self.val_weights_per_cn
             tw /= tw.sum()
