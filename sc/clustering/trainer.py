@@ -26,7 +26,7 @@ class Trainer:
                  n_coord_num=3, batch_size=111, max_epoch=300,
                  tb_logdir="runs", zero_conc_thresh=0.05, use_cnn_dis=False,
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
-                 sch_factor=0.25, sch_patience=300, spec_noise=0.01,
+                 sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, optimizer_name="AdamW",
                  chem_dict=None, verbose=True, work_dir='.',
@@ -78,6 +78,7 @@ class Trainer:
         self.use_flex_spec_target = use_flex_spec_target
         self.short_circuit_cn = short_circuit_cn
         self.optimizer_name = optimizer_name
+        self.weight_decay = weight_decay
 
     def sample_categorical(self):
         """
@@ -190,11 +191,14 @@ class Trainer:
         nll_loss = nn.NLLLoss().to(self.device)
 
         reconn_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                lr=self.lr_ratio_Reconn * self.base_lr)
+                                lr=self.lr_ratio_Reconn * self.base_lr,
+                                weight_decay=self.weight_decay)
         mutual_info_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
                                      lr=self.lr_ratio_Mutual * self.base_lr)
-        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr)
-        cn_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr)
+        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr,
+                                weight_decay=self.weight_decay)
+        cn_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr,
+                            weight_decay=self.weight_decay)
         adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
                                       {'params': self.encoder.parameters()}],
                                      lr=self.lr_ratio_Style * self.base_lr,
@@ -451,7 +455,7 @@ class Trainer:
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
-                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5,
+                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
                   chem_dict=None, verbose=True, work_dir='.'):
@@ -483,7 +487,7 @@ class Trainer:
 
         trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
                           val_sampling_weights_per_cn=dl_val.dataset.sampling_weights_per_cn,
-                          nstyle=nstyle, n_coord_num=n_coord_num,
+                          nstyle=nstyle, n_coord_num=n_coord_num, weight_decay=weight_decay,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
