@@ -1,3 +1,5 @@
 /semi_clustering.egg-info/
 /sc.egg-info/
 .vscode
+*.pyc
+.noseids
