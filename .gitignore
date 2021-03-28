@@ -1,5 +1,6 @@
-/semi_clustering.egg-info/
-/sc.egg-info/
+semi_clustering.egg-info/
+sc.egg-info/
 .vscode
 *.pyc
 .noseids
+Semi_Clustering.egg-info
