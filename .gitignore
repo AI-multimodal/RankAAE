@@ -1,2 +1,4 @@
-/semi_clustering.egg-info/
+semi_clustering.egg-info/
 /sc.egg-info/
+*.pyc
+Semi_Clustering.egg-info/
