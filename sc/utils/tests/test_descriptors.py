@@ -1,6 +1,13 @@
 from unittest import TestCase
 
-class TestAngularFourierSeries(TestCase):
+from matminer.featurizers.utils.grdf import Gaussian
+from pymatgen import Structure, Lattice
+from pymatgen.util.testing import PymatgenTest
+
+from sc.utils.descriptors import AngularFourierSeries
+
+
+class TestAngularFourierSeries(PymatgenTest):
     def setUp(self):
         self.sc = Structure(
             Lattice([[3.52, 0, 0], [0, 3.52, 0], [0, 0, 3.52]]),

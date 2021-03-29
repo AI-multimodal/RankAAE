@@ -1,4 +1,9 @@
+import itertools
+import numpy as np
+
 from matminer.featurizers.base import BaseFeaturizer
+from matminer.featurizers.utils.grdf import Gaussian, Histogram
+
 
 class AngularFourierSeries(BaseFeaturizer):
     """
