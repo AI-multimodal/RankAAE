@@ -4,3 +4,4 @@ sc.egg-info/
 *.pyc
 .noseids
 Semi_Clustering.egg-info
+nosetests.xml
