@@ -75,22 +75,21 @@ class AngularFourierSeries(BaseFeaturizer):
             distances], axis=1)
 
         # Generate distance functional matrix (g_n, g_n')
-        bin_combos = list(itertools.product(self.bins, repeat=2))
 
         # Compute AFS values for each element of the bin matrix
         # need to cast arrays as floats to use np.exp
         cos_angles, dist1, dist2 = neighbor_pairs[:, 0].astype(float),\
             neighbor_pairs[:, 1].astype(float),\
             neighbor_pairs[:, 2].astype(float)
-        features = [sum(combo[0](dist1) * combo[1](dist2) *
-                        cos_angles) for combo in bin_combos]
+        features = [[sum(radial_bin(dist1) * radial_bin(dist2) * np.cos(angular_l * np.arccos(cos_angles)))
+                     for radial_bin in self.bins]
+                    for angular_l in range(len(self.bins))]
 
         return features
 
     def feature_labels(self):
-        bin_combos = list(itertools.product(self.bins, repeat=2))
-        return ['AFS ({}, {})'.format(combo[0].name(), combo[1].name())
-                for combo in bin_combos]
+        return [[f'AFS {radial_bin.name()} @ {angular_l}\u03B8' for radial_bin in self.bins]
+                for angular_l in range(len(self.bins))]
 
     @staticmethod
     def from_preset(preset, width=0.5, spacing=0.5, cutoff=10):
