@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+import math
 
 from matminer.featurizers.base import BaseFeaturizer
 from matminer.featurizers.utils.grdf import Gaussian, Histogram
@@ -84,10 +85,11 @@ class AngularPDF(BaseFeaturizer):
             neighbor_pairs[:, 2].astype(float)
         cos_angles = np.arccos(cos_angles)
         cos_angles = np.degrees(cos_angles)
-        features = [[sum(rb(dist1) * rb(dist2) * ab(cos_angles))
+        features = [[sum(np.sqrt(rb(dist1) * rb(dist2)) * ab(cos_angles))
                      for rb in self.radial_bins]
                     for ab in self.angular_bins]
-
+        features = np.array(features)
+        features = np.sqrt(features)
         return features
 
     def feature_labels(self):
