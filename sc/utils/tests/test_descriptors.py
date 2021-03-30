@@ -4,10 +4,10 @@ from matminer.featurizers.utils.grdf import Gaussian
 from pymatgen import Structure, Lattice
 from pymatgen.util.testing import PymatgenTest
 
-from sc.utils.descriptors import AngularFourierSeries
+from sc.utils.descriptors import AngularPDF
 
 
-class TestAngularFourierSeries(PymatgenTest):
+class TestAngularPDF(PymatgenTest):
     def setUp(self):
         self.sc = Structure(
             Lattice([[3.52, 0, 0], [0, 3.52, 0], [0, 0, 3.52]]),
@@ -22,13 +22,16 @@ class TestAngularFourierSeries(PymatgenTest):
             coords_are_cartesian=False)
 
     def test_afs(self):
-        f1 = Gaussian(1, 0)
-        f2 = Gaussian(1, 1)
-        f3 = Gaussian(1, 5)
+        fr1 = Gaussian(1, 0)
+        fr2 = Gaussian(1, 1)
+        fr3 = Gaussian(1, 5)
+        fa1 = Gaussian(5.0, 60)
+        fa2 = Gaussian(5.0, 90.0)
+        fa3 = Gaussian(5.0, 120.0)
         s_tuples = [(self.sc, 0), (self.cscl, 0)]
 
         # test transform,and featurize dataframe
-        afs = AngularFourierSeries(bins=[f1, f2, f3])
+        afs = AngularPDF(radial_bins=[fr1, fr2, fr3], angular_bins=[fa1, fa2, fa3])
         features = afs.transform(s_tuples)
         print(features)
         self.assertArrayAlmostEqual(features,

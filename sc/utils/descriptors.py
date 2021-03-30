@@ -4,9 +4,9 @@ import numpy as np
 from matminer.featurizers.base import BaseFeaturizer
 from matminer.featurizers.utils.grdf import Gaussian, Histogram
 
-
-class AngularFourierSeries(BaseFeaturizer):
+class AngularPDF(BaseFeaturizer):
     """
+    Modified from matminer.featurizers.site.AngularFourierSeries 
     Compute the angular Fourier series (AFS), including both angular and radial info
     The AFS is the product of pairwise distance function (g_n, g_n') between two pairs
     of atoms (sharing the common central site) and the cosine of the angle
@@ -30,9 +30,10 @@ class AngularFourierSeries(BaseFeaturizer):
                  the square of the number of neighbors
     """
 
-    def __init__(self, bins, cutoff=10.0):
-        self.bins = bins
-        self.cutoff = cutoff
+    def __init__(self, radial_bins, angular_bins, radial_cutoff=10.0):
+        self.radial_bins = radial_bins
+        self.angular_bins = angular_bins
+        self.radial_cutoff = radial_cutoff
 
     def featurize(self, struct, idx):
         """
@@ -52,7 +53,7 @@ class AngularFourierSeries(BaseFeaturizer):
         # atom) and distances from each central site as tuples
         sites = struct._sites
         central_site = sites[idx]
-        neighbors_lst = struct.get_neighbors(central_site, self.cutoff)
+        neighbors_lst = struct.get_neighbors(central_site, self.radial_cutoff)
         neighbor_collection = [
             (neighbor[0].coords - central_site.coords, neighbor[1])
             for neighbor in neighbors_lst]
@@ -81,18 +82,22 @@ class AngularFourierSeries(BaseFeaturizer):
         cos_angles, dist1, dist2 = neighbor_pairs[:, 0].astype(float),\
             neighbor_pairs[:, 1].astype(float),\
             neighbor_pairs[:, 2].astype(float)
-        features = [[sum(radial_bin(dist1) * radial_bin(dist2) * np.cos(angular_l * np.arccos(cos_angles)))
-                     for radial_bin in self.bins]
-                    for angular_l in range(len(self.bins))]
+        cos_angles = np.arccos(cos_angles)
+        cos_angles = np.degrees(cos_angles)
+        features = [[sum(rb(dist1) * rb(dist2) * ab(cos_angles))
+                     for rb in self.radial_bins]
+                    for ab in self.angular_bins]
 
         return features
 
     def feature_labels(self):
-        return [[f'AFS {radial_bin.name()} @ {angular_l}\u03B8' for radial_bin in self.bins]
-                for angular_l in range(len(self.bins))]
+        return [[f'AFS {rb.name()} @ {ab.name()}' for rb in self.radial_bins]
+                for ab in self.angular_bins]
 
     @staticmethod
-    def from_preset(preset, width=0.5, spacing=0.5, cutoff=10):
+    def from_preset(radial_preset, radial_width=0.5, radial_spacing=0.5, radial_start=0, radial_cutoff=10,
+                    angular_preset="gaussian", angular_width=8.0, angular_spacing=8.0, angular_start=45, 
+                    angular_cutoff=180):
         """
         Preset bin functions for this featurizer. Example use:
             >>> AFS = AngularFourierSeries.from_preset('gaussian')
@@ -104,18 +109,31 @@ class AngularFourierSeries(BaseFeaturizer):
             cutoff (float): maximum distance to look for neighbors
         """
 
-        # Generate bin functions
-        if preset == "gaussian":
-            bins = []
-            for center in np.arange(0., cutoff, spacing):
-                bins.append(Gaussian(width, center))
-        elif preset == "histogram":
-            bins = []
-            for start in np.arange(0, cutoff, spacing):
-                bins.append(Histogram(start, width))
+        # Generate radial bin functions
+        if radial_preset == "gaussian":
+            radial_bins = []
+            for radial_center in np.arange(radial_start, radial_cutoff, radial_spacing):
+                radial_bins.append(Gaussian(radial_width, radial_center))
+        elif radial_preset == "histogram":
+            radial_bins = []
+            for start in np.arange(radial_start, radial_cutoff, radial_spacing):
+                radial_bins.append(Histogram(start, radial_width))
         else:
-            raise ValueError('Not a valid preset condition.')
-        return AngularFourierSeries(bins, cutoff=cutoff)
+            raise ValueError(f'Not a valid radial preset condition {radial_preset}.')
+
+        # Generate angular bin functions
+        if angular_preset == "gaussian":
+            angular_bins = []
+            for angular_center in np.arange(angular_start, angular_cutoff, angular_spacing):
+                angular_bins.append(Gaussian(angular_width, angular_center))
+        elif angular_preset == "histogram":
+            angular_bins = []
+            for start in np.arange(angular_start, angular_cutoff, angular_spacing):
+                angular_bins.append(Histogram(start, angular_width))
+        else:
+            raise ValueError(f'Not a valid angular preset condition {angular_preset}.')
+
+        return AngularPDF(radial_bins, angular_bins, radial_cutoff=radial_cutoff)
 
     def citations(self):
         return ['@article{PhysRevB.95.144110, title = {Representation of compo'
@@ -127,4 +145,4 @@ class AngularFourierSeries(BaseFeaturizer):
                 'al Society}, doi = {10.1103/PhysRevB.95.144110}}']
 
     def implementors(self):
-        return ["Maxwell Dylla", "Logan Williams"]
+        return ["Maxwell Dylla", "Logan Williams", "Xiaohui Qu"]
