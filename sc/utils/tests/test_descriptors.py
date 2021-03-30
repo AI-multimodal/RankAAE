@@ -33,7 +33,6 @@ class TestAngularPDF(PymatgenTest):
         # test transform,and featurize dataframe
         afs = AngularPDF(radial_bins=[fr1, fr2, fr3], angular_bins=[fa1, fa2, fa3])
         features = afs.transform(s_tuples)
-        print(features)
         self.assertArrayAlmostEqual(features,
                                     [[[4.450242707991407e-19, 2.394524146670056e-12, 48.58854808988339], 
                                     [4.1500196821006496e-10, 7.317969397096165e-05, 59.29885267918986], 
