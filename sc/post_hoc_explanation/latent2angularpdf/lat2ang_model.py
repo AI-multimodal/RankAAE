@@ -38,4 +38,5 @@ class Latent2AngularPDF(nn.Module):
         out: torch.Tensor = self.pre(x)
         out = out.unsqueeze(dim=-1).unsqueeze(dim=-1)
         out = self.main(out)
+        out = out.squeeze(dim=1)
         return out

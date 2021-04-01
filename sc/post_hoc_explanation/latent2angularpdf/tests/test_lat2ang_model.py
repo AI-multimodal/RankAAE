@@ -7,4 +7,4 @@ class TestLatent2AngularPDF(TestCase):
         x = torch.ones((32, 5))
         l2a = Latent2AngularPDF()
         out = l2a(x)
-        print(out.size())   
+        self.assertEqual(out.size(), (32, 64, 64))   
