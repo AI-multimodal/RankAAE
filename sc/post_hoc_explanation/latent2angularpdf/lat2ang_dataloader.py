@@ -20,7 +20,7 @@ class Latent2AngularPDFDataset(Dataset):
         assert len(self.mpid_iatom) == self.latent.shape[0]
         assert len(self.mpid_iatom) == self.apdf.shape[0]
         assert len(self.latent.shape) == 2
-        assert len(self.apdf) == 3
+        assert len(self.apdf.shape) == 3
 
     def __len__(self):
         return self.latent.shape[0]
