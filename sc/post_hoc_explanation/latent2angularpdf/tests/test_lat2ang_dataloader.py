@@ -2,7 +2,7 @@ from unittest import TestCase
 from sc.post_hoc_explanation.latent2angularpdf.lat2ang_dataloader import get_latent2apdf_dataloaders
 import os
 
-data_fn = os.path.join(os.path.dirname(__file__), "../../../data", "mini_latent2apdf_dataset.pkl")
+data_fn = os.path.join(os.path.dirname(__file__), "../../../../data", "mini_latent2apdf_dataset.pkl")
 
 
 class TestLatent2AngularPDFDataset(TestCase):

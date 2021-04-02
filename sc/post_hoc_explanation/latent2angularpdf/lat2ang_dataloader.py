@@ -34,7 +34,7 @@ class Latent2AngularPDFDataset(Dataset):
         return sample
         
 
-def get_latent2apdf_dataloaders(pkl_fn, set_name, batch_size):
+def get_latent2apdf_dataloaders(pkl_fn, batch_size):
     transform_list = transforms.Compose([ToTensor()])
     ds_train,  ds_val, ds_test = [Latent2AngularPDFDataset(pkl_fn, set_name=p, transform=transform_list)
                                   for p in ["train", "val", "test"]]
