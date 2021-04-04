@@ -156,7 +156,7 @@ class Latent2AngularPDFTrainer:
                 last_best = val_mean_loss
                 best_chk = chk_fn
             
-            if epoch % self.plot_interval == 0 and self.verbose:
+            if epoch % self.plot_interval == 0 and epoch > 1 and self.verbose:
                 image_list = self.model(latent_variation)
                 image_list = image_list.clone().detach().cpu().numpy()
                 fig_dict = self.get_style_image_variation_plot(image_list, self.nclasses, self.nstyle, self.ntest_image_per_style, self.image_dim)

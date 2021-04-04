@@ -4,6 +4,7 @@ import argparse
 from sc.post_hoc_explanation.latent2angularpdf.lat2ang_trainer import Latent2AngularPDFTrainer
 import os
 import yaml
+import datetime
 
 
 def main():
@@ -33,7 +34,12 @@ def main():
         igpu=args.gpu_i, max_epoch=args.max_epoch, verbose=args.verbose, work_dir=work_dir,
         **trainer_config)
 
+    t1 = datetime.datetime.now()
     metrics = trainer.train()
+    t2 = datetime.datetime.now()
+    dt = t2 - t1
+    print(f"Training started at {t1.ctime()}, finished at {t2.ctime()}")
+    print(f"In total used {dt.total_seconds()} seconds")
     
     print(metrics)
     trainer.test_models(work_dir=work_dir)
