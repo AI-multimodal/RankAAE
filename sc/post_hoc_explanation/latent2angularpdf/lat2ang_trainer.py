@@ -92,7 +92,8 @@ class Latent2AngularPDFTrainer:
         mse_dis_mean = nn.MSELoss().to(self.device)
         mse_dis_sum = nn.MSELoss(reduction='sum').to(self.device)
         reconn_solver: optim.Optimizer = opt_cls(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
-        scheduler = ReduceLROnPlateau(reconn_solver, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, verbose=self.verbose)
+        scheduler = ReduceLROnPlateau(reconn_solver, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
+                                      mode="min", verbose=self.verbose)
         latent_variation = self.precompute_latent_variation().to(self.device)
 
         last_best = 0.0
