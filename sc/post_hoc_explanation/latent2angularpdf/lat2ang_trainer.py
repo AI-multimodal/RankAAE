@@ -1,4 +1,5 @@
 import itertools
+from sc.clustering.trainer import Trainer
 from numpy.lib.arraysetops import isin
 from sklearn import metrics
 
@@ -47,8 +48,9 @@ class Latent2AngularPDFTrainer:
         if verbose:
             self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
             example_lat = iter(self.train_loader).next()[0]
+            example_lat = example_lat.cpu()
             with torch.no_grad():
-                self.tb_writer.add_graph(self.model, example_lat)
+                self.tb_writer.add_graph(self.model.cpu(), example_lat)
     
     def precompute_latent_variation(self):
         one_hot_variation = torch.eye(self.nclasses).unsqueeze(dim=1).repeat([1, self.nstyle, 1])\
@@ -126,7 +128,10 @@ class Latent2AngularPDFTrainer:
             for lat, apdf_in in self.val_loader:
                 lat = lat.to(self.device)
                 apdf_in = apdf_in.to(self.device)
-                apdf_pred = self.model(apdf_in)
+                lat_noise = torch.randn([lat.size()[0], self.nstyle], device=self.device)
+                lat_pert = lat.clone()
+                lat_pert[:, -self.nstyle:] += lat_noise
+                apdf_pred = self.model(lat_pert)
                 reconn_loss: torch.Tensor = mse_dis_sum(apdf_in, apdf_pred)
                 val_loss_list.append(reconn_loss.item())
             val_mean_loss = sum(val_loss_list)/len(self.val_loader.dataset)
@@ -158,3 +163,27 @@ class Latent2AngularPDFTrainer:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
         return metrics
+
+    @classmethod
+    def from_data(cls, pkl_fn, igpu=0, batch_size=512, lr=1.0E-3, max_epoch=300,  sch_factor=0.25, sch_patience=300, 
+                  style_noise=0.01, weight_decay=1e-2, optimizer_name="AdamW", verbose=True, work_dir='.',
+                  dropout_rate=0.05):
+        dl_train, dl_val, dl_test = get_latent2apdf_dataloaders(pkl_fn, batch_size)
+        
+        use_cuda = torch.cuda.is_available()
+        if use_cuda:
+            if verbose:
+                print("Use GPU")
+            for loader in [dl_train, dl_val]:
+                loader.pin_memory = False
+        else:
+            if verbose:
+                print("Use Slow CPU!")
+
+        device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
+        model = Latent2AngularPDF(lat_size=5, dropout_rate=dropout_rate)
+        model = model.to(device)
+        trainer = Latent2AngularPDFTrainer(model, device, dl_train, dl_val, lr=lr, max_epoch=max_epoch, sch_factor=sch_factor,
+                                           sch_patience=sch_patience, style_noise=style_noise, weight_decay=weight_decay, 
+                                           optimizer_name=optimizer_name, verbose=verbose, work_dir='.')
+                                           
