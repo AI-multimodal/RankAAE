@@ -36,7 +36,7 @@ class Latent2AngularPDFTrainer:
         self.sch_factor = sch_factor
         self.sch_patience = sch_patience
         self.style_noise = style_noise
-        self.weight_deca = weight_decay
+        self.weight_decay = weight_decay
         self.optimizer_name = optimizer_name
         self.nclasses = nclasses
         self.nstyle = nstyle
