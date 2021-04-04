@@ -52,6 +52,7 @@ class Latent2AngularPDFTrainer:
             example_lat = example_lat.cpu()
             with torch.no_grad():
                 self.tb_writer.add_graph(self.model.cpu(), example_lat)
+            self.model.to(self.device)
     
     @staticmethod
     def precompute_latent_variation(nclasses, nstyle, ntest_image_per_style):
