@@ -203,7 +203,7 @@ class Latent2AngularPDFTrainer:
             model.eval()
             latent = cls.precompute_latent_variation(nclasses, nstyle, ntest_image_per_style)
             image_list = model(latent).cpu().detach().numpy()
-            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, title)
+            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, base_title=title)
             report_dir = os.path.join(work_dir, "reports")
             if not os.path.exists(report_dir):
                 os.makedirs(report_dir)
