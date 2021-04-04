@@ -194,15 +194,13 @@ class Latent2AngularPDFTrainer:
         return trainer
 
     @classmethod
-    def test_models(cls, work_dir='.', final_model_name='final.pt', best_model_name='best.pt'):
+    def test_models(cls, work_dir='.', final_model_name='final.pt', best_model_name='best.pt',
+                    nclasses=3, nstyle=2, ntest_image_per_style = 11, image_dim=(64, 64)):
         final_model = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
         best_model = torch.load(f'{work_dir}/{best_model_name}', map_location=torch.device('cpu'))
 
-        def plot_variation(model: Latent2AngularPDFTrainer, title='final '):
+        def plot_variation(model, title='final '):
             model.eval()
-            nstyle = model.nstyle
-            nclasses = model.nclasses
-            ntest_image_per_style = model.ntest_image_per_style
             latent = cls.precompute_latent_variation(nclasses, nstyle, ntest_image_per_style)
             image_list = model(latent).cpu().detach().numpy()
             fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, title)
