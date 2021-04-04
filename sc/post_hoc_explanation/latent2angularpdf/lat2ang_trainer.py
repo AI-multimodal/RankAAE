@@ -189,6 +189,7 @@ class Latent2AngularPDFTrainer:
         trainer = Latent2AngularPDFTrainer(model, device, dl_train, dl_val, lr=lr, max_epoch=max_epoch, sch_factor=sch_factor,
                                            sch_patience=sch_patience, style_noise=style_noise, weight_decay=weight_decay, 
                                            optimizer_name=optimizer_name, verbose=verbose, work_dir='.')
+        return trainer
 
     @classmethod
     def test_models(cls, work_dir='.', final_model_name='final.pt', best_model_name='best.pt'):
