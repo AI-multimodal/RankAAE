@@ -206,7 +206,7 @@ class Trainer:
 
         sol_list = [reconn_solver, mutual_info_solver, smooth_solver, cn_solver, adversarial_solver]
         schedulers = [
-            ReduceLROnPlateau(sol, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
+            ReduceLROnPlateau(sol, mode="max", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                               verbose=self.verbose)
             for sol in sol_list]
 
@@ -413,11 +413,13 @@ class Trainer:
                            chk_fn)
                 last_best = cn_accuracy
                 best_chk = chk_fn
+            metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
+            metric_weights = [1.0] * 2 + [-1.0] + [-1.0E-2] * 2 + [-1.0]
+            mean_metrics = (np.array(metric_weights) * np.array(metrics)).sum()
 
             for sch in schedulers:
-                sch.step(torch.tensor(last_best))
+                sch.step(mean_metrics)
 
-            metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
