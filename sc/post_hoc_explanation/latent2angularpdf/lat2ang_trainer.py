@@ -72,10 +72,10 @@ class Latent2AngularPDFTrainer:
         fig_dict = dict()
         for iclass in range(nclasses):
             # noinspection PyTypeChecker
-            fig, ax_list = plt.subplots(nstyle, ntest_image_per_style, sharex=True, sharey=True, figsize=(4, 4))
+            fig, ax_list = plt.subplots(nstyle, ntest_image_per_style, sharex=True, sharey=True, figsize=(20, 4))
             for jstyle, (image_row, ax_row) in enumerate(zip(image_list[iclass], ax_list)):
                 for ktest, (image, ax) in enumerate(zip(image_row, ax_row)):
-                    plt.imshow(image, extent=[1.6, 8.0, 180, 0], aspect=0.035, interpolation='spline36', cmap='jet')
+                    ax.imshow(image, extent=[1.6, 8.0, 180, 0], aspect=0.035, interpolation='spline36', cmap='jet')
                     if ktest == 0:
                         ax.set_ylabel(f"Style {jstyle + 1}\n" + "$\\theta$")
                     if jstyle == nstyle - 1:
@@ -203,7 +203,7 @@ class Latent2AngularPDFTrainer:
             model.eval()
             latent = cls.precompute_latent_variation(nclasses, nstyle, ntest_image_per_style)
             image_list = model(latent).cpu().detach().numpy()
-            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, base_title=title)
+            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, image_dim=image_dim, base_title=title)
             report_dir = os.path.join(work_dir, "reports")
             if not os.path.exists(report_dir):
                 os.makedirs(report_dir)
