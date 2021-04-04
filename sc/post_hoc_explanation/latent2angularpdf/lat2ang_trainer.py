@@ -70,16 +70,16 @@ class Latent2AngularPDFTrainer:
         assert isinstance(image_list, np.ndarray)
         image_list = image_list.reshape((nclasses, nstyle, ntest_image_per_style) + image_dim)
         fig_dict = dict()
-        for iclass in range(len(nclasses)):
+        for iclass in range(nclasses):
             # noinspection PyTypeChecker
-            fig, ax_list = plt.subplots(nstyle, 1, sharex=True, sharey=True, figsize=(4, 4))
+            fig, ax_list = plt.subplots(nstyle, ntest_image_per_style, sharex=True, sharey=True, figsize=(4, 4))
             for jstyle, (image_row, ax_row) in enumerate(zip(image_list[iclass], ax_list)):
                 for ktest, (image, ax) in enumerate(zip(image_row, ax_row)):
                     plt.imshow(image, extent=[1.6, 8.0, 180, 0], aspect=0.035, interpolation='spline36', cmap='jet')
                     if ktest == 0:
-                        ax.ylabel(f"Style {jstyle + 1}\n" + "$\\theta$")
+                        ax.set_ylabel(f"Style {jstyle + 1}\n" + "$\\theta$")
                     if jstyle == nstyle - 1:
-                        ax.xlabel('r ($\AA$)')
+                        ax.set_xlabel('r ($\AA$)')
             title = f"{base_title}Image Variation CN{iclass + 4}"
             fig.suptitle(title, y=0.91)
             fig_dict[title] = fig
