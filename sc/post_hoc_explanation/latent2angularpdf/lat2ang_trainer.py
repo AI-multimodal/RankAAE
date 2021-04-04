@@ -44,6 +44,7 @@ class Latent2AngularPDFTrainer:
         self.image_dim = tuple(image_dim)
         self.plot_interval = plot_interval
         self.verbose = verbose
+        self.work_dir = work_dir
 
         if verbose:
             self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
