@@ -175,7 +175,7 @@ class Latent2AngularPDFTrainer:
                   dropout_rate=0.05):
         dl_train, dl_val, _ = get_latent2apdf_dataloaders(pkl_fn, batch_size)
         
-        use_cuda = torch.cuda.is_available()
+        use_cuda = torch.cuda.is_available() and igpu >= 0
         if use_cuda:
             if verbose:
                 print("Use GPU")
