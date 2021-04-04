@@ -207,7 +207,7 @@ class Latent2AngularPDFTrainer:
             report_dir = os.path.join(work_dir, "reports")
             if not os.path.exists(report_dir):
                 os.makedirs(report_dir)
-            for title, fig in fig_dict.values():
+            for title, fig in fig_dict.items():
                 fig.savefig(f'{report_dir}/{title}.pdf', dpi=300)
 
         plot_variation(final_model, title='Final ')
