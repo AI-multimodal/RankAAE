@@ -36,7 +36,7 @@ def main():
     metrics = trainer.train()
     
     print(metrics)
-    trainer.test_models(args.data_file, work_dir=work_dir)
+    trainer.test_models(work_dir=work_dir)
 
 
 if __name__ == '__main__':
