@@ -96,7 +96,7 @@ class Latent2AngularPDFTrainer:
 
         # loss function
         mse_dis_mean = nn.MSELoss().to(self.device)
-        mse_dis_sum = nn.MSELoss(reduction='sum').to(self.device)
+        mse_dis_sum = nn.MSELoss(reduction='none').to(self.device)
         reconn_solver: optim.Optimizer = opt_cls(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         scheduler = ReduceLROnPlateau(reconn_solver, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                                       mode="min", verbose=self.verbose)
@@ -116,7 +116,7 @@ class Latent2AngularPDFTrainer:
                 apdf_in = apdf_in.to(self.device)
 
                 reconn_solver.zero_grad()
-                lat_noise = torch.randn([lat.size()[0], self.nstyle], device=self.device)
+                lat_noise = torch.randn([lat.size()[0], self.nstyle], device=self.device) * self.style_noise
                 lat_pert = lat.clone()
                 lat_pert[:, -self.nstyle:] += lat_noise
                 apdf_pred = self.model(lat_pert)
@@ -138,8 +138,8 @@ class Latent2AngularPDFTrainer:
                 apdf_in = apdf_in.to(self.device)
                 apdf_pred = self.model(lat)
                 reconn_loss: torch.Tensor = mse_dis_sum(apdf_in, apdf_pred)
-                val_loss_list.append(reconn_loss.item())
-            val_mean_loss = sum(val_loss_list)/len(self.val_loader.dataset)
+                val_loss_list.append(reconn_loss)
+            val_mean_loss = torch.cat(val_loss_list, dim=0).mean().item()
             metrics = [val_mean_loss]
             if self.verbose:
                 # record losses
