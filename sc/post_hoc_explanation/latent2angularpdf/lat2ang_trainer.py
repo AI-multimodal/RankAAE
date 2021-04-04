@@ -64,7 +64,7 @@ class Latent2AngularPDFTrainer:
         return latent_variation
 
     @staticmethod
-    def get_style_image_variation_plot(image_list: np.ndarray, nclasses, nstyle, ntest_image_per_style, base_title=""):
+    def get_style_image_variation_plot(image_list: np.ndarray, nclasses, nstyle, ntest_image_per_style, image_dim=(64, 64), base_title=""):
         assert isinstance(image_list, np.ndarray)
         image_list = image_list.reshape((nclasses, nstyle, ntest_image_per_style) + image_dim)
         fig_dict = dict()
@@ -157,7 +157,7 @@ class Latent2AngularPDFTrainer:
             if epoch % self.plot_interval == 0 and self.verbose:
                 image_list = self.model(latent_variation)
                 image_list = image_list.clone().detach().cpu().numpy()
-                fig_dict = self.get_style_image_variation_plot(image_list, self.nclasses, self.nstyle, self.ntest_image_per_style)
+                fig_dict = self.get_style_image_variation_plot(image_list, self.nclasses, self.nstyle, self.ntest_image_per_style, self.image_dim)
                 for title, fig in fig_dict.items():
                         self.tb_writer.add_figure(title, fig, global_step=epoch)
 
