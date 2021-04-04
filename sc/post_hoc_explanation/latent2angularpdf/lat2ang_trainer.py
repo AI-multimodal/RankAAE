@@ -115,7 +115,10 @@ class Latent2AngularPDFTrainer:
                 apdf_in = apdf_in.to(self.device)
 
                 reconn_solver.zero_grad()
-                apdf_pred = self.model(apdf_in)
+                lat_noise = torch.randn([lat.size()[0], self.nstyle], device=self.device)
+                lat_pert = lat.clone()
+                lat_pert[:, -self.nstyle:] += lat_noise
+                apdf_pred = self.model(lat_pert)
                 reconn_loss: torch.Tensor = mse_dis_mean(apdf_in, apdf_pred)
                 reconn_loss.backward()
                 reconn_solver.step()
@@ -132,10 +135,7 @@ class Latent2AngularPDFTrainer:
             for lat, apdf_in in self.val_loader:
                 lat = lat.to(self.device)
                 apdf_in = apdf_in.to(self.device)
-                lat_noise = torch.randn([lat.size()[0], self.nstyle], device=self.device)
-                lat_pert = lat.clone()
-                lat_pert[:, -self.nstyle:] += lat_noise
-                apdf_pred = self.model(lat_pert)
+                apdf_pred = self.model(lat)
                 reconn_loss: torch.Tensor = mse_dis_sum(apdf_in, apdf_pred)
                 val_loss_list.append(reconn_loss.item())
             val_mean_loss = sum(val_loss_list)/len(self.val_loader.dataset)
