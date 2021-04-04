@@ -103,7 +103,7 @@ class Latent2AngularPDFTrainer:
         latent_variation = self.precompute_latent_variation(self.nclasses, self.nstyle, self.ntest_image_per_style)
         latent_variation = latent_variation.to(self.device)
 
-        last_best = 0.0
+        last_best = 99999999999.0
         chkpt_dir = f"{self.work_dir}/checkpoints"
         best_chk = None
         if not os.path.exists(chkpt_dir):
