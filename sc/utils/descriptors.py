@@ -31,8 +31,9 @@ class AngularPDF(BaseFeaturizer):
                  the square of the number of neighbors
     """
 
-    def __init__(self, radial_bins, angular_bins, radial_cutoff=10.0):
-        self.radial_bins = radial_bins
+    def __init__(self, radial_bins_1, radial_bins_2, angular_bins, radial_cutoff=10.0):
+        self.radial_bins_1 = radial_bins_1
+        self.radial_bins_2 = radial_bins_2 
         self.angular_bins = angular_bins
         self.radial_cutoff = radial_cutoff
 
@@ -85,19 +86,20 @@ class AngularPDF(BaseFeaturizer):
             neighbor_pairs[:, 2].astype(float)
         cos_angles = np.arccos(cos_angles)
         cos_angles = np.degrees(cos_angles)
-        features = [[sum(np.sqrt(rb(dist1) * rb(dist2)) * ab(cos_angles))
-                     for rb in self.radial_bins]
+        features = [[sum(np.sqrt(rb1(dist1) * rb2(dist2)) * ab(cos_angles))
+                     for (rb1,rb2) in zip(self.radial_bins_1,self.radial_bins_2)]
                     for ab in self.angular_bins]
         features = np.array(features)
         features = np.sqrt(features)
         return features
 
     def feature_labels(self):
-        return [[f'AFS {rb.name()} @ {ab.name()}' for rb in self.radial_bins]
+        return [[f'AFS {rb1.name()} and {rb2.name()} @ {ab.name()}' 
+                for (rb1,rb2) in (self.radial_bins_1, self.radial_bins_2)]
                 for ab in self.angular_bins]
 
     @staticmethod
-    def from_preset(radial_preset, radial_width=0.5, radial_spacing=0.5, radial_start=0, radial_cutoff=10,
+    def from_preset(radial_preset, radial_width=[0.5,0.5], radial_spacing=[0.5,0.5], radial_start=0, radial_cutoff=10,
                     angular_preset="gaussian", angular_width=8.0, angular_spacing=8.0, angular_start=45, 
                     angular_cutoff=180):
         """
