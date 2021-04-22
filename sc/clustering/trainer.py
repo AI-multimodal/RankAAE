@@ -414,11 +414,9 @@ class Trainer:
                 last_best = cn_accuracy
                 best_chk = chk_fn
             metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
-            metric_weights = [1.0] * 2 + [-1.0] + [-1.0E-2] * 2 + [-1.0]
-            mean_metrics = (np.array(metric_weights) * np.array(metrics)).sum()
 
             for sch in schedulers:
-                sch.step(mean_metrics)
+                sch.step(last_best)
 
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
