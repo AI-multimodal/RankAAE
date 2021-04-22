@@ -458,6 +458,7 @@ class Trainer:
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
+                  decoder_activation='ReLu',
                   chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
@@ -476,7 +477,7 @@ class Trainer:
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
         encoder = Encoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
-        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
