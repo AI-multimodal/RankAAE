@@ -549,7 +549,7 @@ class Trainer:
 
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
-            spec_in, cn_in = [torch.stack(x, dim=0) for x in zip(*list(ds))]
+            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
             z = encoder(spec_in)[0].clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker
@@ -593,7 +593,7 @@ class Trainer:
 
         def compute_confusion_matrix(encoder, ds, title_base):
             encoder.eval()
-            spec_in, cn_in = [torch.stack(x, dim=0) for x in zip(*list(ds))]
+            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
             _, y = encoder(spec_in)
             class_probs = y.detach().cpu().numpy()
             class_pred = class_probs.argmax(axis=-1)
