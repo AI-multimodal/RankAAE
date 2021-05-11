@@ -259,8 +259,15 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False):
+    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False, last_layer_activation='ReLu'):
         super(Decoder, self).__init__()
+
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
         self.main = nn.Sequential(
             DecodingBlock(in_channels=nclasses + nstyle, out_channels=8, in_len=1, excitation=1,
@@ -280,7 +287,7 @@ class Decoder(nn.Module):
                           excitation=2, dropout_rate=dropout_rate),
             nn.BatchNorm1d(2, affine=False),
             nn.Conv1d(2, 1, kernel_size=1, stride=1),
-            nn.ReLU()
+            ll_act
         )
 
         self.nclasses = nclasses

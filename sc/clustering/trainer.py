@@ -414,11 +414,9 @@ class Trainer:
                 last_best = cn_accuracy
                 best_chk = chk_fn
             metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
-            metric_weights = [1.0] * 2 + [-1.0] + [-1.0E-2] * 2 + [-1.0]
-            mean_metrics = (np.array(metric_weights) * np.array(metrics)).sum()
 
             for sch in schedulers:
-                sch.step(mean_metrics)
+                sch.step(last_best)
 
             if self.chem_dict is not None:
                 metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
@@ -460,6 +458,7 @@ class Trainer:
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
+                  decoder_activation='ReLu',
                   chem_dict=None, verbose=True, work_dir='.'):
 
         dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
@@ -478,7 +477,7 @@ class Trainer:
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
         encoder = Encoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
-        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
@@ -549,7 +548,7 @@ class Trainer:
 
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
-            spec_in, cn_in = [torch.stack(x, dim=0) for x in zip(*list(ds))]
+            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
             z = encoder(spec_in)[0].clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker
@@ -593,7 +592,7 @@ class Trainer:
 
         def compute_confusion_matrix(encoder, ds, title_base):
             encoder.eval()
-            spec_in, cn_in = [torch.stack(x, dim=0) for x in zip(*list(ds))]
+            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
             _, y = encoder(spec_in)
             class_probs = y.detach().cpu().numpy()
             class_pred = class_probs.argmax(axis=-1)
