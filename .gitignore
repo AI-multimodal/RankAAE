@@ -5,3 +5,4 @@ sc.egg-info/
 .noseids
 Semi_Clustering.egg-info
 nosetests.xml
+sc/utils/.ipynb_checkpoints/
