@@ -62,8 +62,15 @@ def get_train_val_test_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.
     train_loader = DataLoader(ds_train,
                               batch_size=batch_size,
                               sampler=train_sampler,
-                              num_workers=0, pin_memory=False)
-    val_loader = DataLoader(ds_val, batch_size=batch_size, num_workers=0, pin_memory=False)
-    test_loader = DataLoader(ds_test, batch_size=batch_size, num_workers=0, pin_memory=False)
+                              num_workers=0, 
+                              pin_memory=False)
+    val_loader = DataLoader(ds_val, 
+                            batch_size=batch_size, 
+                            num_workers=0, 
+                            pin_memory=False)
+    test_loader = DataLoader(ds_test, 
+                            batch_size=batch_size, 
+                            num_workers=0, 
+                            pin_memory=False)
 
     return train_loader, val_loader, test_loader
