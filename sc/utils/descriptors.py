@@ -141,7 +141,7 @@ class AngularPDF(BaseFeaturizer):
         angular_bins = []
         if angular_preset == "gaussian":
             angular_bin = [Gaussian(angular_width, angular_center)
-                           for angular_center in np.arange(angular_start, angular_cutoff, angular_spacing)]]
+                           for angular_center in np.arange(angular_start, angular_cutoff, angular_spacing)]
             angular_bins = angular_bin
         elif angular_preset == "histogram":
             angular_bin = [Histogram(start, angular_width)
