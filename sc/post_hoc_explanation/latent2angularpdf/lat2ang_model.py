@@ -12,7 +12,7 @@ class Latent2AngularPDF(nn.Module):
             nn.BatchNorm2d(8, affine=False),
             nn.ConvTranspose2d(in_channels=8, out_channels=8, kernel_size=2, stride=2),
             nn.ReLU(),
-            nn.BatchNorm2d(2, affine=False),
+            nn.BatchNorm2d(8, affine=False),
             nn.ConvTranspose2d(in_channels=8, out_channels=8, kernel_size=2, stride=2),
             nn.ReLU(),
             nn.BatchNorm2d(8, affine=False),
