@@ -23,7 +23,9 @@ class AngularPDF(BaseFeaturizer):
     Features:
         AFS ([gn], [gn']) - Angular Fourier Series between binning functions (g1 and g2)
     Args:
-        bins:   ([AbstractPairwise]) a list of binning functions that
+        radial_bins: a list containing either one (for single width) or two (for double width)
+                     [AbstractPairwise] lists (see below for more details)
+        angular_bins:   ([AbstractPairwise]) a list of binning functions that
                 implement the AbstractPairwise base class
         cutoff: (float) maximum distance to look for neighbors. The
                  featurizer will run slowly for large distance cutoffs
@@ -32,7 +34,12 @@ class AngularPDF(BaseFeaturizer):
     """
 
     def __init__(self, radial_bins, angular_bins, radial_cutoff=10.0):
+        
+        # duplicate radial_bins if single width is used.
         self.radial_bins = radial_bins
+        if len(radial_bins) == 1:
+            self.radial_bins = self.radial_bins * 2
+        
         self.angular_bins = angular_bins
         self.radial_cutoff = radial_cutoff
 
@@ -85,19 +92,23 @@ class AngularPDF(BaseFeaturizer):
             neighbor_pairs[:, 2].astype(float)
         cos_angles = np.arccos(cos_angles)
         cos_angles = np.degrees(cos_angles)
-        features = [[sum(np.sqrt(rb(dist1) * rb(dist2)) * ab(cos_angles))
-                     for rb in self.radial_bins]
+
+        # Calcuate features. Note that if single width is used, rb1=rb2.
+        features = [[sum(np.sqrt(rb1(dist1) * rb2(dist2)) * ab(cos_angles))
+                    for (rb1,rb2) in zip(self.radial_bins[0],self.radial_bins[1])]
                     for ab in self.angular_bins]
+        
         features = np.array(features)
         features = np.sqrt(features)
         return features
 
     def feature_labels(self):
-        return [[f'AFS {rb.name()} @ {ab.name()}' for rb in self.radial_bins]
+        return [[f'AFS {rb1.name()} and {rb2.name()} @ {ab.name()}' 
+                for (rb1,rb2) in (self.radial_bins_1, self.radial_bins_2)]
                 for ab in self.angular_bins]
 
     @staticmethod
-    def from_preset(radial_preset, radial_width=0.5, radial_spacing=0.5, radial_start=0, radial_cutoff=10,
+    def from_preset(radial_preset, radial_width=[0.5,0.5], radial_spacing=0.5, radial_start=0, radial_cutoff=0,
                     angular_preset="gaussian", angular_width=8.0, angular_spacing=8.0, angular_start=45, 
                     angular_cutoff=180):
         """
@@ -111,27 +122,31 @@ class AngularPDF(BaseFeaturizer):
             cutoff (float): maximum distance to look for neighbors
         """
 
+        
         # Generate radial bin functions
-        if radial_preset == "gaussian":
-            radial_bins = []
-            for radial_center in np.arange(radial_start, radial_cutoff, radial_spacing):
-                radial_bins.append(Gaussian(radial_width, radial_center))
-        elif radial_preset == "histogram":
-            radial_bins = []
-            for start in np.arange(radial_start, radial_cutoff, radial_spacing):
-                radial_bins.append(Histogram(start, radial_width))
-        else:
-            raise ValueError(f'Not a valid radial preset condition {radial_preset}.')
+        radial_bins = []
+        for i in range(len(radial_width)):
+            if radial_preset == "gaussian":
+                radial_bin = [Gaussian(radial_width[i], radial_center)
+                              for radial_center in np.arange(radial_start, radial_cutoff, radial_spacing)]
+                radial_bins.append(radial_bin)
+            elif radial_preset == "histogram":
+                radial_bin = [Histogram(start, radial_width[i])
+                              for start in np.arange(radial_start, radial_cutoff, radial_spacing)]
+                radial_bins.append(radial_bin)
+            else:
+                raise ValueError(f'Not a valid radial preset condition {radial_preset}.')
 
         # Generate angular bin functions
+        angular_bins = []
         if angular_preset == "gaussian":
-            angular_bins = []
-            for angular_center in np.arange(angular_start, angular_cutoff, angular_spacing):
-                angular_bins.append(Gaussian(angular_width, angular_center))
+            angular_bin = [Gaussian(angular_width, angular_center)
+                           for angular_center in np.arange(angular_start, angular_cutoff, angular_spacing)]
+            angular_bins = angular_bin
         elif angular_preset == "histogram":
-            angular_bins = []
-            for start in np.arange(angular_start, angular_cutoff, angular_spacing):
-                angular_bins.append(Histogram(start, angular_width))
+            angular_bin = [Histogram(start, angular_width)
+                           for start in np.arange(angular_start, angular_cutoff, angular_spacing)]
+            angular_bins = angular_bin
         else:
             raise ValueError(f'Not a valid angular preset condition {angular_preset}.')
 
