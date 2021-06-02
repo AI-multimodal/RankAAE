@@ -104,7 +104,7 @@ class AngularPDF(BaseFeaturizer):
 
     def feature_labels(self):
         return [[f'AFS {rb1.name()} and {rb2.name()} @ {ab.name()}' 
-                for (rb1,rb2) in (self.radial_bins_1, self.radial_bins_2)]
+                for (rb1,rb2) in zip(self.radial_bins[0],self.radial_bins[1])]
                 for ab in self.angular_bins]
 
     @staticmethod
@@ -148,7 +148,7 @@ class AngularPDF(BaseFeaturizer):
                            for start in np.arange(angular_start, angular_cutoff, angular_spacing)]
             angular_bins = angular_bin
         else:
-            raise ValueError(f'Not a valid angular preset condition {angular_preset}.')
+            raise ValueError(f'Not a valid angular preset condition {angular_preset}.') 
 
         return AngularPDF(radial_bins, angular_bins, radial_cutoff=radial_cutoff)
 

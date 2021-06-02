@@ -31,8 +31,9 @@ class TestAngularPDF(PymatgenTest):
         fa3 = Gaussian(5.0, 120.0)
         s_tuples = [(self.sc, 0), (self.cscl, 0)]
 
+        radial_bin = [fr1, fr2, fr3]
         # test transform,and featurize dataframe
-        afs = AngularPDF(radial_bins=[fr1, fr2, fr3], angular_bins=[fa1, fa2, fa3])
+        afs = AngularPDF(radial_bins=[radial_bin], angular_bins=[fa1, fa2, fa3])
         features = afs.transform(s_tuples)
         self.assertArrayAlmostEqual(features,
                                     [np.array([[3.39729162e-05, 2.83553809e-03, 7.24224653e+00],
@@ -42,4 +43,3 @@ class TestAngularPDF(PymatgenTest):
                                                [6.99604354e-04, 2.86949946e-02, 9.00231999e+00],
                                                [3.13160638e-03, 7.72999765e-02, 6.10161855e+00]])],
                                     3)     
-
