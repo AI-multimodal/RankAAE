@@ -2,9 +2,9 @@ from unittest import TestCase
 import numpy as np
 
 from matminer.featurizers.utils.grdf import Gaussian
-from pymatgen import Structure, Lattice
 from pymatgen.util.testing import PymatgenTest
-
+from pymatgen.core.structure import Structure
+from pymatgen.core.lattice import Lattice
 from sc.utils.descriptors import AngularPDF
 
 
