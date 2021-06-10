@@ -50,7 +50,7 @@ class ToTensor(object):
         return torch.Tensor(sample)
 
 
-def get_train_val_test_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15),
+def get_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15),
                                    sampling_exponent=0.6, n_coord_num=3):
     transform_list = transforms.Compose([ToTensor()])
     ds_train,  ds_val, ds_test = [CoordNumSpectraDataset(

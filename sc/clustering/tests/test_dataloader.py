@@ -1,6 +1,6 @@
 from unittest import TestCase
 from torchvision import transforms
-from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor, get_train_val_test_dataloaders
+from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor, get_dataloaders
 import os
 
 
@@ -28,7 +28,7 @@ class TestCoordNumSpectraDataset(TestCase):
         self.assertAlmostEqual(dataset_feff_test.sampling_weights_per_cn[2], 0.15, places=2)
 
     def test_dataloader(self):
-        dl_train, dl_val, dl_test = get_train_val_test_dataloaders(data_fn, 512)
+        dl_train, dl_val, dl_test = get_dataloaders(self.data_fn, 512)
         self.assertEqual(len(dl_train), 8)
         self.assertEqual(len(dl_val), 2)
         self.assertEqual(len(dl_test.dataset), 777)

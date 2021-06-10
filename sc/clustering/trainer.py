@@ -12,7 +12,7 @@ import os
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from sc.clustering.model import Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
-from sc.clustering.dataloader import get_train_val_test_dataloaders
+from sc.clustering.dataloader import get_dataloaders
 from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
 from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor
@@ -461,7 +461,7 @@ class Trainer:
                   decoder_activation='ReLu',
                   chem_dict=None, verbose=True, work_dir='.'):
 
-        dl_train, dl_val, dl_test = get_train_val_test_dataloaders(
+        dl_train, dl_val, dl_test = get_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
         
         use_cuda = torch.cuda.is_available()
