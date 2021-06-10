@@ -59,6 +59,12 @@ class TestGeneralizedPartialRadialDistributionFunction(PymatgenTest):
             validate_proximity=False, to_unit_cell=False,
             coords_are_cartesian=False)
 
-    def test_afs(self):
+    def test_prdf(self):
+        print('hhh')
         prdf = GeneralizedPartialRadialDistributionFunction.from_preset("gaussian")
-        print(prdf)
+        features = prdf.featurize(self.cscl, 0)
+        expected_features = {"Species Cs+": np.array([3.30853148e-06, 2.58984283e-04, 5.60358944e-03, 2.47481359e-02, 1.90457175e-02, 3.27657575e-03, 
+                                                      1.14522135e-02, 2.16619771e-02, 1.03658626e-02, 1.43742135e-02]), 
+                             "Species Cl-": np.array([2.18074034e-08, 6.11195171e-06, 4.54959413e-04, 6.58348968e-03, 1.63505142e-02, 1.42540722e-02, 
+                                                      1.69097501e-02, 1.10983790e-02, 9.31055080e-03, 1.53303668e-02])}
+        self.assertDictsAlmostEqual(features, expected_features)

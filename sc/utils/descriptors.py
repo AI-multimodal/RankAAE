@@ -277,9 +277,15 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         volumes = [bin.volume(self.cutoff) for bin in self.bins]
 
         # normalize the bin counts by the bin volume to compute features
-        features = []
-        for values in bin_counts:
-            features.extend(np.array(values) / np.array(volumes))
+        if self.mode in ["GRDF", "pairwise_GRDF"]:
+            features = []
+            for values in bin_counts:
+                features.extend(np.array(values) / np.array(volumes))
+        else:
+            assert self.mode == "element_partial_GRDF"
+            features = dict()
+            for ele, values in zip(self.elements, bin_counts):
+                features[ele] =  np.array(values) / np.array(volumes)
 
         return features
 
@@ -293,7 +299,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
                 raise AttributeError("the fit method must be called first, to " "determine the correct feature labels.")
         else:
             assert self.mode == "element_partial_GRDF"
-            return [f"With {ele} {bin.name}" for bin in self.bins for ele in self.elements]
+            return [f"With {ele} {bin.name()}" for bin in self.bins for ele in self.elements]
 
     @staticmethod
     def from_preset(preset, width=1.0, spacing=1.0, cutoff=10, mode="element_partial_GRDF"):
