@@ -250,16 +250,23 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         central_site = sites[idx]
         neighbors_lst = struct.get_neighbors(central_site, self.cutoff, include_index=True)
         sites = range(0, len(sites))
+        self.elements = tuple(set(struct.species))
 
         # Generate lists of pairwise distances according to run mode
         if self.mode == "GRDF":
             # Make a single distance collection
             distance_collection = [[neighbor[1] for neighbor in neighbors_lst]]
-        else:
+        elif self.mode == "pairwise_GRDF":
             # Make pairwise distance collections for pairwise GRDF
             distance_collection = [
                 [neighbor[1] for neighbor in neighbors_lst if neighbor[2] == site_idx] for site_idx in sites
             ]
+        else:
+            assert self.mode == "element_partial_GRDF"
+            distance_collection = [
+                [neighbor[1] for neighbor in neighbors_lst if neighbor.specie == ele] for ele in self.elements
+            ]
+
 
         # compute bin counts for each list of pairwise distances
         bin_counts = []
@@ -279,14 +286,17 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
     def feature_labels(self):
         if self.mode == "GRDF":
             return [bin.name() for bin in self.bins]
-        else:
+        elif self.mode == "pairwise_GRDF":
             if self.fit_labels:
                 return self.fit_labels
             else:
                 raise AttributeError("the fit method must be called first, to " "determine the correct feature labels.")
+        else:
+            assert self.mode == "element_partial_GRDF"
+            return [f"With {ele} {bin.name}" for bin in self.bins for ele in self.elements]
 
     @staticmethod
-    def from_preset(preset, width=1.0, spacing=1.0, cutoff=10, mode="GRDF"):
+    def from_preset(preset, width=1.0, spacing=1.0, cutoff=10, mode="element_partial_GRDF"):
         """
         Preset bin functions for this featurizer. Example use:
             >>> GRDF = GeneralizedRadialDistributionFunction.from_preset('gaussian')
@@ -310,7 +320,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
                 bins.append(Histogram(start, width))
         else:
             raise ValueError("Not a valid preset condition.")
-        return GeneralizedRadialDistributionFunction(bins, cutoff=cutoff, mode=mode)
+        return GeneralizedPartialRadialDistributionFunction(bins, cutoff=cutoff, mode=mode)
 
     def citations(self):
         return [
@@ -324,4 +334,4 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         ]
 
     def implementors(self):
-        return ["Maxwell Dylla", "Saurabh Bajaj", "Logan Williams"]
+        return ["Maxwell Dylla", "Saurabh Bajaj", "Logan Williams", "Xiaohui Qu"]
