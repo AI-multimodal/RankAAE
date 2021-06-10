@@ -5,7 +5,7 @@ from matminer.featurizers.utils.grdf import Gaussian
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
-from sc.utils.descriptors import AngularPDF
+from sc.utils.descriptors import AngularPDF, GeneralizedPartialRadialDistributionFunction
 
 
 class TestAngularPDF(PymatgenTest):
@@ -43,3 +43,22 @@ class TestAngularPDF(PymatgenTest):
                                                [6.99604354e-04, 2.86949946e-02, 9.00231999e+00],
                                                [3.13160638e-03, 7.72999765e-02, 6.10161855e+00]])],
                                     3)     
+
+
+class TestGeneralizedPartialRadialDistributionFunction(PymatgenTest):
+    def setUp(self):
+        self.sc = Structure(
+            Lattice([[3.52, 0, 0], [0, 3.52, 0], [0, 0, 3.52]]),
+            ["Al", ],
+            [[0, 0, 0]],
+            validate_proximity=False, to_unit_cell=False,
+            coords_are_cartesian=False)
+        self.cscl = Structure(
+            Lattice([[4.209, 0, 0], [0, 4.209, 0], [0, 0, 4.209]]),
+            ["Cl1-", "Cs1+"], [[0.45, 0.5, 0.5], [0, 0, 0]],
+            validate_proximity=False, to_unit_cell=False,
+            coords_are_cartesian=False)
+
+    def test_afs(self):
+        prdf = GeneralizedPartialRadialDistributionFunction.from_preset("gaussian")
+        print(prdf)
