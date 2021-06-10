@@ -250,7 +250,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         central_site = sites[idx]
         neighbors_lst = struct.get_neighbors(central_site, self.cutoff, include_index=True)
         sites = range(0, len(sites))
-        self.elements = tuple(set(struct.species))
+        self.elements = tuple([sp.symbol for sp in set(struct.species)])
 
         # Generate lists of pairwise distances according to run mode
         if self.mode == "GRDF":
@@ -264,7 +264,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         else:
             assert self.mode == "element_partial_GRDF"
             distance_collection = [
-                [neighbor[1] for neighbor in neighbors_lst if neighbor.specie == ele] for ele in self.elements
+                [neighbor[1] for neighbor in neighbors_lst if neighbor.specie.symbol == ele] for ele in self.elements
             ]
 
 

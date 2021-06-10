@@ -33,16 +33,19 @@ class TestAngularPDF(PymatgenTest):
 
         radial_bin = [fr1, fr2, fr3]
         # test transform,and featurize dataframe
-        afs = AngularPDF(radial_bins=[radial_bin], angular_bins=[fa1, fa2, fa3])
+        afs = AngularPDF(radial_bins=[radial_bin],
+                         angular_bins=[fa1, fa2, fa3])
         features = afs.transform(s_tuples)
         self.assertArrayAlmostEqual(features,
                                     [np.array([[3.39729162e-05, 2.83553809e-03, 7.24224653e+00],
-                                               [1.00103478e-02, 2.06501706e-01, 1.02289003e+01],
-                                               [3.39729162e-05, 2.83553809e-03, 7.24224653e+00]]), 
+                                               [1.00103478e-02, 2.06501706e-01,
+                                                   1.02289003e+01],
+                                               [3.39729162e-05, 2.83553809e-03, 7.24224653e+00]]),
                                      np.array([[2.07194688e-03, 6.11209555e-02, 6.13520637e+00],
-                                               [6.99604354e-04, 2.86949946e-02, 9.00231999e+00],
+                                               [6.99604354e-04, 2.86949946e-02,
+                                                   9.00231999e+00],
                                                [3.13160638e-03, 7.72999765e-02, 6.10161855e+00]])],
-                                    3)     
+                                    3)
 
 
 class TestGeneralizedPartialRadialDistributionFunction(PymatgenTest):
@@ -60,18 +63,22 @@ class TestGeneralizedPartialRadialDistributionFunction(PymatgenTest):
             coords_are_cartesian=False)
 
     def test_prdf(self):
-        prdf = GeneralizedPartialRadialDistributionFunction.from_preset("gaussian")
+        prdf = GeneralizedPartialRadialDistributionFunction.from_preset(
+            "gaussian")
         features = prdf.featurize(self.cscl, 0)
-        expected_features = {"Species Cs+": np.array([3.30853148e-06, 2.58984283e-04, 5.60358944e-03, 2.47481359e-02, 1.90457175e-02, 3.27657575e-03, 
-                                                      1.14522135e-02, 2.16619771e-02, 1.03658626e-02, 1.43742135e-02]), 
-                             "Species Cl-": np.array([2.18074034e-08, 6.11195171e-06, 4.54959413e-04, 6.58348968e-03, 1.63505142e-02, 1.42540722e-02, 
-                                                      1.69097501e-02, 1.10983790e-02, 9.31055080e-03, 1.53303668e-02])}
-        self.assertDictsAlmostEqual(features, expected_features)
+        expected_features = {"Cs": np.array([3.30853148e-06, 2.58984283e-04, 5.60358944e-03, 2.47481359e-02, 1.90457175e-02, 3.27657575e-03,
+                                             1.14522135e-02, 2.16619771e-02, 1.03658626e-02, 1.43742135e-02]),
+                             "Cl": np.array([2.18074034e-08, 6.11195171e-06, 4.54959413e-04, 6.58348968e-03, 1.63505142e-02, 1.42540722e-02,
+                                             1.69097501e-02, 1.10983790e-02, 9.31055080e-03, 1.53303668e-02])}
+        for k, v in expected_features.items():
+            self.assertArrayAlmostEqual(features[k], v)
 
-        prdf = GeneralizedPartialRadialDistributionFunction.from_preset("histogram")
+        prdf = GeneralizedPartialRadialDistributionFunction.from_preset(
+            "histogram")
         features = prdf.featurize(self.cscl, 0)
-        expected_features = {"Species Cs+": np.array([0.        , 0.        , 0.        , 0.05161782, 0.        , 0.        , 
-                                                      0.02255739, 0.01695141, 0.        , 0.02114235]), 
-                             "Species Cl-": np.array([0.        , 0.        , 0.        , 0.        , 0.02348188, 0.0314812 , 
-                                                     0.        , 0.01130094, 0.0066009 , 0.02114235])}
-        self.assertDictsAlmostEqual(features, expected_features)
+        expected_features = {"Cs": np.array([0., 0., 0., 0.05161782, 0., 0.,
+                                             0.02255739, 0.01695141, 0., 0.02114235]),
+                             "Cl": np.array([0., 0., 0., 0., 0.02348188, 0.0314812,
+                                             0., 0.01130094, 0.0066009, 0.02114235])}
+        for k, v in expected_features.items():
+            self.assertArrayAlmostEqual(features[k], v)
