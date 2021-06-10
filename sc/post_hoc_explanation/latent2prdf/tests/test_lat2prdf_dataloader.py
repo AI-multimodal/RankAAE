@@ -5,7 +5,7 @@ import os
 data_fn = os.path.join(os.path.dirname(__file__), "../../../../data", "mini_latent2prdf_dataset.pkl")
 
 
-class TestLatent2AngularPDFDataset(TestCase):
+class TestLatent2PRDFDataset(TestCase):
     def test_dataloader(self):
         dl_train, dl_val, dl_test = get_latent2prdf_dataloaders(data_fn, 4, 'Cu')
         self.assertEqual(len(dl_train), 8)
