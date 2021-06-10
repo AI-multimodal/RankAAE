@@ -7,7 +7,7 @@ from sc.clustering.dataloader import ToTensor
 
 class Latent2PRDFDataset(Dataset):
     def __init__(self, pkl_fn, set_name, element, transform=None):
-        super(Latent2AngularPDFDataset, self).__init__()
+        super(Latent2PRDFDataset, self).__init__()
 
         with open(pkl_fn, "rb") as f:
             ds_dict = pickle.load(f)
