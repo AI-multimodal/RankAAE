@@ -60,11 +60,18 @@ class TestGeneralizedPartialRadialDistributionFunction(PymatgenTest):
             coords_are_cartesian=False)
 
     def test_prdf(self):
-        print('hhh')
         prdf = GeneralizedPartialRadialDistributionFunction.from_preset("gaussian")
         features = prdf.featurize(self.cscl, 0)
         expected_features = {"Species Cs+": np.array([3.30853148e-06, 2.58984283e-04, 5.60358944e-03, 2.47481359e-02, 1.90457175e-02, 3.27657575e-03, 
                                                       1.14522135e-02, 2.16619771e-02, 1.03658626e-02, 1.43742135e-02]), 
                              "Species Cl-": np.array([2.18074034e-08, 6.11195171e-06, 4.54959413e-04, 6.58348968e-03, 1.63505142e-02, 1.42540722e-02, 
                                                       1.69097501e-02, 1.10983790e-02, 9.31055080e-03, 1.53303668e-02])}
+        self.assertDictsAlmostEqual(features, expected_features)
+
+        prdf = GeneralizedPartialRadialDistributionFunction.from_preset("histogram")
+        features = prdf.featurize(self.cscl, 0)
+        expected_features = {"Species Cs+": np.array([0.        , 0.        , 0.        , 0.05161782, 0.        , 0.        , 
+                                                      0.02255739, 0.01695141, 0.        , 0.02114235]), 
+                             "Species Cl-": np.array([0.        , 0.        , 0.        , 0.        , 0.02348188, 0.0314812 , 
+                                                     0.        , 0.01130094, 0.0066009 , 0.02114235])}
         self.assertDictsAlmostEqual(features, expected_features)
