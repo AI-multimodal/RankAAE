@@ -163,3 +163,165 @@ class AngularPDF(BaseFeaturizer):
 
     def implementors(self):
         return ["Maxwell Dylla", "Logan Williams", "Xiaohui Qu"]
+
+
+class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
+    """
+    Compute the general radial distribution function (GRDF) for a site.
+    The GRDF is a radial measure of crystal order around a site. There are two
+    featurizing modes:
+    1. GRDF: (recommended) - n_bins length vector
+        In GRDF mode, The GRDF is computed by considering all sites around a
+        central site (i.e., no sites are omitted when computing the GRDF). The
+        features output from this mode will be vectors with length n_bins.
+    2. pairwise GRDF: (advanced users) - n_bins x n_sites matrix
+        In this mode, GRDFs are are still computed around a central site, but
+        only one other site (and their translational equivalents) are used to
+        compute a GRDF (e.g. site 1 with site 2 and the translational
+        equivalents of site 2). This results in a a n_sites x n_bins matrix of
+        features. Requires `fit` for determining the max number of sites for
+    3. Element Partial GRDF:
+        In this mode, GRDFs are are still computed around a central site, but
+        only one other element to compute GRDF.
+    The GRDF is a generalization of the partial radial distribution function
+    (PRDF). In contrast with the PRDF, the bins of the GRDF are not mutually-
+    exclusive and need not carry a constant weight of 1. The PRDF is a case of
+    the GRDF when the bins are rectangular functions. Examples of other
+    functions to use with the GRDF are Gaussian, trig, and Bessel functions.
+    See :func:`~matminer.featurizers.utils.grdf` for a full list of available binning functions.
+    There are two preset conditions:
+        gaussian: bin functions are gaussians
+        histogram: bin functions are rectangular functions
+    Args:
+        bins:   ([AbstractPairwise]) List of pairwise binning functions. Each of these functions
+            must implement the AbstractPairwise class.
+        cutoff: (float) maximum distance to look for neighbors
+        mode:   (str) the featurizing mode. supported options are:
+                    'GRDF', 'pairwise_GRDF' and "element_partial_GRDF"
+    """
+
+    def __init__(self, bins, cutoff=20.0, mode="element_partial_GRDF"):
+        self.bins = bins
+        self.cutoff = cutoff
+
+        if mode not in ["GRDF", "pairwise_GRDF", "element_partial_GRDF"]:
+            raise AttributeError("{} is not a valid GRDF mode. try " '"GRDF", "pairwise_GRDF" or "element_partial_GRDF"'.format(mode))
+        else:
+            self.mode = mode
+
+        self.fit_labels = None
+
+    def fit(self, X, y=None, **fit_kwargs):
+        """
+        Determine the maximum number of sites in X to assign correct feature
+        labels
+        Args:
+            X - [list of tuples], training data
+                tuple values should be (struc, idx)
+        Returns:
+            self
+        """
+
+        max_sites = max([len(X[i][0]._sites) for i in range(len(X))])
+        self.fit_labels = ["site2 {} {}".format(i, bin.name()) for bin in self.bins for i in range(max_sites)]
+        return self
+
+    def featurize(self, struct, idx):
+        """
+        Get GRDF of the input structure.
+        Args:
+            struct (Structure): Pymatgen Structure object.
+            idx (int): index of target site in structure struct.
+        Returns:
+            Flattened list of GRDF values. For each run mode the list order is:
+                GRDF:          bin#
+                pairwise GRDF: site2# bin#
+                element partial GRDF: element2# bin#
+            The site2# corresponds to a pymatgen site index and bin#
+            corresponds to one of the bin functions
+        """
+
+        if not struct.is_ordered:
+            raise ValueError("Disordered structure support not built yet")
+
+        # Get list of neighbors by site
+        # Indexing is [site#][neighbor#][pymatgen Site, distance, site index]
+        sites = struct._sites
+        central_site = sites[idx]
+        neighbors_lst = struct.get_neighbors(central_site, self.cutoff, include_index=True)
+        sites = range(0, len(sites))
+
+        # Generate lists of pairwise distances according to run mode
+        if self.mode == "GRDF":
+            # Make a single distance collection
+            distance_collection = [[neighbor[1] for neighbor in neighbors_lst]]
+        else:
+            # Make pairwise distance collections for pairwise GRDF
+            distance_collection = [
+                [neighbor[1] for neighbor in neighbors_lst if neighbor[2] == site_idx] for site_idx in sites
+            ]
+
+        # compute bin counts for each list of pairwise distances
+        bin_counts = []
+        for values in distance_collection:
+            bin_counts.append([sum(bin(values)) for bin in self.bins])
+
+        # Compute "volume" of each bin to normalize GRDFs
+        volumes = [bin.volume(self.cutoff) for bin in self.bins]
+
+        # normalize the bin counts by the bin volume to compute features
+        features = []
+        for values in bin_counts:
+            features.extend(np.array(values) / np.array(volumes))
+
+        return features
+
+    def feature_labels(self):
+        if self.mode == "GRDF":
+            return [bin.name() for bin in self.bins]
+        else:
+            if self.fit_labels:
+                return self.fit_labels
+            else:
+                raise AttributeError("the fit method must be called first, to " "determine the correct feature labels.")
+
+    @staticmethod
+    def from_preset(preset, width=1.0, spacing=1.0, cutoff=10, mode="GRDF"):
+        """
+        Preset bin functions for this featurizer. Example use:
+            >>> GRDF = GeneralizedRadialDistributionFunction.from_preset('gaussian')
+            >>> GRDF.featurize(struct, idx)
+        Args:
+            preset (str): shape of bin (either 'gaussian' or 'histogram')
+            width (float): bin width. std dev for gaussian, width for histogram
+            spacing (float): the spacing between bin centers
+            cutoff (float): maximum distance to look for neighbors
+            mode (str): featurizing mode. either 'GRDF' or 'pairwise_GRDF'
+        """
+
+        # Generate bin functions
+        if preset == "gaussian":
+            bins = []
+            for center in np.arange(0.0, cutoff, spacing):
+                bins.append(Gaussian(width, center))
+        elif preset == "histogram":
+            bins = []
+            for start in np.arange(0, cutoff, spacing):
+                bins.append(Histogram(start, width))
+        else:
+            raise ValueError("Not a valid preset condition.")
+        return GeneralizedRadialDistributionFunction(bins, cutoff=cutoff, mode=mode)
+
+    def citations(self):
+        return [
+            "@article{PhysRevB.95.144110, title = {Representation of compo"
+            "unds for machine-learning prediction of physical properties},"
+            " author = {Seko, Atsuto and Hayashi, Hiroyuki and Nakayama, "
+            "Keita and Takahashi, Akira and Tanaka, Isao},"
+            "journal = {Phys. Rev. B}, volume = {95}, issue = {14}, "
+            "pages = {144110}, year = {2017}, publisher = {American Physic"
+            "al Society}, doi = {10.1103/PhysRevB.95.144110}}"
+        ]
+
+    def implementors(self):
+        return ["Maxwell Dylla", "Saurabh Bajaj", "Logan Williams"]
