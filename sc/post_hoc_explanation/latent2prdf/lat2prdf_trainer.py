@@ -72,9 +72,9 @@ class Latent2PRDFTrainer:
         fig_dict = dict()
         for iclass in range(nclasses):
             # noinspection PyTypeChecker
-            fig, ax_list = plt.subplots(nstyle, sharex=True, sharey=True, figsize=(20, 4))
+            fig, ax_list = plt.subplots(nstyle, sharex=True, sharey=True, figsize=(6, 12))
             for jstyle, (rdfs_for_style, ax) in enumerate(zip(rdf_list[iclass], ax_list)):
-                ax.imshow(rdfs_for_style, extent=[1.6, 8.0, 180, 0], aspect=0.035, interpolation='spline36', cmap='jet')
+                ax.imshow(rdfs_for_style, extent=[1.6, 8.0, -2, 2], aspect=1.2, interpolation='spline36', cmap='jet')
                 ax.set_ylabel(f"Style {jstyle + 1}\n" + "$\\theta$")
                 if jstyle == nstyle - 1:
                     ax.set_xlabel('r ($\AA$)')
