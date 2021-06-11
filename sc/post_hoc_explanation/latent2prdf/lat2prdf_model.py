@@ -19,22 +19,25 @@ class Latent2PRDF(nn.Module):
             nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.BatchNorm1d(8, affine=False),
-            nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=9, stride=2),
+            nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.BatchNorm1d(8, affine=False),
-            nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=17, stride=2),
+            nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.BatchNorm1d(8, affine=False),
-            nn.Conv2d(in_channels=8, out_channels=2, kernel_size=11, groups=2, padding=3),
+            nn.ConvTranspose1d(in_channels=8, out_channels=8, kernel_size=2, stride=2),
+            nn.ReLU(),
+            nn.BatchNorm1d(8, affine=False),
+            nn.ConvTranspose1d(in_channels=8, out_channels=2, kernel_size=2, groups=2),
             nn.ReLU(),
             nn.BatchNorm1d(2, affine=False),
-            nn.Conv2d(in_channels=2, out_channels=1, kernel_size=6, padding=2),
+            nn.ConvTranspose1d(in_channels=2, out_channels=1, kernel_size=2),
             nn.ReLU()
         )
 
     def forward(self, x):
         out: torch.Tensor = self.pre(x)
-        out = out.unsqueeze(dim=-1).unsqueeze(dim=-1)
+        out = out.unsqueeze(dim=-1)
         out = self.main(out)
         out = out.squeeze(dim=1)
         return out

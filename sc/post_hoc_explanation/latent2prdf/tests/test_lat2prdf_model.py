@@ -7,4 +7,4 @@ class TestLatent2PRDF(TestCase):
         x = torch.ones((32, 5))
         l2a = Latent2PRDF()
         out = l2a(x)
-        self.assertEqual(out.size(), (32, 64, 64))   
+        self.assertEqual(out.size(), (32, 100))
