@@ -25,7 +25,7 @@ class Latent2PRDFTrainer:
 
     def __init__(self, model, device, train_loader, val_loader,
                  lr=1.0E-3, max_epoch=300,  sch_factor=0.25, sch_patience=300, style_noise=0.01, weight_decay=1e-2,
-                 nclasses=3, nstyle=2, ntest_image_per_style = 11, image_dim=(64, 64), plot_interval=25,
+                 nclasses=3, nstyle=2, ntest_rdf_per_style = 11, rdf_dim=(100, ), plot_interval=25,
                  optimizer_name="AdamW", verbose=True, tb_logdir="runs", work_dir='.'):
         self.device = device
         self.model: Latent2PRDF= model.to(self.device)
@@ -40,8 +40,8 @@ class Latent2PRDFTrainer:
         self.optimizer_name = optimizer_name
         self.nclasses = nclasses
         self.nstyle = nstyle
-        self.ntest_image_per_style = ntest_image_per_style
-        self.image_dim = tuple(image_dim)
+        self.ntest_rdf_per_style = ntest_rdf_per_style
+        self.rdf_dim = tuple(rdf_dim)
         self.plot_interval = plot_interval
         self.verbose = verbose
         self.work_dir = work_dir
@@ -98,7 +98,7 @@ class Latent2PRDFTrainer:
         reconn_solver: optim.Optimizer = opt_cls(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         scheduler = ReduceLROnPlateau(reconn_solver, factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                                       mode="min", verbose=self.verbose)
-        latent_variation = self.precompute_latent_variation(self.nclasses, self.nstyle, self.ntest_image_per_style)
+        latent_variation = self.precompute_latent_variation(self.nclasses, self.nstyle, self.ntest_rdf_per_style)
         latent_variation = latent_variation.to(self.device)
 
         last_best = 99999999999.0
@@ -157,7 +157,7 @@ class Latent2PRDFTrainer:
             if epoch % self.plot_interval == 0 and epoch > 1 and self.verbose:
                 image_list = self.model(latent_variation)
                 image_list = image_list.clone().detach().cpu().numpy()
-                fig_dict = self.get_style_image_variation_plot(image_list, self.nclasses, self.nstyle, self.ntest_image_per_style, self.image_dim)
+                fig_dict = self.get_style_image_variation_plot(image_list, self.nclasses, self.nstyle, self.ntest_rdf_per_style, self.rdf_dim)
                 for title, fig in fig_dict.items():
                         self.tb_writer.add_figure(title, fig, global_step=epoch)
 
@@ -193,15 +193,15 @@ class Latent2PRDFTrainer:
 
     @classmethod
     def test_models(cls, work_dir='.', final_model_name='final.pt', best_model_name='best.pt',
-                    nclasses=3, nstyle=2, ntest_image_per_style = 11, image_dim=(64, 64)):
+                    nclasses=3, nstyle=2, ntest_rdf_per_style = 11, rdf_dim=(100,)):
         final_model = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
         best_model = torch.load(f'{work_dir}/{best_model_name}', map_location=torch.device('cpu'))
 
         def plot_variation(model, title='final '):
             model.eval()
-            latent = cls.precompute_latent_variation(nclasses, nstyle, ntest_image_per_style)
+            latent = cls.precompute_latent_variation(nclasses, nstyle, ntest_rdf_per_style)
             image_list = model(latent).cpu().detach().numpy()
-            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_image_per_style, rdf_dim=image_dim, base_title=title)
+            fig_dict = cls.get_style_image_variation_plot(image_list, nclasses, nstyle, ntest_rdf_per_style, rdf_dim=rdf_dim, base_title=title)
             report_dir = os.path.join(work_dir, "reports")
             if not os.path.exists(report_dir):
                 os.makedirs(report_dir)
