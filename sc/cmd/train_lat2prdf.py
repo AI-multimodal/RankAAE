@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
-from sc.post_hoc_explanation.latent2prdf.lat2ang_trainer import Latent2PRDF
+from sc.post_hoc_explanation.latent2prdf.lat2prdf_trainer import Latent2PRDFTrainer
 import os
 import yaml
 import datetime
@@ -30,7 +30,7 @@ def main():
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
 
-    trainer = Latent2PRDF.from_data(os.path.expandvars(os.path.expanduser(args.data_file)),
+    trainer = Latent2PRDFTrainer.from_data(os.path.expandvars(os.path.expanduser(args.data_file)),
         igpu=args.gpu_i, max_epoch=args.max_epoch, verbose=args.verbose, work_dir=work_dir,
         **trainer_config)
 

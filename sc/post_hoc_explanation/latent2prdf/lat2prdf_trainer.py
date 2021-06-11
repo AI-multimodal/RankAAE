@@ -21,7 +21,7 @@ from sc.post_hoc_explanation.latent2prdf.lat2prdf_dataloader import get_latent2p
 from sc.post_hoc_explanation.latent2prdf.lat2prdf_model import Latent2PRDF
 
 
-class Latent2AngularPDFTrainer:
+class Latent2PRDFTrainer:
 
     def __init__(self, model, device, train_loader, val_loader,
                  lr=1.0E-3, max_epoch=300,  sch_factor=0.25, sch_patience=300, style_noise=0.01, weight_decay=1e-2,
@@ -186,7 +186,7 @@ class Latent2AngularPDFTrainer:
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
         model = Latent2PRDF(lat_size=5, dropout_rate=dropout_rate)
         model = model.to(device)
-        trainer = Latent2AngularPDFTrainer(model, device, dl_train, dl_val, lr=lr, max_epoch=max_epoch, sch_factor=sch_factor,
+        trainer = Latent2PRDFTrainer(model, device, dl_train, dl_val, lr=lr, max_epoch=max_epoch, sch_factor=sch_factor,
                                            sch_patience=sch_patience, style_noise=style_noise, weight_decay=weight_decay, 
                                            optimizer_name=optimizer_name, verbose=verbose, work_dir=work_dir)
         return trainer
