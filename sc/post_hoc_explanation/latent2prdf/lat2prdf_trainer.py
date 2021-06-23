@@ -66,7 +66,7 @@ class Latent2PRDFTrainer:
         return latent_variation
 
     @staticmethod
-    def get_style_image_variation_plot(rdf_list: np.ndarray, nclasses, nstyle, ntest_rdf_per_style, rdf_dim=(100,), base_title=""):
+    def get_style_image_variation_plot(rdf_list: np.ndarray, nclasses, nstyle, ntest_rdf_per_style, rdf_dim=(100,), base_title="", x_range=[1.0, 10.0]):
         assert isinstance(rdf_list, np.ndarray)
         rdf_list = rdf_list.reshape((nclasses, nstyle, ntest_rdf_per_style) + rdf_dim)
         fig_dict = dict()
@@ -75,11 +75,16 @@ class Latent2PRDFTrainer:
             fig, ax_list = plt.subplots(nstyle, sharex=True, sharey=True, figsize=(8, 9))
             for jstyle, (rdfs_for_style, ax) in enumerate(zip(rdf_list[iclass], ax_list)):
                 ax.imshow(rdfs_for_style, extent=[0.0, 10.0, -2, 2], aspect=1.2, interpolation='spline36', cmap='jet')
-                ax.set_ylabel(f"Style {jstyle + 1}\n" + "$\\theta$")
+                ax.set_ylabel(f"Style {jstyle + 1} Value", fontsize=18)
+                yticks = np.linspace(-2.0, 2.0, 5)
+                ax.set_yticks(yticks)
+                ax.set_yticklabels([f'{x:.1f}' for x in yticks], fontdict={'fontsize': 18})
                 if jstyle == nstyle - 1:
-                    ax.set_xlabel('r ($\AA$)')
+                    ax.set_xlabel('$\it{R}$ ($\AA$)', fontsize=18)
+            plt.xticks(fontsize=18)
+            plt.xlim(x_range)
             title = f"{base_title}PRDF Variation CN{iclass + 4}"
-            fig.suptitle(title, y=0.91)
+            fig.suptitle(title, y=0.91, fontsize=20)
             fig_dict[title] = fig
         return fig_dict
  
