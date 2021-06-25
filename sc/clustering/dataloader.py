@@ -18,6 +18,7 @@ class CoordNumSpectraDataset(Dataset):
         i_prev = portion_options.index(split_portion)
         df = full_df[sum(n_train_val_test[:i_prev]):sum(n_train_val_test[:i_prev+1])]
         assert "ENE_" in df.columns.to_list()[n_coord_num]
+        assert "ENE_" not in df.columns.to_list()[n_coord_num-1]
         data = df.to_numpy()
         self.cn = data[:, :n_coord_num]
         self.spec = data[:, n_coord_num:]
