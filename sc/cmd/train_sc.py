@@ -37,7 +37,8 @@ def main():
                                 **trainer_config)
     metrics = trainer.train()
     print(metrics)
-    trainer.test_models(args.data_file, work_dir=work_dir)
+    n_coord_num = trainer_config.get("n_coord_num", 3)
+    trainer.test_models(args.data_file, n_coord_num=n_coord_num, work_dir=work_dir)
 
 
 if __name__ == '__main__':
