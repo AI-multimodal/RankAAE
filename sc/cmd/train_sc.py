@@ -4,6 +4,7 @@ import argparse
 from sc.clustering.trainer import Trainer
 import os
 import yaml
+import datetime
 
 
 def main():
@@ -35,7 +36,12 @@ def main():
                                 verbose=args.verbose,
                                 work_dir=work_dir,
                                 **trainer_config)
+    t1 = datetime.datetime.now()
+    print("Training starte at", t1)
     metrics = trainer.train()
+    t2 = datetime.datetime.now()
+    print('training finished at', t2)
+    print(f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
     print(metrics)
     n_coord_num = trainer_config.get("n_coord_num", 3)
     trainer.test_models(args.data_file, n_coord_num=n_coord_num, work_dir=work_dir)
