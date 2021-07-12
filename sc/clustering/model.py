@@ -29,7 +29,7 @@ class EncodingBlock(nn.Module):
             self.bn1 = None
         self.relu1 = nn.PReLU(num_parameters=out_channels, init=0.01)
         self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2,
-                               padding_mode='replicate')
+                               padding_mode='replicate', stride=in_len//(out_len*stride))
         self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
         self.relu2 = nn.PReLU(num_parameters=out_channels, init=0.01)
         self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2,
@@ -54,7 +54,7 @@ class EncodingBlock(nn.Module):
             self.conv_excit = None
 
         if stride > 1 or (in_channels != out_channels):
-            self.conv_short = nn.Conv1d(in_channels, out_channels, kernel_size=stride, stride=stride,
+            self.conv_short = nn.Conv1d(in_channels, out_channels, kernel_size=in_len//out_len, stride=in_len//out_len,
                                         groups=math.gcd(in_channels, out_channels))
             self.relu_short = nn.PReLU(num_parameters=out_channels, init=0.01)
         else:
