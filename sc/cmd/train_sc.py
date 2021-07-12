@@ -5,6 +5,7 @@ from sc.clustering.trainer import Trainer
 import os
 import yaml
 import datetime
+import socket
 
 
 def main():
@@ -37,7 +38,7 @@ def main():
                                 work_dir=work_dir,
                                 **trainer_config)
     t1 = datetime.datetime.now()
-    print("Training starte at", t1)
+    print(f"Training started at {t1} on {socket.gethostname()}")
     metrics = trainer.train()
     t2 = datetime.datetime.now()
     print('training finished at', t2)
