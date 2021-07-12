@@ -358,8 +358,8 @@ class CompactDecoder(nn.Module):
             DecodingBlock(in_channels=4, out_channels=4, in_len=64, excitation=4, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
-            nn.BatchNorm1d(2, affine=False),
-            nn.Conv1d(2, 1, kernel_size=1, stride=1),
+            nn.BatchNorm1d(4, affine=False),
+            nn.Conv1d(4, 1, kernel_size=1, stride=1),
             ll_act
         )
 
