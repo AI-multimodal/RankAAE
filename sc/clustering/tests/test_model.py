@@ -60,6 +60,6 @@ class TestCompactEncoder(TestCase):
 class TestDummyDualAAE(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
-        eb = DummyDualAAE(use_cnn_dis=False)
+        eb = DummyDualAAE(False, Encoder, Decoder)
         self.assertEqual(eb(t)[0].shape, (64, 256))
 

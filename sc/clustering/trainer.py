@@ -11,7 +11,7 @@ import shutil
 import os
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
-from sc.clustering.model import Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
+from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
 from sc.clustering.dataloader import get_dataloaders
 from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
@@ -58,7 +58,7 @@ class Trainer:
         if verbose:
             self.tb_writer = SummaryWriter(log_dir=os.path.join(work_dir, tb_logdir))
             example_spec = iter(train_loader).next()[0]
-            self.tb_writer.add_graph(DummyDualAAE(use_cnn_dis), example_spec)
+            self.tb_writer.add_graph(DummyDualAAE(use_cnn_dis, self.encoder.__class__, self.decoder.__class__), example_spec)
 
         self.grad_rev_beta = grad_rev_beta
         self.alpha_flat_step = alpha_flat_step
@@ -458,9 +458,11 @@ class Trainer:
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
-                  decoder_activation='ReLu',
+                  decoder_activation='ReLu', ae_form='compact',
                   chem_dict=None, verbose=True, work_dir='.'):
-
+        ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
+                       "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
+        assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
         
@@ -476,8 +478,8 @@ class Trainer:
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
-        encoder = Encoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
-        decoder = Decoder(nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
+        encoder = ae_cls_dict["encoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        decoder = ae_cls_dict["decoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:

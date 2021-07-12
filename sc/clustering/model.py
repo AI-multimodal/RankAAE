@@ -473,10 +473,10 @@ class DiscriminatorFC(nn.Module):
 
 
 class DummyDualAAE(nn.Module):
-    def __init__(self, use_cnn_dis):
+    def __init__(self, use_cnn_dis, cls_encoder, cls_decoder):
         super(DummyDualAAE, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = cls_encoder()
+        self.decoder = cls_decoder()
         self.discriminator = DiscriminatorCNN() if use_cnn_dis else DiscriminatorFC()
 
     def forward(self, x):
