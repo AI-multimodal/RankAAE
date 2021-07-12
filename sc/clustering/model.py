@@ -257,6 +257,38 @@ class Encoder(nn.Module):
         return z_gauss, y
 
 
+class CompactEncoder(nn.Module):
+    """ front end part of discriminator and Q"""
+
+    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
+        super(CompactEncoder, self).__init__()
+        self.main = nn.Sequential(
+            EncodingBlock(in_channels=1, out_channels=4, in_len=256, out_len=64, kernel_size=11, stride=2,
+                          excitation=4, dropout_rate=dropout_rate),
+            EncodingBlock(in_channels=4, out_channels=4, in_len=64, out_len=16, kernel_size=7, stride=2, excitation=2,
+                          dropout_rate=dropout_rate),
+            EncodingBlock(in_channels=4, out_channels=4, in_len=16, out_len=8, kernel_size=5, stride=2, excitation=1,
+                          dropout_rate=dropout_rate)
+        )
+        self.lin1 = nn.Linear(32, nclasses)
+        self.lin3 = nn.Linear(32, nstyle)
+        self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
+        self.lsm = nn.LogSoftmax(dim=1)
+
+    def forward(self, spec):
+        batch_size = spec.size()[0]
+        output = spec.unsqueeze(dim=1)
+        output = self.main(output)
+        output = output.reshape(batch_size, 32)
+
+        z_gauss = self.lin3(output)
+        z_gauss = self.bn_style(z_gauss)
+        y = self.lin1(output)
+        y = self.lsm(y)
+
+        return z_gauss, y
+
+
 class Decoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False, last_layer_activation='ReLu'):

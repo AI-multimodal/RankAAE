@@ -1,5 +1,5 @@
 from unittest import TestCase
-from sc.clustering.model import EncodingBlock, DecodingBlock, Encoder, Decoder, GaussianSmoothing, DummyDualAAE
+from sc.clustering.model import EncodingBlock, DecodingBlock, Encoder, Decoder, GaussianSmoothing, DummyDualAAE, CompactEncoder
 import torch
 from torch import nn
 
@@ -41,6 +41,14 @@ class TestDecoder(TestCase):
         tz, ty = torch.ones(32, 2), torch.ones(32, 12)
         eb = Decoder()
         self.assertEqual(eb(tz, ty).shape, (32, 256))
+
+
+class TestCompactEncoder(TestCase):
+    def test_model(self):
+        t = torch.ones((64, 256))
+        eb = Encoder()
+        self.assertEqual(eb(t)[0].shape, (64, 2))
+        self.assertEqual(eb(t)[1].shape, (64, 12))
 
 
 class TestDummyDualAAE(TestCase):
