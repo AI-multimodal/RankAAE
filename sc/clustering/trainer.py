@@ -458,7 +458,7 @@ class Trainer:
                   lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
-                  decoder_activation='ReLu', ae_form='compact',
+                  decoder_activation='ReLu', ae_form='normal',
                   chem_dict=None, verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
