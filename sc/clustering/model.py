@@ -100,9 +100,10 @@ class EncodingBlock(nn.Module):
 
 class DecodingBlock(nn.Module):
 
-    def __init__(self, in_channels, out_channels, in_len, excitation=4, dropout_rate=0.2):
+    def __init__(self, in_channels, out_channels, in_len, excitation=4, dropout_rate=0.2, out_len=None):
         super(DecodingBlock, self).__init__()
-        out_len = in_len * 4
+        if out_len is None:
+            out_len = in_len * 4
         if in_len > 1:
             self.bn1 = nn.BatchNorm1d(in_channels, affine=False)
         else:
@@ -111,7 +112,7 @@ class DecodingBlock(nn.Module):
         self.conv1 = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=2, stride=2)
         self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
         self.relu2 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv2 = nn.ConvTranspose1d(out_channels, out_channels, kernel_size=2, stride=2)
+        self.conv2 = nn.ConvTranspose1d(out_channels, out_channels, kernel_size=out_len//(in_len*2), stride=out_len//(in_len*2))
 
         if in_len > 10:
             self.dropout_1 = nn.Dropout(p=dropout_rate)
@@ -131,7 +132,7 @@ class DecodingBlock(nn.Module):
             self.relu_excit_3 = None
             self.conv_excit = None
 
-        self.conv_short = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=4, stride=4,
+        self.conv_short = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=out_len//in_len, stride=out_len//in_len,
                                              groups=math.gcd(in_channels, out_channels))
         self.relu_short = nn.PReLU(num_parameters=out_channels, init=0.01)
 
@@ -316,6 +317,46 @@ class Decoder(nn.Module):
             EncodingBlock(in_channels=2, out_channels=2, in_len=256, out_len=256, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=2, out_channels=2, in_len=256, out_len=256, kernel_size=11, stride=1,
+                          excitation=2, dropout_rate=dropout_rate),
+            nn.BatchNorm1d(2, affine=False),
+            nn.Conv1d(2, 1, kernel_size=1, stride=1),
+            ll_act
+        )
+
+        self.nclasses = nclasses
+        self.nstyle = nstyle
+        self.debug = debug
+
+    def forward(self, z_gauss, y):
+        if self.debug:
+            assert z_gauss.size()[1] == self.nstyle
+            assert y.size()[1] == self.nclasses
+        x = torch.cat([z_gauss, y], dim=1)
+        x = x.unsqueeze(dim=2)
+        spec = self.main(x)
+        spec = spec.squeeze(dim=1)
+        return spec
+
+
+class CompactDecoder(nn.Module):
+
+    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False, last_layer_activation='ReLu'):
+        super(CompactDecoder, self).__init__()
+
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+
+        self.main = nn.Sequential(
+            DecodingBlock(in_channels=nclasses + nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
+                          dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=8, out_channels=4, in_len=8, excitation=2, out_len=64, 
+                          dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=4, out_channels=4, in_len=64, excitation=4, dropout_rate=dropout_rate),
+            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
             nn.BatchNorm1d(2, affine=False),
             nn.Conv1d(2, 1, kernel_size=1, stride=1),
