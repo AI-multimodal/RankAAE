@@ -84,22 +84,10 @@ def main():
 
     result = par_map(run_training,
                      list(range(trails)), 
-            list(range(trails)), 
-                     list(range(trails)), 
-                     [work_dir]*trails, 
-            [work_dir]*trails, 
                      [work_dir]*trails, 
                      [trainer_config]*trails, 
-            [trainer_config]*trails, 
-                     [trainer_config]*trails, 
-                     [max_epoch]*trails, 
-            [max_epoch]*trails, 
                      [max_epoch]*trails, 
                      [verbose]*trails, 
-            [verbose]*trails, 
-                     [verbose]*trails, 
-                     [data_file]*trails, 
-            [data_file]*trails, 
                      [data_file]*trails, 
                      [ngpus_per_node]*trails)
     list(result)
