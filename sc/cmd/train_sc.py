@@ -26,15 +26,16 @@ def get_parallel_map_func():
 
 def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, ngpus_per_node):
     if ngpus_per_node > 0:
-        local_id = os.environ["SLURM_LOCALID"]
+        local_id = os.environ.get("SLURM_LOCALID", 0)
         igpu = local_id % ngpus_per_node
+        work_dir = f'{work_dir}/training/job_{job_number+1}'
     else:
         igpu = 0 if torch.cuda.is_available() else -1
     trainer = Trainer.from_data(data_file,
                                 igpu=igpu,
                                 max_epoch=max_epoch,
                                 verbose=verbose,
-                                work_dir=f'{work_dir}/{job_number+1}',
+                                work_dir=work_dir,
                                 **trainer_config)
     t1 = datetime.datetime.now()
     print(f"Training started at {t1} on {socket.gethostname()}")
