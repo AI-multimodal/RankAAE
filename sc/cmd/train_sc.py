@@ -10,8 +10,8 @@ import datetime
 import socket
 import ipyparallel as ipp
 
-def get_parallel_map_func():
-    c = ipp.Client(url_file="ipypar/security/ipcontroller-client.json")
+def get_parallel_map_func(work_dir="."):
+    c = ipp.Client(url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
     print("Engine IDs:", c.ids)
     with c[:].sync_imports():
         from sc.clustering.trainer import Trainer
@@ -19,6 +19,7 @@ def get_parallel_map_func():
         import yaml
         import datetime
         import socket
+        import torch
     c[:].push(dict(crop_image=run_training),
               block=True)
 
@@ -77,7 +78,7 @@ def main():
     trails = args.trials
 
     if trails > 1:
-        par_map, nprocesses = get_parallel_map_func()
+        par_map, nprocesses = get_parallel_map_func(work_dir)
     else:
         par_map, nprocesses = map, 1
     print("running with {} processes".format(nprocesses))
