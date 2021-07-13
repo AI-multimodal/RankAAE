@@ -40,6 +40,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
     print(metrics)
     n_coord_num = trainer_config.get("n_coord_num", 3)
     trainer.test_models(data_file, n_coord_num=n_coord_num, work_dir=work_dir)
+    return metrics
 
 def main():
     parser = argparse.ArgumentParser()
@@ -81,14 +82,27 @@ def main():
         par_map, nprocesses = map, 1
     print("running with {} processes".format(nprocesses))
 
-    par_map(run_training,
+    result = par_map(run_training,
+                     list(range(trails)), 
             list(range(trails)), 
+                     list(range(trails)), 
+                     [work_dir]*trails, 
             [work_dir]*trails, 
+                     [work_dir]*trails, 
+                     [trainer_config]*trails, 
             [trainer_config]*trails, 
+                     [trainer_config]*trails, 
+                     [max_epoch]*trails, 
             [max_epoch]*trails, 
+                     [max_epoch]*trails, 
+                     [verbose]*trails, 
             [verbose]*trails, 
+                     [verbose]*trails, 
+                     [data_file]*trails, 
             [data_file]*trails, 
-            [ngpus_per_node]*trails)
+                     [data_file]*trails, 
+                     [ngpus_per_node]*trails)
+    list(result)
 
 if __name__ == '__main__':
     main()
