@@ -24,7 +24,7 @@ def get_parallel_map_func():
 
     return c[:].map_sync, len(c.ids)
 
-def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, ngpus_per_node):
+def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file):
     ngpus_per_node = torch.cuda.device_count()
     local_id = os.environ.get("SLURM_LOCALID", 0)
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
