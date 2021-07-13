@@ -24,8 +24,7 @@ setup(
         ]
     },
     scripts=[
-        "sc/cmd/opt_hyper.sh",
-        "sc/cmd/train_on_worker.sh"
+        "sc/cmd/opt_hyper.sh"
     ]
 )
 
