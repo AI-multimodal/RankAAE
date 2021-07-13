@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+
+import torch
 from sc.clustering.trainer import Trainer
 import os
 import yaml
@@ -23,8 +25,11 @@ def get_parallel_map_func():
     return c[:].map_sync, len(c.ids)
 
 def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, ngpus_per_node):
-    local_id = os.environ.get("SLURM_LOCALID", 0)
-    igpu = local_id % ngpus_per_node
+    if ngpus_per_node > 0:
+        local_id = os.environ["SLURM_LOCALID"]
+        igpu = local_id % ngpus_per_node
+    else:
+        igpu = 0 if torch.cuda.is_available() else -1
     trainer = Trainer.from_data(data_file,
                                 igpu=igpu,
                                 max_epoch=max_epoch,
@@ -54,8 +59,6 @@ def main():
                         help='Maximum iterations')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
-    parser.add_argument('-g', '--gpu_i', type=int, default=-1,
-                        help='ID for GPU to use')
     parser.add_argument('--ngpus_per_node', type=int, default=0,
                         help='Number of GPUs on each node')
     parser.add_argument('--trials', type=int, default=1,
