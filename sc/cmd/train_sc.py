@@ -25,12 +25,11 @@ def get_parallel_map_func():
     return c[:].map_sync, len(c.ids)
 
 def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, ngpus_per_node):
-    if ngpus_per_node > 0:
-        local_id = os.environ.get("SLURM_LOCALID", 0)
-        igpu = local_id % ngpus_per_node
-        work_dir = f'{work_dir}/training/job_{job_number+1}'
-    else:
-        igpu = 0 if torch.cuda.is_available() else -1
+    ngpus_per_node = torch.cuda.device_count()
+    local_id = os.environ.get("SLURM_LOCALID", 0)
+    igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
+    work_dir = f'{work_dir}/training/job_{job_number+1}'
+
     trainer = Trainer.from_data(data_file,
                                 igpu=igpu,
                                 max_epoch=max_epoch,
@@ -60,8 +59,6 @@ def main():
                         help='Maximum iterations')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
-    parser.add_argument('--ngpus_per_node', type=int, default=0,
-                        help='Number of GPUs on each node')
     parser.add_argument('--trials', type=int, default=1,
                         help='Total number of trainings to run')                    
     args = parser.parse_args()
@@ -78,7 +75,6 @@ def main():
     verbose = args.verbose
     data_file = os.path.abspath(os.path.expandvars(os.path.expanduser(args.data_file)))
     trails = args.trials
-    ngpus_per_node = args.ngpus_per_node
 
     if trails > 1:
         par_map, nprocesses = get_parallel_map_func()
@@ -92,8 +88,7 @@ def main():
                      [trainer_config]*trails, 
                      [max_epoch]*trails, 
                      [verbose]*trails, 
-                     [data_file]*trails, 
-                     [ngpus_per_node]*trails)
+                     [data_file]*trails)
     list(result)
 
 if __name__ == '__main__':
