@@ -22,7 +22,7 @@ def get_parallel_map_func(work_dir="."):
         import socket
         import torch
         import sys
-    c[:].push(dict(crop_image=run_training),
+    c[:].push(dict(run_training=run_training),
               block=True)
 
     return c[:].map_sync, len(c.ids)
