@@ -8,4 +8,4 @@ then
     top -i -b -d 31 &> resources_usage_${SLURM_JOB_ID}/cpu_${SLURM_PROCID}_`hostname -s`.txt &
 fi
 
-ipengine --profile-dir=ipypar --location=${hn} --log-to-file &
+ipengine --profile-dir=ipypar --location=${hn} --log-to-file 
