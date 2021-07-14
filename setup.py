@@ -24,7 +24,8 @@ setup(
         ]
     },
     scripts=[
-        "sc/cmd/opt_hyper.sh"
+        "sc/cmd/opt_hyper.sh",
+        "sc/cmd/start_ipyparallel_worker.sh"
     ]
 )
 
