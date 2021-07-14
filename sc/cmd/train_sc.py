@@ -55,6 +55,8 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         print(metrics)
         n_coord_num = trainer_config.get("n_coord_num", 3)
         trainer.test_models(data_file, n_coord_num=n_coord_num, work_dir=work_dir)
+        sys.stdout.flush()
+        sys.stderr.flush()
     sys.stdout = original_stdout
     sys.stderr = original_stderr
     return metrics
