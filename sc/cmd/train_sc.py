@@ -37,7 +37,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         sys.stdout = f
         sys.stderr = f 
         ngpus_per_node = torch.cuda.device_count()
-        local_id = os.environ.get("SLURM_LOCALID", 0)
+        local_id = int(os.environ.get("SLURM_LOCALID", 0))
         igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
 
         trainer = Trainer.from_data(data_file,
