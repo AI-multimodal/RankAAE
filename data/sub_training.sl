@@ -1,12 +1,13 @@
 #!/bin/bash
 #SBATCH -p long
-#SBATCH -J test50
+#SBATCH -J mutlinode
 #SBATCH --time=1-00:00:00
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --gres=gpu:4
 #SBATCH -c 36
+#SBATCH --overcommit
 
-total_jobs=50
+total_jobs=100
 
 export CONDA_SHLVL=1
 export CONDA_PROMPT_MODIFIER=(/hpcgpfs01/software/cfn-jupyter/software/xas_ml)
@@ -39,17 +40,20 @@ then
     mkdir "${res_dir}"
 fi
 
+echo create profile at `date`
+echo "Creating profile "
+ipython profile create --profile-dir=ipypar
+ 
+echo "Launching controller"
+ipcontroller --ip="*" --profile-dir=ipypar --log-to-file &
+sleep  60
+  
+echo "Launching engines"
 hn=$(hostname -s)
-nvidia-smi -l 37 &> ${res_dir}/gpu_${SLURM_PROCID}_${hn}.txt &
-top -i -b -d 31 &> ${res_dir}/cpu_${SLURM_PROCID}_${hn}.txt &
+srun -N $SLURM_JOB_NUM_NODES --ntasks-per-node ${num_jobs} start_ipyparallel_worker.sh ${hn} &
+sleep  240
 
-log_dir=jobs_${SLURM_JOB_ID}
-if [[ ! -d ${log_dir} ]]
-then
-    mkdir "${log_dir}"
-fi
+echo `date` "Start training"
+train_sc --trials ${total_jobs} -c fix_config.yaml -d cu_feff_cn_wei_spec.csv -e 2000 -v
+echo `date` "Job Finished"
 
-seq ${total_jobs} | parallel -j ${num_jobs} "
-sleep \$(( ({#}-1) * 3 + (${SLURM_PROCID} * ${num_jobs} + 1) * 3 ))
-train_sc -g \$(({%} % ${num_gpus})) -w training/job_{#} -c fix_config.yaml -d ti_feff_cn_spec.csv -v &> ${log_dir}/job_${SLURM_PROCID}_{#}_${hn}.txt
-"
