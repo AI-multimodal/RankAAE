@@ -469,7 +469,7 @@ class Trainer:
                     fig = self.get_cluster_plot(spec_out)
                     self.tb_writer.add_figure("Spectra", fig, global_step=epoch)
 
-                spec_in, _ = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+                spec_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))][0]
                 spec_in = spec_in.to(self.device)
                 z, _ = self.encoder(spec_in)
                 if self.verbose:
@@ -541,7 +541,7 @@ class Trainer:
         return trainer
 
     @staticmethod
-    def test_models(csv_fn, n_coord_num=3,
+    def test_models(csv_fn, n_coord_num=3, n_aux=0,
                     train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
                     final_model_name='final.pt', best_model_name='best.pt'):
         final_spuncat = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
@@ -550,7 +550,7 @@ class Trainer:
         transform_list = transforms.Compose([ToTensor()])
         dataset_train, dataset_val, dataset_test = [CoordNumSpectraDataset(
             csv_fn, p, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num=n_coord_num,
-            transform=transform_list)
+            transform=transform_list, n_aux=n_aux)
             for p in ["train", "val", "test"]]
         
         def cluster_grid_plot(decoder):

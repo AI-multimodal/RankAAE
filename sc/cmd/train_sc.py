@@ -54,7 +54,8 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         print(f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
         print(metrics)
         n_coord_num = trainer_config.get("n_coord_num", 3)
-        trainer.test_models(data_file, n_coord_num=n_coord_num, work_dir=work_dir)
+        n_aux = trainer_config.get("n_aux", 0)
+        trainer.test_models(data_file, n_coord_num=n_coord_num, work_dir=work_dir, n_aux=n_aux)
         sys.stdout.flush()
         sys.stderr.flush()
     sys.stdout = original_stdout
