@@ -246,13 +246,13 @@ class Trainer:
             n_batch = len(self.train_loader)
             avg_mutual_info = 0.0
             for sample in self.train_loader:
-                if self.train_loader.aux is None:
+                if self.train_loader.dataset.aux is None:
                     spec_in, cn_in = sample
                 else:
                     spec_in, cn_in, aux_in = sample
+                    aux_in = aux_in.to(self.device)
                 spec_in = spec_in.to(self.device)
                 cn_in = cn_in.to(self.device)
-                aux_in = aux_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
 
@@ -283,7 +283,7 @@ class Trainer:
                 # Kendall Rank Correlation Coefficeint
                 # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
                 # https://en.wikipedia.org/wiki/Theil%E2%80%93Sen_estimator
-                if self.train_loader.aux is not None:
+                if self.train_loader.dataset.aux is not None:
                     self.zerograd()
                     z, _ = self.encoder(spec_in)
                     i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
