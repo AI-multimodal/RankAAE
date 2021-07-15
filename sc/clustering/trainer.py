@@ -366,6 +366,7 @@ class Trainer:
                 spec_in, cn_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             else:
                 spec_in, cn_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+                aux_in = aux_in.to(self.device)
             spec_in = spec_in.to(self.device)
             cn_in = cn_in.to(self.device)
             z, y = self.encoder(spec_in)
