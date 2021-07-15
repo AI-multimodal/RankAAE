@@ -9,7 +9,7 @@ from torchvision import transforms
 
 class CoordNumSpectraDataset(Dataset):
     def __init__(self, csv_fn, split_portion, train_val_test_ratios=(0.7, 0.15, 0.15), sampling_exponent=0.6,
-                 n_coord_num=3, transform=None):
+                 n_coord_num=3, n_aux=0, transform=None):
         full_df = pd.read_csv(csv_fn, index_col=[0, 1])
         n_train_val_test = [int(len(full_df) * ratio) for ratio in train_val_test_ratios]
         n_train_val_test[-1] = int(len(full_df)) - sum(n_train_val_test[:-1])
@@ -17,11 +17,17 @@ class CoordNumSpectraDataset(Dataset):
         assert split_portion in portion_options
         i_prev = portion_options.index(split_portion)
         df = full_df[sum(n_train_val_test[:i_prev]):sum(n_train_val_test[:i_prev+1])]
-        assert "ENE_" in df.columns.to_list()[n_coord_num]
-        assert "ENE_" not in df.columns.to_list()[n_coord_num-1]
+        assert "ENE_" in df.columns.to_list()[n_coord_num+n_aux]
+        assert "ENE_" not in df.columns.to_list()[n_coord_num+n_aux-1]
+        if n_aux > 0:
+            assert "AUX_" in df.columns.to_list()[n_coord_num]
         data = df.to_numpy()
         self.cn = data[:, :n_coord_num]
-        self.spec = data[:, n_coord_num:]
+        self.spec = data[:, n_coord_num+n_aux:]
+        if n_aux > 0:
+            self.aux = data[:, n_coord_num: n_coord_num+n_aux]
+        else:
+            self.aux = None
         self.transform = transform
         self.atom_index = df.index.to_list()
 
@@ -39,7 +45,10 @@ class CoordNumSpectraDataset(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
-        sample = self.spec[idx], self.cn[idx]
+        if self.aux is None:
+            sample = self.spec[idx], self.cn[idx]
+        else:
+            sample = self.spec[idx], self.cn[idx], self.aux[idx]
         if self.transform is not None:
             sample = [self.transform(x) for x in sample]
         return sample
