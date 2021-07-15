@@ -390,7 +390,6 @@ class Trainer:
                     n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
                     aux_pred = z[i_ka_i] - z[i_ka_j]
                     aux_loss = - (aux_pred * aux_target).mean()
-                    loss_dict["Aux"] = aux_loss.item()
                     loss_dict = {"Aux": aux_loss.item()}
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
 
