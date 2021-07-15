@@ -28,7 +28,7 @@ class Trainer:
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, optimizer_name="AdamW",
+                 lr_ratio_Supervise=2.0, lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
                  chem_dict=None, verbose=True, work_dir='.',
                  use_flex_spec_target=False, short_circuit_cn=True):
 
@@ -70,6 +70,7 @@ class Trainer:
         self.lr_ratio_Mutual = lr_ratio_Mutual
         self.lr_ratio_Smooth = lr_ratio_Smooth
         self.lr_ratio_Supervise = lr_ratio_Supervise
+        self.lr_ratio_Corr = lr_ratio_Corr
         self.lr_ratio_Style = lr_ratio_Style
         self.n_coord_num = n_coord_num
         self.chem_dict = chem_dict
@@ -199,6 +200,8 @@ class Trainer:
                                 weight_decay=self.weight_decay)
         cn_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr,
                             weight_decay=self.weight_decay)
+        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.base_lr,
+                            weight_decay=self.weight_decay)
         adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
                                       {'params': self.encoder.parameters()}],
                                      lr=self.lr_ratio_Style * self.base_lr,
@@ -242,9 +245,14 @@ class Trainer:
             # invalid samples
             n_batch = len(self.train_loader)
             avg_mutual_info = 0.0
-            for spec_in, cn_in in self.train_loader:
+            for sample in self.train_loader:
+                if self.train_loader.aux is None:
+                    spec_in, cn_in = sample
+                else:
+                    spec_in, cn_in, aux_in = sample
                 spec_in = spec_in.to(self.device)
                 cn_in = cn_in.to(self.device)
+                aux_in = aux_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
 
@@ -270,6 +278,23 @@ class Trainer:
                 cn_loss = nll_loss(y, i_cn_in)
                 cn_loss.backward()
                 cn_solver.step()
+
+                # Correlation constration
+                # Kendall Rank Correlation Coefficeint
+                # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
+                # https://en.wikipedia.org/wiki/Theil%E2%80%93Sen_estimator
+                if self.train_loader.aux is not None:
+                    self.zerograd()
+                    z, _ = self.encoder(spec_in)
+                    i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
+                    i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
+                    aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
+                    n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
+                    aux_pred = z[i_ka_i] - z[i_ka_j]
+                    aux_loss = - (aux_pred * aux_target).mean()
+                    aux_loss.backward()
+                    corr_solver.step()
+
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
@@ -455,16 +480,16 @@ class Trainer:
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
-                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, weight_decay=1e-2,
+                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
-                  decoder_activation='ReLu', ae_form='normal',
+                  decoder_activation='ReLu', ae_form='normal', n_aux=0,
                   chem_dict=None, verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
         assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
-            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num)
+            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num, n_aux=n_aux)
         
         use_cuda = torch.cuda.is_available()
         if use_cuda:
@@ -495,7 +520,7 @@ class Trainer:
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
-                          lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise,
+                          lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise, lr_ratio_Corr=lr_ratio_Corr,
                           lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict, optimizer_name=optimizer_name,
                           use_flex_spec_target=use_flex_spec_target, short_circuit_cn=short_circuit_cn,
                           verbose=verbose, work_dir=work_dir)

@@ -60,10 +60,10 @@ class ToTensor(object):
 
 
 def get_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15),
-                                   sampling_exponent=0.6, n_coord_num=3):
+                                   sampling_exponent=0.6, n_coord_num=3, n_aux=0):
     transform_list = transforms.Compose([ToTensor()])
     ds_train,  ds_val, ds_test = [CoordNumSpectraDataset(
-            csv_fn, p, train_val_test_ratios, sampling_exponent, n_coord_num=n_coord_num, transform=transform_list)
+            csv_fn, p, train_val_test_ratios, sampling_exponent, n_coord_num=n_coord_num, transform=transform_list, n_aux=0)
         for p in ["train", "val", "test"]]
 
     train_sampler = WeightedRandomSampler(ds_train.sampling_weights_per_sample, replacement=True,
