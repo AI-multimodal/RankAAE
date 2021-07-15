@@ -346,6 +346,8 @@ class Trainer:
                         'Mutual Info': mutual_info_loss.item(),
                         'Smooth': Smooth_loss.item()
                     }
+                    if self.train_loader.dataset.aux is not None:
+                        loss_dict["Aux"] = aux_loss.item()
                     self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
                     loss_dict = {
                         'Classification': cn_loss.item()
@@ -360,7 +362,10 @@ class Trainer:
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
-            spec_in, cn_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+            if self.train_loader.dataset.aux is None:
+                spec_in, cn_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+            else:
+                spec_in, cn_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in = spec_in.to(self.device)
             cn_in = cn_in.to(self.device)
             z, y = self.encoder(spec_in)
@@ -373,6 +378,14 @@ class Trainer:
             loss_dict = {
                 'Recon': recon_loss.item()
             }
+            if self.train_loader.dataset.aux is not None:
+                    i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
+                    i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
+                    aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
+                    n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
+                    aux_pred = z[i_ka_i] - z[i_ka_j]
+                    aux_loss = - (aux_pred * aux_target).mean()
+                    loss_dict["Aux"] = aux_loss.item()
             if self.verbose:
                 self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
 
