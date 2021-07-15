@@ -346,9 +346,11 @@ class Trainer:
                         'Mutual Info': mutual_info_loss.item(),
                         'Smooth': Smooth_loss.item()
                     }
-                    if self.train_loader.dataset.aux is not None:
-                        loss_dict["Aux"] = aux_loss.item()
+                    
                     self.tb_writer.add_scalars("Recon/train", loss_dict, global_step=epoch)
+                    if self.train_loader.dataset.aux is not None:
+                        loss_dict = {"Aux": aux_loss.item()}
+                        self.tb_writer.add_scalars("Aux/train", loss_dict, global_step=epoch)
                     loss_dict = {
                         'Classification': cn_loss.item()
                     }
@@ -379,6 +381,8 @@ class Trainer:
             loss_dict = {
                 'Recon': recon_loss.item()
             }
+            if self.verbose:
+                self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
             if self.train_loader.dataset.aux is not None:
                     i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
                     i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
@@ -387,8 +391,8 @@ class Trainer:
                     aux_pred = z[i_ka_i] - z[i_ka_j]
                     aux_loss = - (aux_pred * aux_target).mean()
                     loss_dict["Aux"] = aux_loss.item()
-            if self.verbose:
-                self.tb_writer.add_scalars("Recon/val", loss_dict, global_step=epoch)
+                    loss_dict = {"Aux": aux_loss.item()}
+                    self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
