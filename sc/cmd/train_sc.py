@@ -45,7 +45,9 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
             local_id = int(os.environ.get("SLURM_LOCALID", 0))
         elif socket.gethostname() == 'WNC-167339':
             local_id = engine_id
-            assert local_id != -1
+            assert not (job_number==0 and local_id == -1)
+            if local_id == -1:
+                local_id = 0
         igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
 
         trainer = Trainer.from_data(data_file,
