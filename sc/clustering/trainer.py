@@ -244,7 +244,7 @@ class Trainer:
 
                 # Init gradients, smoothness loss
                 self.zerograd()
-                x_sample = self.decoder(z, cn_in)
+                x_sample = self.decoder(z, rand_cn)
                 x_sample_padded = self.padding4smooth(x_sample.unsqueeze(dim=1))
                 spec_smoothed = self.gaussian_smoothing(x_sample_padded).squeeze(dim=1)
                 Smooth_loss = mse_dis(x_sample, spec_smoothed)
