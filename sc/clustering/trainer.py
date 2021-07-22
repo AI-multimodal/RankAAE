@@ -177,7 +177,7 @@ class Trainer:
         con_c = torch.tensor(c2, dtype=torch.float, device=self.device, requires_grad=False)
 
         # train network
-        last_best = 0.0
+        last_best = 10.0
         chkpt_dir = f"{self.work_dir}/checkpoints"
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
@@ -310,7 +310,7 @@ class Trainer:
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
-                          
+
             if style_coupling < last_best * 1.01:
                 chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{style_coupling:07.6g}.pt"
                 torch.save(model_dict,
