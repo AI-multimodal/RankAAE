@@ -11,6 +11,8 @@ import socket
 import ipyparallel as ipp
 import sys
 
+engine_id = -1
+
 def get_parallel_map_func(work_dir="."):
     c = ipp.Client(url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
     print("Engine IDs:", c.ids)
@@ -24,6 +26,8 @@ def get_parallel_map_func(work_dir="."):
         import sys
     c[:].push(dict(run_training=run_training),
               block=True)
+    for i in c.ids:
+        c[i].push({"engine_id": i}, block=True)
 
     return c[:].map_sync, len(c.ids)
 
@@ -37,7 +41,11 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         sys.stdout = f
         sys.stderr = f 
         ngpus_per_node = torch.cuda.device_count()
-        local_id = int(os.environ.get("SLURM_LOCALID", 0))
+        if "SLURM_LOCALID" in os.environ:
+            local_id = int(os.environ.get("SLURM_LOCALID", 0))
+        elif socket.gethostname() == 'WNC-167339':
+            local_id = engine_id
+            assert local_id != -1
         igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
 
         trainer = Trainer.from_data(data_file,
