@@ -454,7 +454,7 @@ class Trainer:
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
             spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
-            z = encoder(spec_in)[0].clone().detach().cpu().numpy()
+            z = encoder(spec_in).clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker
             fig, ax_list = plt.subplots(nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
