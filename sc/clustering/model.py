@@ -225,7 +225,7 @@ class GaussianSmoothing(nn.Module):
 class Encoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
+    def __init__(self, dropout_rate=0.2, nstyle=2):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=256, out_len=128, kernel_size=11, stride=2,
@@ -239,10 +239,8 @@ class Encoder(nn.Module):
             EncodingBlock(in_channels=4, out_channels=4, in_len=16, out_len=8, kernel_size=5, stride=2, excitation=1,
                           dropout_rate=dropout_rate)
         )
-        self.lin1 = nn.Linear(32, nclasses)
         self.lin3 = nn.Linear(32, nstyle)
         self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
-        self.lsm = nn.LogSoftmax(dim=1)
 
     def forward(self, spec):
         batch_size = spec.size()[0]
@@ -252,16 +250,14 @@ class Encoder(nn.Module):
 
         z_gauss = self.lin3(output)
         z_gauss = self.bn_style(z_gauss)
-        y = self.lin1(output)
-        y = self.lsm(y)
 
-        return z_gauss, y
+        return z_gauss
 
 
 class CompactEncoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2):
+    def __init__(self, dropout_rate=0.2, nstyle=2):
         super(CompactEncoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=256, out_len=64, kernel_size=11, stride=2,
@@ -271,10 +267,8 @@ class CompactEncoder(nn.Module):
             EncodingBlock(in_channels=4, out_channels=4, in_len=16, out_len=8, kernel_size=5, stride=2, excitation=1,
                           dropout_rate=dropout_rate)
         )
-        self.lin1 = nn.Linear(32, nclasses)
         self.lin3 = nn.Linear(32, nstyle)
         self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
-        self.lsm = nn.LogSoftmax(dim=1)
 
     def forward(self, spec):
         batch_size = spec.size()[0]
@@ -284,10 +278,8 @@ class CompactEncoder(nn.Module):
 
         z_gauss = self.lin3(output)
         z_gauss = self.bn_style(z_gauss)
-        y = self.lin1(output)
-        y = self.lsm(y)
 
-        return z_gauss, y
+        return z_gauss
 
 
 class Decoder(nn.Module):
@@ -480,7 +472,8 @@ class DummyDualAAE(nn.Module):
         self.discriminator = DiscriminatorCNN() if use_cnn_dis else DiscriminatorFC()
 
     def forward(self, x):
-        z, y = self.encoder(x)
+        z = self.encoder(x)
+        y = torch.ones(z.size()[0], self.decoder.nclasses)
         x2 = self.decoder(z, y)
         is_gau = self.discriminator(z, 0.3)
         return x2, is_gau
