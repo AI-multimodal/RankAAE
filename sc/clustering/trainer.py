@@ -373,7 +373,7 @@ class Trainer:
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
-        encoder = ae_cls_dict[ae_form]["encoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        encoder = ae_cls_dict[ae_form]["encoder"](nstyle=nstyle, dropout_rate=dropout_rate)
         decoder = ae_cls_dict[ae_form]["decoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
