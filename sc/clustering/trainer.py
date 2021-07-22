@@ -1,4 +1,5 @@
 import itertools
+from google.protobuf import symbol_database
 
 import torch
 from torch import nn
@@ -309,6 +310,14 @@ class Trainer:
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
+                          
+            if style_coupling < last_best * 1.01:
+                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{style_coupling:07.6g}.pt"
+                torch.save(model_dict,
+                           chk_fn)
+                last_best = style_coupling
+                best_chk = chk_fn
+
             metrics = [0.0, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
 
             for sch in schedulers:
