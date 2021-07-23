@@ -16,7 +16,6 @@ engine_id = -1
 
 def get_parallel_map_func(work_dir="."):
     c = ipp.Client(url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
-    logging.info("Engine IDs:", c.ids)
     with c[:].sync_imports():
         from sc.clustering.trainer import Trainer
         import os
@@ -26,6 +25,7 @@ def get_parallel_map_func(work_dir="."):
         import torch
         import sys
         import logging
+    logging.info("Engine IDs:", c.ids)
     c[:].push(dict(run_training=run_training),
               block=True)
     for i in c.ids:
