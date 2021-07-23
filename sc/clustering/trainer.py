@@ -9,7 +9,7 @@ import seaborn as sns
 import torch.optim as optim
 import torch_optimizer as ex_optim
 import shutil
-import os
+import os, logging
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
@@ -136,7 +136,7 @@ class Trainer:
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
-            print(para_info)
+            logging.info(para_info)
 
         opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
                         "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
@@ -372,12 +372,12 @@ class Trainer:
         use_cuda = torch.cuda.is_available()
         if use_cuda:
             if verbose:
-                print("Use GPU")
+                logging.info("Use GPU")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:
             if verbose:
-                print("Use Slow CPU!")
+                logging.warn("Use Slow CPU!")
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
