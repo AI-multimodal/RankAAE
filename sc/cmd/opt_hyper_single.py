@@ -139,13 +139,13 @@ def main():
                         help='File name for auxiliary chemical information')
     args = parser.parse_args()
 
-    logging.basicConfig(filename='main_process_message.txt', level=logging.INFO)
-
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
 
     with open(os.path.expandvars(os.path.expanduser(args.config))) as f:
         opt_config = yaml.full_load(f)
 
+    logging.basicConfig(filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
+    
     if args.fixed_params is None:
         fixed_config = dict()
     else:

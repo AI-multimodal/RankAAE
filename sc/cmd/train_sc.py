@@ -25,7 +25,7 @@ def get_parallel_map_func(work_dir="."):
         import torch
         import sys
         import logging
-    logging.info("Engine IDs:", c.ids)
+    logging.info(f"Engine IDs: {c.ids}")
     c[:].push(dict(run_training=run_training),
               block=True)
     for i in c.ids:
@@ -81,7 +81,7 @@ def main():
                         help='Total number of trainings to run')                    
     args = parser.parse_args()
 
-    logging.basicConfig(filename='main_process_message.txt', level=logging.INFO)
+    
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     work_dir = os.path.abspath(work_dir)
@@ -95,6 +95,8 @@ def main():
     verbose = args.verbose
     data_file = os.path.abspath(os.path.expandvars(os.path.expanduser(args.data_file)))
     trails = args.trials
+
+    logging.basicConfig(filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
 
     if trails > 1:
         par_map, nprocesses = get_parallel_map_func(work_dir)
