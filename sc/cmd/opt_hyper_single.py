@@ -88,13 +88,13 @@ class Objective:
             except OptunaError:
                 raise
             except RuntimeError as ex:
-                logging.info(f"Trail ##{trial.number} failed with RuntimeError \"{ex.args}\"")
+                logging.warn(f"Trail ##{trial.number} failed with RuntimeError \"{ex.args}\"")
                 time.sleep(5)
                 redo = True
             if not redo:
                 break
         else:
-            logging.info(f"Can't fix train error after tied {max_redo} times")
+            logging.warn(f"Can't fix train error after tied {max_redo} times")
         if self.single_objective:
             if self.merge_objectives:
                 metrics = (np.array(trainer_callback.metric_weights) * np.array(metrics)).sum()
@@ -183,7 +183,7 @@ def main():
     obj = Objective(args.gpu_i, args, opt_config, fixed_config, base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, timeout=args.timeout)
 
-    logging.info("Number of finished trials: ", len(study.trials))
+    logging.info(f"Number of finished trials: {len(study.trials)}")
     if single_objective:
         logging.info(f"Best Trial#: {study.best_trial.number}")
         logging.info(f"Best Value:  {study.best_value}")

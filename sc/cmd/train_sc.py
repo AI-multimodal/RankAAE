@@ -53,7 +53,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
     logging.info(f"Training started at {t1} on {socket.gethostname()}")
     metrics = trainer.train()
     t2 = datetime.datetime.now()
-    logging.info('training finished at', t2)
+    logging.info(f'training finished at {t2}')
     logging.info(f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
     logging.info(metrics)
     n_coord_num = trainer_config.get("n_coord_num", 3)
