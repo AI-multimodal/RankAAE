@@ -139,7 +139,7 @@ def main():
                         help='File name for auxiliary chemical information')
     args = parser.parse_args()
 
-    logging.basicConfig(filename='main_process_message.txt', encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(filename='main_process_message.txt', level=logging.INFO)
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
 

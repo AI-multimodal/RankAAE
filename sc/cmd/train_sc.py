@@ -37,7 +37,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-    logging.basicConfig(filename='{work_dir}/messages.txt', encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(filename='{work_dir}/messages.txt', level=logging.INFO)
     ngpus_per_node = torch.cuda.device_count()
     if "SLURM_LOCALID" in os.environ:
         local_id = int(os.environ.get("SLURM_LOCALID", 0))
@@ -81,7 +81,7 @@ def main():
                         help='Total number of trainings to run')                    
     args = parser.parse_args()
 
-    logging.basicConfig(filename='main_process_message.txt', encoding='utf-8', level=logging.INFO)
+    logging.basicConfig(filename='main_process_message.txt', level=logging.INFO)
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     work_dir = os.path.abspath(work_dir)
