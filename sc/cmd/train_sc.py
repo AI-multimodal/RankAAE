@@ -28,8 +28,6 @@ def get_parallel_map_func(work_dir="."):
     logging.info(f"Engine IDs: {c.ids}")
     c[:].push(dict(run_training=run_training),
               block=True)
-    for i in c.ids:
-        c[i].push({"engine_id": i}, block=True)
 
     return c[:].map_sync, len(c.ids)
 
@@ -41,11 +39,8 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
     ngpus_per_node = torch.cuda.device_count()
     if "SLURM_LOCALID" in os.environ:
         local_id = int(os.environ.get("SLURM_LOCALID", 0))
-    elif socket.gethostname() == 'WNC-167339':
-        local_id = engine_id
-        assert not (job_number==0 and local_id == -1)
-        if local_id == -1:
-            local_id = 0
+    else:
+        local_id = 0
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
 
     trainer = Trainer.from_data(data_file,
