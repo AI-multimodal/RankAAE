@@ -290,7 +290,8 @@ class Trainer:
                     i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
                     aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
                     n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
-                    aux_pred = z[i_ka_i] - z[i_ka_j]
+                    correlating_styles = z[:, :self.train_loader.dataset.aux]
+                    aux_pred = correlating_styles[i_ka_i] - correlating_styles[i_ka_j]
                     aux_loss = - (aux_pred * aux_target).mean()
                     aux_loss.backward()
                     corr_solver.step()
