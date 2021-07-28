@@ -32,8 +32,7 @@ class TestEncoder(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
         eb = Encoder()
-        self.assertEqual(eb(t)[0].shape, (64, 2))
-        self.assertEqual(eb(t)[1].shape, (64, 12))
+        self.assertEqual(eb(t).shape, (64, 2))
 
 
 class TestDecoder(TestCase):
@@ -53,8 +52,7 @@ class TestCompactEncoder(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
         eb = CompactEncoder()
-        self.assertEqual(eb(t)[0].shape, (64, 2))
-        self.assertEqual(eb(t)[1].shape, (64, 12))
+        self.assertEqual(eb(t).shape, (64, 2))
 
 
 class TestDummyDualAAE(TestCase):

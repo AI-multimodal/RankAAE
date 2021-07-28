@@ -1,4 +1,5 @@
 import itertools
+from google.protobuf import symbol_database
 
 import torch
 from torch import nn
@@ -8,7 +9,7 @@ import seaborn as sns
 import torch.optim as optim
 import torch_optimizer as ex_optim
 import shutil
-import os
+import os, logging
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
@@ -28,7 +29,7 @@ class Trainer:
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Supervise=2.0, lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
+                 lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
                  chem_dict=None, verbose=True, work_dir='.',
                  use_flex_spec_target=False, short_circuit_cn=True):
 
@@ -73,7 +74,6 @@ class Trainer:
         self.lr_ratio_Corr = lr_ratio_Corr
         self.lr_ratio_Style = lr_ratio_Style
         self.n_coord_num = n_coord_num
-        self.chem_dict = chem_dict
         self.verbose = verbose
         self.work_dir = work_dir
         self.use_flex_spec_target = use_flex_spec_target
@@ -134,54 +134,10 @@ class Trainer:
                          ax=ax)
         return fig
 
-    def compute_first_two_style_bvs_spearman(self, styles_np, iclasses_np):
-        styles_np = styles_np.T
-        val_ds = self.val_loader.dataset
-        if self.chem_dict is not None and "val_bvs" not in self.chem_dict:
-            keys_bvs_val = sorted(set(self.chem_dict['bvs'].keys()) & set(val_ds.atom_index))
-            keys_bvs_val = list(filter(lambda k: self.chem_dict['bvs'][k] > 1.0E-5, keys_bvs_val))
-            self.chem_dict['val_bvs_idx'] = np.array([ai in keys_bvs_val for ai in val_ds.atom_index])
-            self.chem_dict['val_bvs'] = np.array([
-                self.chem_dict['bvs'][tuple(ai)]
-                for ai in np.array(val_ds.atom_index)[self.chem_dict['val_bvs_idx']].tolist()])
-        styles_with_bvs = styles_np[self.chem_dict['val_bvs_idx']]
-        iclasses_with_bvs = iclasses_np[self.chem_dict['val_bvs_idx']]
-
-        bvs_mean_per_iclass = np.array([self.chem_dict['val_bvs'][iclasses_with_bvs == i].mean()
-                                        if (iclasses_with_bvs == i).any() else 0.0
-                                        for i in range(self.nclasses)])
-        bvs_std_per_iclass = np.array([self.chem_dict['val_bvs'][iclasses_with_bvs == i].std()
-                                       if (iclasses_with_bvs == i).any() else 1.0
-                                       for i in range(self.nclasses)])
-        styles_mean_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].mean(axis=0)
-                                           if (iclasses_with_bvs == i).any() else np.zeros(self.nstyle)
-                                           for i in range(self.nclasses)])
-        styles_std_per_iclass = np.stack([styles_with_bvs[iclasses_with_bvs == i].std(axis=0)
-                                          if (iclasses_with_bvs == i).any() else np.ones(self.nstyle)
-                                          for i in range(self.nclasses)])
-        bvs_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
-        styles_std_per_iclass[bvs_std_per_iclass < 0.01] = 0.01
-        cor_sign_per_iclass = np.sign(
-            [[spearmanr(styles_with_bvs[iclasses_with_bvs == ic, iy],
-                        self.chem_dict['val_bvs'][iclasses_with_bvs == ic]).correlation
-              for iy in range(self.nstyle)]
-             for ic in range(self.nclasses)])
-        cor_sign_per_iclass[np.isnan(cor_sign_per_iclass)] = 1.0
-        cor_sign_per_iclass[np.fabs(cor_sign_per_iclass) < 0.1] = 1.0
-        normed_val_bvs = (self.chem_dict['val_bvs'] - bvs_mean_per_iclass[iclasses_with_bvs]) / \
-            bvs_std_per_iclass[iclasses_with_bvs]
-        normed_val_bvs = (cor_sign_per_iclass[iclasses_with_bvs].T * normed_val_bvs).T
-        centered_style_val_for_bvs = (styles_with_bvs - styles_mean_per_iclass[iclasses_with_bvs]) / \
-            styles_std_per_iclass[iclasses_with_bvs]
-        sm = [spearmanr(centered_style_val_for_bvs[:, i], normed_val_bvs[:, i]).correlation
-              for i in range(self.nstyle)]
-        max_cor, sec_cor = np.sort(np.fabs(sm))[::-1][:2]
-        return max_cor, sec_cor
-
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
-            print(para_info)
+            logging.info(para_info)
 
         opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
                         "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
@@ -198,8 +154,6 @@ class Trainer:
                                      lr=self.lr_ratio_Mutual * self.base_lr)
         smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr,
                                 weight_decay=self.weight_decay)
-        cn_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Supervise * self.base_lr,
-                            weight_decay=self.weight_decay)
         corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.base_lr,
                             weight_decay=self.weight_decay)
         adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
@@ -207,7 +161,7 @@ class Trainer:
                                      lr=self.lr_ratio_Style * self.base_lr,
                                      betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
-        sol_list = [reconn_solver, mutual_info_solver, smooth_solver, cn_solver, adversarial_solver]
+        sol_list = [reconn_solver, mutual_info_solver, smooth_solver, adversarial_solver]
         schedulers = [
             ReduceLROnPlateau(sol, mode="max", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01, 
                               verbose=self.verbose)
@@ -226,7 +180,7 @@ class Trainer:
         con_c = torch.tensor(c2, dtype=torch.float, device=self.device, requires_grad=False)
 
         # train network
-        last_best = 0.0
+        last_best = 10.0
         chkpt_dir = f"{self.work_dir}/checkpoints"
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
@@ -259,7 +213,7 @@ class Trainer:
                 # Init gradients, adversarial loss
                 self.zerograd()
                 z_real_gauss = torch.randn(self.batch_size, self.nstyle, requires_grad=True, device=self.device)
-                z_fake_gauss, _ = self.encoder(spec_in)
+                z_fake_gauss = self.encoder(spec_in)
                 real_gauss_label = torch.ones(self.batch_size, dtype=torch.long, requires_grad=False,
                                               device=self.device)
                 real_gauss_pred = self.discriminator(z_real_gauss, alpha)
@@ -270,14 +224,6 @@ class Trainer:
                     nll_loss(fake_gauss_pred, fake_guass_lable)
                 adversarial_loss.backward()
                 adversarial_solver.step()
-
-                # Init gradients, coordination number loss
-                self.zerograd()
-                _, y = self.encoder(spec_in)
-                i_cn_in = cn_in.argmax(dim=1)
-                cn_loss = nll_loss(y, i_cn_in)
-                cn_loss.backward()
-                cn_solver.step()
 
                 # Correlation constration
                 # Kendall Rank Correlation Coefficeint
@@ -299,12 +245,8 @@ class Trainer:
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                z, y = self.encoder(spec_in)
-                if self.short_circuit_cn:
-                    y = cn_in.clone()
-                else:
-                    y = torch.exp(y)
-                spec_re = self.decoder(z, y)
+                z = self.encoder(spec_in)
+                spec_re = self.decoder(z, cn_in)
                 if not self.use_flex_spec_target:
                     recon_loss = mse_dis(spec_re, spec_target)
                 else:
@@ -318,19 +260,18 @@ class Trainer:
 
                 # Init gradients, mutual information loss
                 self.zerograd()
-                y, idx = self.sample_categorical()
+                rand_cn, idx = self.sample_categorical()
                 z = torch.randn(self.batch_size, self.nstyle, requires_grad=False, device=self.device)
-                target = torch.tensor(idx, dtype=torch.long, requires_grad=False, device=self.device)
-                x_sample = self.decoder(z, y)
-                z_recon, y_recon = self.encoder(x_sample)
-                mutual_info_loss = nll_loss(y_recon, target) + mse_dis(z_recon, z)
+                x_sample = self.decoder(z, rand_cn)
+                z_recon = self.encoder(x_sample)
+                mutual_info_loss = mse_dis(z_recon, z)
                 mutual_info_loss.backward()
                 mutual_info_solver.step()
                 avg_mutual_info += mutual_info_loss.item()
 
                 # Init gradients, smoothness loss
                 self.zerograd()
-                x_sample = self.decoder(z, y)
+                x_sample = self.decoder(z, rand_cn)
                 x_sample_padded = self.padding4smooth(x_sample.unsqueeze(dim=1))
                 spec_smoothed = self.gaussian_smoothing(x_sample_padded).squeeze(dim=1)
                 Smooth_loss = mse_dis(x_sample, spec_smoothed)
@@ -353,10 +294,6 @@ class Trainer:
                         loss_dict = {"Aux": aux_loss.item()}
                         self.tb_writer.add_scalars("Aux/train", loss_dict, global_step=epoch)
                     loss_dict = {
-                        'Classification': cn_loss.item()
-                    }
-                    self.tb_writer.add_scalars("Supervise/train", loss_dict, global_step=epoch)
-                    loss_dict = {
                         'Adversarial': adversarial_loss.item()
                     }
                     self.tb_writer.add_scalars("Adversarial/train", loss_dict, global_step=epoch)
@@ -372,9 +309,8 @@ class Trainer:
                 aux_in = aux_in.to(self.device)
             spec_in = spec_in.to(self.device)
             cn_in = cn_in.to(self.device)
-            z, y = self.encoder(spec_in)
-            y = torch.exp(y)
-            spec_re = self.decoder(z, y)
+            z = self.encoder(spec_in)
+            spec_re = self.decoder(z, cn_in)
             tw = cn_in @ self.val_weights_per_cn
             tw /= tw.sum()
             spec_diff = ((spec_re - spec_in) ** 2).mean(dim=1)
@@ -400,39 +336,6 @@ class Trainer:
             style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
                                              for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)]))
 
-            class_probs = y.detach().cpu().numpy()
-            iclasses = class_probs.argmax(axis=-1)
-            class_pred = iclasses
-            class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
-            valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
-            class_pred = class_pred[valid_cn_selector]
-            class_true = class_true[valid_cn_selector]
-            cn_accuracy = f1_score(class_true, class_pred, average='weighted')
-
-            loss_dict = {
-                'F1 Score': cn_accuracy
-            }
-            if self.verbose:
-                self.tb_writer.add_scalars("F1 Score/val", loss_dict, global_step=epoch)
-
-            max_style_bvs_cor, sec_style_bvs_cor = None, None
-            if self.chem_dict is not None:
-                max_style_bvs_cor, sec_style_bvs_cor = self.compute_first_two_style_bvs_spearman(style_np, iclasses)
-                loss_dict = {
-                    'Max': max_style_bvs_cor,
-                    'Second': sec_style_bvs_cor
-                }
-                if self.verbose:
-                    self.tb_writer.add_scalars("Style-BVS Correlation/val", loss_dict, global_step=epoch)
-
-            i_cn_in = cn_in.argmax(dim=1)
-            cn_loss = nll_loss(y, i_cn_in)
-            loss_dict = {
-                'Classification': cn_loss.item()
-            }
-            if self.verbose:
-                self.tb_writer.add_scalars("Supervise/val", loss_dict, global_step=epoch)
-
             z_fake_gauss = z
             z_real_gauss = torch.randn_like(z, requires_grad=True, device=self.device)
             real_gauss_label = torch.ones(spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
@@ -450,19 +353,19 @@ class Trainer:
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
-            if cn_accuracy > last_best * 1.01:
-                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{cn_accuracy:05.4g}.pt"
+
+            if style_coupling < last_best * 1.01:
+                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{style_coupling:07.6g}.pt"
                 torch.save(model_dict,
                            chk_fn)
-                last_best = cn_accuracy
+                last_best = style_coupling
                 best_chk = chk_fn
-            metrics = [cn_accuracy, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
+
+            metrics = [0.0, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
 
             for sch in schedulers:
                 sch.step(last_best)
 
-            if self.chem_dict is not None:
-                metrics = metrics + [max_style_bvs_cor, sec_style_bvs_cor]
             if callback is not None:
                 callback(epoch, metrics)
             # plot images
@@ -475,7 +378,7 @@ class Trainer:
 
                 spec_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))][0]
                 spec_in = spec_in.to(self.device)
-                z, _ = self.encoder(spec_in)
+                z = self.encoder(spec_in)
                 if self.verbose:
                     fig = self.get_style_distribution_plot(z.clone().cpu().detach().numpy())
                     self.tb_writer.add_figure("Style Value Distribution", fig, global_step=epoch)
@@ -498,7 +401,7 @@ class Trainer:
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
-                  lr_ratio_Supervise=2.0, lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
+                  lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
                   decoder_activation='ReLu', ae_form='normal', n_aux=0,
@@ -512,16 +415,16 @@ class Trainer:
         use_cuda = torch.cuda.is_available()
         if use_cuda:
             if verbose:
-                print("Use GPU")
+                logging.info("Use GPU")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:
             if verbose:
-                print("Use Slow CPU!")
+                logging.warn("Use Slow CPU!")
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
-        encoder = ae_cls_dict[ae_form]["encoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate)
+        encoder = ae_cls_dict[ae_form]["encoder"](nstyle=nstyle, dropout_rate=dropout_rate)
         decoder = ae_cls_dict[ae_form]["decoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
@@ -538,7 +441,7 @@ class Trainer:
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
-                          lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Supervise=lr_ratio_Supervise, lr_ratio_Corr=lr_ratio_Corr,
+                          lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
                           lr_ratio_Style=lr_ratio_Style, chem_dict=chem_dict, optimizer_name=optimizer_name,
                           use_flex_spec_target=use_flex_spec_target, short_circuit_cn=short_circuit_cn,
                           verbose=verbose, work_dir=work_dir)
@@ -594,7 +497,7 @@ class Trainer:
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
             spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
-            z = encoder(spec_in)[0].clone().detach().cpu().numpy()
+            z = encoder(spec_in).clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker
             fig, ax_list = plt.subplots(nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
@@ -635,35 +538,3 @@ class Trainer:
         plot_cluster_centers(final_spuncat["Decoder"], title='final cluster center')
         plot_cluster_centers(best_spuncat["Decoder"], title='best cluster center')
 
-        def compute_confusion_matrix(encoder, ds, title_base):
-            encoder.eval()
-            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
-            _, y = encoder(spec_in)
-            class_probs = y.detach().cpu().numpy()
-            class_pred = class_probs.argmax(axis=-1)
-            class_true = np.fabs(cn_in.detach().cpu().numpy()).argmax(axis=-1)
-            valid_cn_selector = (cn_in.detach().cpu().numpy() >= 0).all(axis=1)
-            class_pred = class_pred[valid_cn_selector]
-            class_true = class_true[valid_cn_selector]
-            cat_accuracy = f1_score(class_true, class_pred, average='weighted')
-            cm = confusion_matrix(class_true, class_pred)
-            cn_labels = [f'CN{i}' for i in range(4, 4 + n_coord_num)]
-            plt.figure()
-            sns.set(font_scale=1.4)
-            sns.heatmap(cm, xticklabels=cn_labels, yticklabels=cn_labels, cmap='Blues', fmt='d', annot=True, lw=1.0)
-            title = f'{title_base} with F1 Score at {cat_accuracy:.2%}'
-            plt.title(title)
-            plt.xlabel("Prediction")
-            plt.ylabel("True Value")
-            report_dir = os.path.join(work_dir, "reports")
-            if not os.path.exists(report_dir):
-                os.makedirs(report_dir)
-            plt.savefig(f'{report_dir}/{title_base}.pdf', dpi=300, bbox_inches='tight')
-            return cm, cat_accuracy
-
-        compute_confusion_matrix(final_spuncat["Encoder"], dataset_train,
-                                 title_base="Confusion Matrix on FEFF Training Set")
-        compute_confusion_matrix(final_spuncat["Encoder"], dataset_val,
-                                 title_base="Confusion Matrix on FEFF Validation Set")
-        compute_confusion_matrix(final_spuncat["Encoder"], dataset_test, 
-                                 title_base="Confusion Matrix on FEFF Test Set")
