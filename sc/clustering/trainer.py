@@ -228,7 +228,7 @@ class Trainer:
                 # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
                 if self.train_loader.dataset.aux is not None:
                     self.zerograd()
-                    z, _ = self.encoder(spec_in)
+                    z = self.encoder(spec_in)
                     i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
                     i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
                     aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
