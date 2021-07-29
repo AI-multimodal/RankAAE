@@ -228,7 +228,6 @@ class Trainer:
                 # Correlation constration
                 # Kendall Rank Correlation Coefficeint
                 # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
-                # https://en.wikipedia.org/wiki/Theil%E2%80%93Sen_estimator
                 if self.train_loader.dataset.aux is not None:
                     self.zerograd()
                     z, _ = self.encoder(spec_in)
