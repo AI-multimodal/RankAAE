@@ -29,7 +29,7 @@ def get_parallel_map_func(work_dir="."):
     c[:].push(dict(run_training=run_training),
               block=True)
 
-    return c[:].map_sync, len(c.ids)
+    return c.load_balanced_view().map_sync, len(c.ids)
 
 def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file):
     work_dir = f'{work_dir}/training/job_{job_number+1}'
