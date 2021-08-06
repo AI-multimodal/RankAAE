@@ -11,8 +11,12 @@ import socket
 import ipyparallel as ipp
 import sys
 import logging
+import signal
 
 engine_id = -1
+
+def timeout_handler(signum, frame):
+    raise Exception("Training Overtime!")
 
 def get_parallel_map_func(work_dir="."):
     c = ipp.Client(url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
@@ -25,13 +29,14 @@ def get_parallel_map_func(work_dir="."):
         import torch
         import sys
         import logging
+        import signal
     logging.info(f"Engine IDs: {c.ids}")
-    c[:].push(dict(run_training=run_training),
+    c[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
               block=True)
 
     return c.load_balanced_view().map_sync, len(c.ids)
 
-def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file):
+def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, timeout_hours=0):
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
@@ -53,7 +58,13 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
                                 **trainer_config)
     t1 = datetime.datetime.now()
     logging.info(f"Training started at {t1} on {socket.gethostname()}")
-    metrics = trainer.train()
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(int(timeout_hours * 3600))
+    try:
+        metrics = trainer.train()
+    except Exception as ex:
+        logging.warn(f"Error happened: {ex.args}")
+    signal.alarm(0)
     t2 = datetime.datetime.now()
     logging.info(f'training finished at {t2}')
     logging.info(f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
@@ -76,7 +87,9 @@ def main():
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
     parser.add_argument('--trials', type=int, default=1,
-                        help='Total number of trainings to run')                    
+                        help='Total number of trainings to run')     
+    parser.add_argument('--timeout', type=int, default=5,
+                        help='Time limit per job in hours')                  
     args = parser.parse_args()
 
     
@@ -108,7 +121,8 @@ def main():
                      [trainer_config]*trails, 
                      [max_epoch]*trails, 
                      [verbose]*trails, 
-                     [data_file]*trails)
+                     [data_file]*trails,
+                     [args.timeout]*trails)
     list(result)
 
 if __name__ == '__main__':
