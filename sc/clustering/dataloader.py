@@ -31,8 +31,6 @@ class AuxSpectraDataset(Dataset):
         self.transform = transform
         self.atom_index = df.index.to_list()
 
-        train_df = full_df[:n_train_val_test[0]]
-
     def __len__(self):
         return self.spec.shape[0]
 
