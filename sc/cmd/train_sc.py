@@ -58,7 +58,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
                                 **trainer_config)
     t1 = datetime.datetime.now()
     logging.info(f"Training started at {t1} on {socket.gethostname()}")
-    signal.signal(signal.SIGALRM, handler)
+    signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
     try:
         metrics = trainer.train()
