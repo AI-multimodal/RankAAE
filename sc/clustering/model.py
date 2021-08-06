@@ -284,7 +284,7 @@ class CompactEncoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
         super(Decoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -295,7 +295,7 @@ class Decoder(nn.Module):
             raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
         self.main = nn.Sequential(
-            DecodingBlock(in_channels=nclasses + nstyle, out_channels=8, in_len=1, excitation=1,
+            DecodingBlock(in_channels=nstyle, out_channels=8, in_len=1, excitation=1,
                           dropout_rate=dropout_rate),
             DecodingBlock(in_channels=8, out_channels=4, in_len=4, excitation=2, dropout_rate=dropout_rate),
             DecodingBlock(in_channels=4, out_channels=4, in_len=16, excitation=2, dropout_rate=dropout_rate),
@@ -315,16 +315,13 @@ class Decoder(nn.Module):
             ll_act
         )
 
-        self.nclasses = nclasses
         self.nstyle = nstyle
         self.debug = debug
 
-    def forward(self, z_gauss, y):
+    def forward(self, z_gauss):
         if self.debug:
             assert z_gauss.size()[1] == self.nstyle
-            assert y.size()[1] == self.nclasses
-        x = torch.cat([z_gauss, y], dim=1)
-        x = x.unsqueeze(dim=2)
+        x = z_gauss.unsqueeze(dim=2)
         spec = self.main(x)
         spec = spec.squeeze(dim=1)
         return spec
@@ -332,7 +329,7 @@ class Decoder(nn.Module):
 
 class CompactDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nclasses=12, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
         super(CompactDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -343,7 +340,7 @@ class CompactDecoder(nn.Module):
             raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
         self.main = nn.Sequential(
-            DecodingBlock(in_channels=nclasses + nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
+            DecodingBlock(in_channels= nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
                           dropout_rate=dropout_rate),
             DecodingBlock(in_channels=8, out_channels=4, in_len=8, excitation=2, out_len=64, 
                           dropout_rate=dropout_rate),
@@ -355,16 +352,13 @@ class CompactDecoder(nn.Module):
             ll_act
         )
 
-        self.nclasses = nclasses
         self.nstyle = nstyle
         self.debug = debug
 
-    def forward(self, z_gauss, y):
+    def forward(self, z_gauss):
         if self.debug:
             assert z_gauss.size()[1] == self.nstyle
-            assert y.size()[1] == self.nclasses
-        x = torch.cat([z_gauss, y], dim=1)
-        x = x.unsqueeze(dim=2)
+        x = z_gauss.unsqueeze(dim=2)
         spec = self.main(x)
         spec = spec.squeeze(dim=1)
         return spec
@@ -473,7 +467,6 @@ class DummyDualAAE(nn.Module):
 
     def forward(self, x):
         z = self.encoder(x)
-        y = torch.ones(z.size()[0], self.decoder.nclasses)
-        x2 = self.decoder(z, y)
+        x2 = self.decoder(z)
         is_gau = self.discriminator(z, 0.3)
         return x2, is_gau

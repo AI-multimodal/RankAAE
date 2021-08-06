@@ -20,7 +20,7 @@ class TrainerCallBack:
         super().__init__()
         self.merge_objectives = merge_objectives
         self.trial = trial
-        self.metric_weights = [1.0] * 2 + [-1.0] + [-1.0E-2] * 2 + [-1.0]
+        self.metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
 
     def __call__(self, epoch, metrics):
         if self.merge_objectives:
@@ -62,8 +62,6 @@ class Objective:
                 kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
         if self.single_objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
-            if "chem_dict" in self.fixed_config:
-                trainer_callback.metric_weights += [1.0, -0.5]
         else:
             trainer_callback = None
         trainer_config = self.fixed_config.copy()

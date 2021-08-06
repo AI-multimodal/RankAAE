@@ -16,7 +16,7 @@ from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder
 from sc.clustering.dataloader import get_dataloaders
 from sklearn.metrics import f1_score, confusion_matrix
 from torchvision import transforms
-from sc.clustering.dataloader import CoordNumSpectraDataset, ToTensor
+from sc.clustering.dataloader import AuxSpectraDataset, ToTensor
 from scipy.stats import shapiro, spearmanr
 
 
@@ -24,7 +24,7 @@ class Trainer:
 
     def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
                  val_sampling_weights_per_cn, base_lr=0.0001, nstyle=2,
-                 n_coord_num=3, batch_size=111, max_epoch=300,
+                 batch_size=111, max_epoch=300,
                  tb_logdir="runs", zero_conc_thresh=0.05, use_cnn_dis=False,
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
@@ -35,11 +35,7 @@ class Trainer:
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
         self.discriminator = discriminator.to(device)
-
-        self.nclasses = n_coord_num
         self.nstyle = nstyle
-
-        self.val_weights_per_cn = torch.tensor(val_sampling_weights_per_cn, dtype=torch.float, device=device)
         self.batch_size = batch_size
         self.max_epoch = max_epoch
         self.base_lr = base_lr
@@ -71,58 +67,16 @@ class Trainer:
         self.lr_ratio_Smooth = lr_ratio_Smooth
         self.lr_ratio_Corr = lr_ratio_Corr
         self.lr_ratio_Style = lr_ratio_Style
-        self.n_coord_num = n_coord_num
         self.verbose = verbose
         self.work_dir = work_dir
         self.use_flex_spec_target = use_flex_spec_target
-        self.short_circuit_cn = short_circuit_cn
         self.optimizer_name = optimizer_name
         self.weight_decay = weight_decay
-
-    def sample_categorical(self):
-        """
-         Sample from a categorical distribution
-         of size batch_size and # of classes n_classes
-         return: torch.autograd.Variable with the sample
-        """
-        idx = np.random.randint(0, self.nclasses, self.batch_size)
-        cat = np.eye(self.nclasses)[idx].astype('float32')
-        cat = torch.tensor(cat, requires_grad=False, device=self.device)
-        return cat, idx
 
     def zerograd(self):
         self.encoder.zero_grad()
         self.decoder.zero_grad()
         self.discriminator.zero_grad()
-
-    @staticmethod
-    def d_entropy1(y):
-        y1 = y.mean(dim=0)
-        y2 = torch.sum(-y1 * torch.log(y1 + 1e-5))
-        return y2
-
-    def d_entropy2(self, y):
-        y1 = -y * torch.log(y + 1e-5)
-        y2 = torch.sum(y1) / self.batch_size
-        return y2
-
-    @staticmethod
-    def get_cluster_idx(Y_pred):
-        return Y_pred.argmax(dim=1).cpu()
-
-    def get_cluster_plot(self, spec_list):
-        assert spec_list.shape[0] == self.nclasses
-        assert spec_list.shape[1] == self.ntest_per_spectra
-        # noinspection PyTypeChecker
-        fig, ax_list = plt.subplots(self.nclasses, 1, sharex=True, sharey=True, figsize=(9, 12))
-        colors = sns.color_palette("husl", self.ntest_per_spectra)
-        for i, (sl, ax) in enumerate(zip(spec_list, ax_list.ravel())):
-            for spec, color in zip(sl, colors):
-                ax.plot(spec, lw=1.5, c=color)
-                ax.set_ylabel(f"{i + 4} Folds Coordinated")
-        title = "All Classes and Styles"
-        fig.suptitle(title, y=0.91)
-        return fig
 
     def get_style_distribution_plot(self, z):
         # noinspection PyTypeChecker
@@ -165,18 +119,6 @@ class Trainer:
                               verbose=self.verbose)
             for sol in sol_list]
 
-        # fixed random variables, for plot spectra
-        idx = np.arange(self.nclasses).repeat(self.ntest_per_spectra)
-        one_hot = np.zeros((self.nclasses * self.ntest_per_spectra, self.nclasses))
-        one_hot[range(self.nclasses * self.ntest_per_spectra), idx] = 1
-
-        c = np.linspace(*self.noise_test_range, self.ntest_per_spectra).reshape(1, -1)
-        c = np.repeat(c, self.nclasses, 0).reshape(-1, 1)
-        c2 = np.hstack([np.zeros_like(c)] * (self.nstyle - 1) + [c])
-
-        dis_c = torch.tensor(one_hot, dtype=torch.float, device=self.device, requires_grad=False)
-        con_c = torch.tensor(c2, dtype=torch.float, device=self.device, requires_grad=False)
-
         # train network
         last_best = 10.0
         chkpt_dir = f"{self.work_dir}/checkpoints"
@@ -197,14 +139,12 @@ class Trainer:
             # invalid samples
             n_batch = len(self.train_loader)
             avg_mutual_info = 0.0
-            for sample in self.train_loader:
+            for spec_in, aux_in in self.train_loader:
                 if self.train_loader.dataset.aux is None:
-                    spec_in, cn_in = sample
+                    aux_in = None
                 else:
-                    spec_in, cn_in, aux_in = sample
                     aux_in = aux_in.to(self.device)
                 spec_in = spec_in.to(self.device)
-                cn_in = cn_in.to(self.device)
                 spec_target = spec_in.clone()
                 spec_in = spec_in + torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
 
@@ -226,24 +166,26 @@ class Trainer:
                 # Correlation constration
                 # Kendall Rank Correlation Coefficeint
                 # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
-                if self.train_loader.dataset.aux is not None:
+                if aux_in is not None:
                     self.zerograd()
                     z = self.encoder(spec_in)
                     i_ka_combs = list(itertools.combinations(range(aux_in.size()[0]), 2))
                     i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
                     aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
                     n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
-                    correlating_styles = z[:, :aux_in.size()[-1]]
-                    aux_pred = correlating_styles[i_ka_i] - correlating_styles[i_ka_j]
+                    z_aux = z[:, :n_aux]
+                    aux_pred = z_aux[i_ka_i] - z_aux[i_ka_j]
                     aux_loss = - (aux_pred * aux_target).mean()
                     aux_loss.backward()
                     corr_solver.step()
+                else:
+                    aux_loss = None
 
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
                 z = self.encoder(spec_in)
-                spec_re = self.decoder(z, cn_in)
+                spec_re = self.decoder(z)
                 if not self.use_flex_spec_target:
                     recon_loss = mse_dis(spec_re, spec_target)
                 else:
@@ -257,9 +199,8 @@ class Trainer:
 
                 # Init gradients, mutual information loss
                 self.zerograd()
-                rand_cn, idx = self.sample_categorical()
                 z = torch.randn(self.batch_size, self.nstyle, requires_grad=False, device=self.device)
-                x_sample = self.decoder(z, rand_cn)
+                x_sample = self.decoder(z)
                 z_recon = self.encoder(x_sample)
                 mutual_info_loss = mse_dis(z_recon, z)
                 mutual_info_loss.backward()
@@ -268,7 +209,7 @@ class Trainer:
 
                 # Init gradients, smoothness loss
                 self.zerograd()
-                x_sample = self.decoder(z, rand_cn)
+                x_sample = self.decoder(z)
                 x_sample_padded = self.padding4smooth(x_sample.unsqueeze(dim=1))
                 spec_smoothed = self.gaussian_smoothing(x_sample_padded).squeeze(dim=1)
                 Smooth_loss = mse_dis(x_sample, spec_smoothed)
@@ -299,19 +240,15 @@ class Trainer:
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
+            spec_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             if self.train_loader.dataset.aux is None:
-                spec_in, cn_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+                aux_in = None
             else:
-                spec_in, cn_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
                 aux_in = aux_in.to(self.device)
             spec_in = spec_in.to(self.device)
-            cn_in = cn_in.to(self.device)
             z = self.encoder(spec_in)
-            spec_re = self.decoder(z, cn_in)
-            tw = cn_in @ self.val_weights_per_cn
-            tw /= tw.sum()
-            spec_diff = ((spec_re - spec_in) ** 2).mean(dim=1)
-            recon_loss = (spec_diff * tw).sum()
+            spec_re = self.decoder(z)
+            recon_loss = mse_dis(spec_re, spec_in)
             loss_dict = {
                 'Recon': recon_loss.item()
             }
@@ -327,6 +264,8 @@ class Trainer:
                     aux_loss = - (aux_pred * aux_target).mean()
                     loss_dict = {"Aux": aux_loss.item()}
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
+            else:
+                aux_loss = None
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
@@ -359,7 +298,8 @@ class Trainer:
                 last_best = style_coupling
                 best_chk = chk_fn
 
-            metrics = [0.0, min(style_shapiro), recon_loss.item(), 0.0, avg_mutual_info, style_coupling]
+            metrics = [min(style_shapiro), recon_loss.item(), avg_mutual_info, style_coupling, 
+                       aux_loss.item() if aux_in is not None else 0]
 
             for sch in schedulers:
                 sch.step(last_best)
@@ -368,12 +308,6 @@ class Trainer:
                 callback(epoch, metrics)
             # plot images
             if epoch % 25 == 0:
-                spec_out = self.decoder(con_c, dis_c).reshape(self.nclasses, self.ntest_per_spectra, -1).\
-                    clone().cpu().detach().numpy()
-                if self.verbose:
-                    fig = self.get_cluster_plot(spec_out)
-                    self.tb_writer.add_figure("Spectra", fig, global_step=epoch)
-
                 spec_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))][0]
                 spec_in = spec_in.to(self.device)
                 z = self.encoder(spec_in)
@@ -393,8 +327,7 @@ class Trainer:
         return metrics
 
     @classmethod
-    def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000,
-                  n_coord_num=3, nstyle=2,
+    def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000, nstyle=2,
                   dropout_rate=0.5, grad_rev_dropout_rate=0.5, grad_rev_noise=0.1, grad_rev_beta=1.1,
                   use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
@@ -408,7 +341,7 @@ class Trainer:
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
         assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
-            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num, n_aux=n_aux)
+            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_aux=n_aux)
         
         use_cuda = torch.cuda.is_available()
         if use_cuda:
@@ -423,7 +356,7 @@ class Trainer:
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
         encoder = ae_cls_dict[ae_form]["encoder"](nstyle=nstyle, dropout_rate=dropout_rate)
-        decoder = ae_cls_dict[ae_form]["decoder"](nclasses=n_coord_num, nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
+        decoder = ae_cls_dict[ae_form]["decoder"](nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
@@ -434,7 +367,7 @@ class Trainer:
 
         trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
                           val_sampling_weights_per_cn=dl_val.dataset.sampling_weights_per_cn,
-                          nstyle=nstyle, n_coord_num=n_coord_num, weight_decay=weight_decay,
+                          nstyle=nstyle, weight_decay=weight_decay,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
@@ -446,55 +379,21 @@ class Trainer:
         return trainer
 
     @staticmethod
-    def test_models(csv_fn, n_coord_num=3, n_aux=0,
+    def test_models(csv_fn, n_aux=0,
                     train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
                     final_model_name='final.pt', best_model_name='best.pt'):
         final_spuncat = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
         best_spuncat = torch.load(f'{work_dir}/{best_model_name}', map_location=torch.device('cpu'))
 
         transform_list = transforms.Compose([ToTensor()])
-        dataset_train, dataset_val, dataset_test = [CoordNumSpectraDataset(
-            csv_fn, p, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_coord_num=n_coord_num,
-            transform=transform_list, n_aux=n_aux)
+        dataset_train, dataset_val, dataset_test = [AuxSpectraDataset(
+                csv_fn, p, (train_ratio, validation_ratio, test_ratio), sampling_exponent,
+                transform=transform_list, n_aux=n_aux)
             for p in ["train", "val", "test"]]
-        
-        def cluster_grid_plot(decoder):
-            decoder.eval()
-            for istyle in range(decoder.nstyle):
-                nspec_pc = 10
-                Idx = np.arange(n_coord_num).repeat(nspec_pc)
-                one_hot = np.zeros((n_coord_num * nspec_pc, n_coord_num))
-                one_hot[list(range(n_coord_num * nspec_pc)), Idx] = 1
-
-                c = np.linspace(*[-2, 2], nspec_pc).reshape(1, -1)
-                c = np.repeat(c, n_coord_num, 0).reshape(-1, 1)
-                c2 = np.hstack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1))
-
-                dis_c = torch.tensor(one_hot, dtype=torch.float, requires_grad=False)
-                con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
-
-                spec_out = decoder(con_c, dis_c).reshape(n_coord_num, nspec_pc, -1).clone().cpu().detach().numpy()
-                plt.figure()
-                # noinspection PyTypeChecker
-                fig, ax_list = plt.subplots(n_coord_num, 1,
-                                            sharex=True, sharey=True, figsize=(9, 12))
-                colors = sns.color_palette("coolwarm", nspec_pc)
-                for i, (sl, ax) in enumerate(zip(spec_out, ax_list.ravel())):
-                    for spec, color in zip(sl, colors):
-                        ax.plot(spec, lw=1.5, c=color)
-                        ax.set_ylabel(f"{i + 4} Folds Coordinated")
-                title = f"All Classes and Styles #{istyle}"
-                fig.suptitle(title, y=0.91)
-                report_dir = os.path.join(work_dir, "reports")
-                if not os.path.exists(report_dir):
-                    os.makedirs(report_dir)
-                plt.savefig(f"{report_dir}/{title}.pdf", dpi=600)
-        
-        cluster_grid_plot(final_spuncat["Decoder"])
 
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
-            spec_in, cn_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
+            spec_in, aux_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
             z = encoder(spec_in).clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker
@@ -515,24 +414,3 @@ class Trainer:
 
         plot_style_distributions(final_spuncat["Encoder"], dataset_test, 
                                  title_base="Style Distribution on FEFF Test Set")
-
-        def plot_cluster_centers(p, nclasses=n_coord_num, title='final cluster center'):
-            p.eval()
-            nstyle = p.nstyle
-            one_hot = torch.eye(nclasses)
-            z = torch.zeros(nclasses, nstyle)
-            cluster_specs = p(z, one_hot).cpu().detach().numpy()
-            plt.figure()
-            sns.set_palette('husl', nclasses)
-            for spec in cluster_specs:
-                plt.plot(spec)
-
-            plt.title(title)
-            report_dir = os.path.join(work_dir, "reports")
-            if not os.path.exists(report_dir):
-                os.makedirs(report_dir)
-            plt.savefig(f'{report_dir}/{title}.pdf', dpi=300)
-
-        plot_cluster_centers(final_spuncat["Decoder"], title='final cluster center')
-        plot_cluster_centers(best_spuncat["Decoder"], title='best cluster center')
-
