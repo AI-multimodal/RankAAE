@@ -84,8 +84,8 @@ class Trainer:
         fig, ax_list = plt.subplots(
             self.nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
         for istyle, ax in zip(range(self.nstyle), ax_list):
-            sns.distplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
-                         ax=ax)
+            sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
+                         ax=ax, element="step")
         return fig
 
     def train(self, callback=None):
@@ -430,8 +430,8 @@ class Trainer:
             fig, ax_list = plt.subplots(
                 nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
             for istyle, ax in zip(range(nstyle), ax_list):
-                sns.distplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
-                             ax=ax)
+                sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
+                             ax=ax, element="step")
                 ax.set_xlabel(f"Style #{istyle}")
                 ax.set_ylabel("Counts")
 
