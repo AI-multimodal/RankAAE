@@ -59,5 +59,5 @@ class TestDummyDualAAE(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
         eb = DummyDualAAE(False, Encoder, Decoder)
-        self.assertEqual(eb(t).shape, (64, 256))
+        self.assertEqual(eb(t)[0].shape, (64, 256))
 
