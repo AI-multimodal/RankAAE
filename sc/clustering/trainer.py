@@ -23,14 +23,14 @@ from scipy.stats import shapiro, spearmanr
 class Trainer:
 
     def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
-                 val_sampling_weights_per_cn, base_lr=0.0001, nstyle=2,
+                 base_lr=0.0001, nstyle=2,
                  batch_size=111, max_epoch=300,
-                 tb_logdir="runs", zero_conc_thresh=0.05, use_cnn_dis=False,
+                 tb_logdir="runs", use_cnn_dis=False,
                  grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
-                 verbose=True, work_dir='.', use_flex_spec_target=False, short_circuit_cn=True):
+                 verbose=True, work_dir='.', use_flex_spec_target=False):
 
         self.encoder = encoder.to(device)
         self.decoder = decoder.to(device)
@@ -45,7 +45,6 @@ class Trainer:
 
         self.noise_test_range = (-2, 2)
         self.ntest_per_spectra = 10
-        self.zero_conc_thresh = zero_conc_thresh
         gau_kernel_size = 17
         self.gaussian_smoothing = GaussianSmoothing(channels=1, kernel_size=gau_kernel_size, sigma=3.0, dim=1,
                                                     device=device).to(device)
@@ -333,7 +332,7 @@ class Trainer:
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1, 
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6,
+                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15,
                   use_flex_spec_target=False, short_circuit_cn=True, optimizer_name="AdamW",
                   decoder_activation='Softplus', ae_form='compact', n_aux=0,
                   verbose=True, work_dir='.'):
@@ -341,7 +340,7 @@ class Trainer:
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
         assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
-            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), sampling_exponent, n_aux=n_aux)
+            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=n_aux)
         
         use_cuda = torch.cuda.is_available()
         if use_cuda:
@@ -366,7 +365,6 @@ class Trainer:
             i.to(device)
 
         trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
-                          val_sampling_weights_per_cn=dl_val.dataset.sampling_weights_per_cn,
                           nstyle=nstyle, weight_decay=weight_decay,
                           max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
                           grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
@@ -374,26 +372,25 @@ class Trainer:
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
                           lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name,
-                          use_flex_spec_target=use_flex_spec_target, short_circuit_cn=short_circuit_cn,
+                          use_flex_spec_target=use_flex_spec_target,
                           verbose=verbose, work_dir=work_dir)
         return trainer
 
     @staticmethod
     def test_models(csv_fn, n_aux=0,
-                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, sampling_exponent=0.6, work_dir='.',
+                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, work_dir='.',
                     final_model_name='final.pt', best_model_name='best.pt'):
         final_spuncat = torch.load(f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
-        best_spuncat = torch.load(f'{work_dir}/{best_model_name}', map_location=torch.device('cpu'))
 
         transform_list = transforms.Compose([ToTensor()])
-        dataset_train, dataset_val, dataset_test = [AuxSpectraDataset(
-                csv_fn, p, (train_ratio, validation_ratio, test_ratio), sampling_exponent,
+        _, _, dataset_test = [AuxSpectraDataset(
+                csv_fn, p, (train_ratio, validation_ratio, test_ratio),
                 transform=transform_list, n_aux=n_aux)
             for p in ["train", "val", "test"]]
 
         def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
             encoder.eval()
-            spec_in, aux_in = torch.tensor(ds.spec.copy(), dtype=torch.float32), torch.tensor(ds.cn.copy(), dtype=torch.float32)
+            spec_in = torch.tensor(ds.spec.copy(), dtype=torch.float32)
             z = encoder(spec_in).clone().detach().cpu().numpy()
             nstyle = z.shape[1]
             # noinspection PyTypeChecker

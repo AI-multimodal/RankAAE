@@ -8,7 +8,7 @@ from torchvision import transforms
 
 
 class AuxSpectraDataset(Dataset):
-    def __init__(self, csv_fn, split_portion, train_val_test_ratios=(0.7, 0.15, 0.15), sampling_exponent=0.6,
+    def __init__(self, csv_fn, split_portion, train_val_test_ratios=(0.7, 0.15, 0.15),
                  n_aux=0, transform=None):
         full_df = pd.read_csv(csv_fn, index_col=[0, 1])
         n_train_val_test = [int(len(full_df) * ratio) for ratio in train_val_test_ratios]
@@ -51,11 +51,10 @@ class ToTensor(object):
         return torch.Tensor(sample)
 
 
-def get_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15),
-                                   sampling_exponent=0.6, n_aux=0):
+def get_dataloaders(csv_fn, batch_size, train_val_test_ratios=(0.7, 0.15, 0.15), n_aux=0):
     transform_list = transforms.Compose([ToTensor()])
     ds_train,  ds_val, ds_test = [AuxSpectraDataset(
-            csv_fn, p, train_val_test_ratios, sampling_exponent, transform=transform_list, n_aux=n_aux)
+            csv_fn, p, train_val_test_ratios, transform=transform_list, n_aux=n_aux)
         for p in ["train", "val", "test"]]
 
     train_loader = DataLoader(ds_train,
