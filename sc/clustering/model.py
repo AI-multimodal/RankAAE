@@ -109,10 +109,12 @@ class DecodingBlock(nn.Module):
         else:
             self.bn1 = None
         self.relu1 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv1 = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.conv1 = nn.ConvTranspose1d(
+            in_channels, out_channels, kernel_size=2, stride=2)
         self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
         self.relu2 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv2 = nn.ConvTranspose1d(out_channels, out_channels, kernel_size=out_len//(in_len*2), stride=out_len//(in_len*2))
+        self.conv2 = nn.ConvTranspose1d(
+            out_channels, out_channels, kernel_size=out_len//(in_len*2), stride=out_len//(in_len*2))
 
         if in_len > 10:
             self.dropout_1 = nn.Dropout(p=dropout_rate)
@@ -124,7 +126,8 @@ class DecodingBlock(nn.Module):
         self.relu_excit_2 = nn.PReLU(num_parameters=in_channels, init=0.01)
         if in_channels != out_channels:
             self.bn_excit = nn.BatchNorm1d(in_channels, affine=False)
-            self.relu_excit_3 = nn.PReLU(num_parameters=out_channels, init=0.01)
+            self.relu_excit_3 = nn.PReLU(
+                num_parameters=out_channels, init=0.01)
             self.conv_excit = nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1,
                                         groups=math.gcd(in_channels, out_channels))
         else:
@@ -188,7 +191,8 @@ class GaussianSmoothing(nn.Module):
         )
         for size, std, mgrid in zip(kernel_size, sigma, meshgrids):
             mean = (size - 1) / 2
-            kernel *= 1 / (std * math.sqrt(2 * math.pi)) * torch.exp(-((mgrid - mean) / std) ** 2 / 2)
+            kernel *= 1 / (std * math.sqrt(2 * math.pi)) * \
+                torch.exp(-((mgrid - mean) / std) ** 2 / 2)
 
         # Make sure sum of values in gaussian kernel equals 1.
         kernel = kernel / torch.sum(kernel)
@@ -217,7 +221,8 @@ class GaussianSmoothing(nn.Module):
             conv = nn.functional.conv3d
         else:
             raise RuntimeError(
-                'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(len(x.size()) - 2)
+                'Only 1, 2 and 3 dimensions are supported. Received {}.'.format(
+                    len(x.size()) - 2)
             )
         return conv(x, weight=self.weight, groups=self.groups)
 
@@ -292,14 +297,18 @@ class Decoder(nn.Module):
         elif last_layer_activation == 'Softplus':
             ll_act = nn.Softplus(beta=2)
         else:
-            raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
         self.main = nn.Sequential(
             DecodingBlock(in_channels=nstyle, out_channels=8, in_len=1, excitation=1,
                           dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=8, out_channels=4, in_len=4, excitation=2, dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=16, excitation=2, dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=64, excitation=4, dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=8, out_channels=4, in_len=4,
+                          excitation=2, dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=4, out_channels=4, in_len=16,
+                          excitation=2, dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=4, out_channels=4, in_len=64,
+                          excitation=4, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
@@ -337,14 +346,16 @@ class CompactDecoder(nn.Module):
         elif last_layer_activation == 'Softplus':
             ll_act = nn.Softplus(beta=2)
         else:
-            raise ValueError(f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
         self.main = nn.Sequential(
-            DecodingBlock(in_channels= nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
+            DecodingBlock(in_channels=nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
                           dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=8, out_channels=4, in_len=8, excitation=2, out_len=64, 
+            DecodingBlock(in_channels=8, out_channels=4, in_len=8, excitation=2, out_len=64,
                           dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=64, excitation=4, dropout_rate=dropout_rate),
+            DecodingBlock(in_channels=4, out_channels=4, in_len=64,
+                          excitation=4, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
             nn.BatchNorm1d(4, affine=False),
@@ -375,7 +386,8 @@ class DiscriminatorCNN(nn.Module):
 
         self.main = nn.Sequential(
             nn.BatchNorm1d(1, affine=False),
-            nn.Conv1d(1, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2, padding_mode='replicate'),
+            nn.Conv1d(1, channels, kernel_size=kernel_size, padding=(
+                kernel_size-1)//2, padding_mode='replicate'),
             nn.PReLU(num_parameters=channels, init=0.01),
 
             nn.BatchNorm1d(channels, affine=False),
@@ -394,7 +406,8 @@ class DiscriminatorCNN(nn.Module):
             nn.PReLU(num_parameters=channels, init=0.01),
 
             nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, 1, kernel_size=kernel_size, padding=(kernel_size-1)//2, padding_mode='replicate'),
+            nn.Conv1d(channels, 1, kernel_size=kernel_size, padding=(
+                kernel_size-1)//2, padding_mode='replicate'),
             nn.PReLU(num_parameters=1, init=0.01)
         )
 

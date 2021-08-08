@@ -6,7 +6,7 @@ import os
 
 
 
-class TestCoordNumSpectraDataset(TestCase):
+class TestAuxSpectraDataset(TestCase):
 
     def setUp(self) -> None:
         self.data_fn = data_fn = os.path.join(os.path.dirname(__file__), "../../../data", "cu_feff_aux_bvs_cn_density.csv")

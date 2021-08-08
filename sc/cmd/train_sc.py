@@ -9,17 +9,19 @@ import yaml
 import datetime
 import socket
 import ipyparallel as ipp
-import sys
 import logging
 import signal
 
 engine_id = -1
 
+
 def timeout_handler(signum, frame):
     raise Exception("Training Overtime!")
 
+
 def get_parallel_map_func(work_dir="."):
-    c = ipp.Client(url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
+    c = ipp.Client(
+        url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
     with c[:].sync_imports():
         from sc.clustering.trainer import Trainer
         import os
@@ -36,13 +38,15 @@ def get_parallel_map_func(work_dir="."):
 
     return c.load_balanced_view().map_sync, len(c.ids)
 
+
 def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, timeout_hours=0):
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
-    logging.basicConfig(filename=f'{work_dir}/messages.txt', level=logging.INFO)
+    logging.basicConfig(
+        filename=f'{work_dir}/messages.txt', level=logging.INFO)
     ngpus_per_node = torch.cuda.device_count()
     if "SLURM_LOCALID" in os.environ:
         local_id = int(os.environ.get("SLURM_LOCALID", 0))
@@ -65,7 +69,8 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         logging.info(metrics)
         t2 = datetime.datetime.now()
         logging.info(f'training finished at {t2}')
-        logging.info(f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
+        logging.info(
+            f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
         n_aux = trainer_config.get("n_aux", 0)
         trainer.test_models(data_file, n_aux=n_aux, work_dir=work_dir)
     except Exception as ex:
@@ -73,6 +78,7 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         metrics = ex.args
     signal.alarm(0)
     return metrics
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -87,12 +93,10 @@ def main():
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
     parser.add_argument('--trials', type=int, default=1,
-                        help='Total number of trainings to run')     
+                        help='Total number of trainings to run')
     parser.add_argument('--timeout', type=int, default=5,
-                        help='Time limit per job in hours')                  
+                        help='Time limit per job in hours')
     args = parser.parse_args()
-
-    
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
     work_dir = os.path.abspath(work_dir)
@@ -101,13 +105,15 @@ def main():
 
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-    
+
     max_epoch = args.max_epoch
     verbose = args.verbose
-    data_file = os.path.abspath(os.path.expandvars(os.path.expanduser(args.data_file)))
+    data_file = os.path.abspath(os.path.expandvars(
+        os.path.expanduser(args.data_file)))
     trails = args.trials
 
-    logging.basicConfig(filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
+    logging.basicConfig(
+        filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
 
     if trails > 1:
         par_map, nprocesses = get_parallel_map_func(work_dir)
@@ -116,14 +122,15 @@ def main():
     logging.info("running with {} processes".format(nprocesses))
 
     result = par_map(run_training,
-                     list(range(trails)), 
-                     [work_dir]*trails, 
-                     [trainer_config]*trails, 
-                     [max_epoch]*trails, 
-                     [verbose]*trails, 
+                     list(range(trails)),
+                     [work_dir]*trails,
+                     [trainer_config]*trails,
+                     [max_epoch]*trails,
+                     [verbose]*trails,
                      [data_file]*trails,
                      [args.timeout]*trails)
     list(result)
+
 
 if __name__ == '__main__':
     main()

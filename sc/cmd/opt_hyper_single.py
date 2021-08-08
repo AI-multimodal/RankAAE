@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-import os, logging
+import os
+import logging
 import pickle
 import time
 
@@ -57,9 +58,11 @@ class Objective:
             elif v["sampling"] == 'uniform':
                 kwargs[k] = trial.suggest_uniform(name=k, low=low, high=high)
             elif v["sampling"] == 'loguniform':
-                kwargs[k] = trial.suggest_loguniform(name=k, low=low, high=high)
+                kwargs[k] = trial.suggest_loguniform(
+                    name=k, low=low, high=high)
             elif v["sampling"] == 'categorical':
-                kwargs[k] = trial.suggest_categorical(name=k, choices=v["choices"])
+                kwargs[k] = trial.suggest_categorical(
+                    name=k, choices=v["choices"])
         if self.single_objective:
             trainer_callback = TrainerCallBack(self.merge_objectives, trial)
         else:
@@ -68,7 +71,8 @@ class Objective:
         trainer_config.update(kwargs)
         metrics = 0.0
         if "batchsize" in kwargs:
-            max_epoch = (self.trainer_args.max_epoch * kwargs["batchsize"]) // 512
+            max_epoch = (self.trainer_args.max_epoch *
+                         kwargs["batchsize"]) // 512
         else:
             max_epoch = self.trainer_args.max_epoch
         for _ in range(max_redo):
@@ -86,7 +90,8 @@ class Objective:
             except OptunaError:
                 raise
             except RuntimeError as ex:
-                logging.warn(f"Trail ##{trial.number} failed with RuntimeError \"{ex.args}\"")
+                logging.warn(
+                    f"Trail ##{trial.number} failed with RuntimeError \"{ex.args}\"")
                 time.sleep(5)
                 redo = True
             if not redo:
@@ -95,7 +100,8 @@ class Objective:
             logging.warn(f"Can't fix train error after tied {max_redo} times")
         if self.single_objective:
             if self.merge_objectives:
-                metrics = (np.array(trainer_callback.metric_weights) * np.array(metrics)).sum()
+                metrics = (np.array(trainer_callback.metric_weights)
+                           * np.array(metrics)).sum()
             else:
                 metrics = metrics[0]
         return metrics
@@ -142,8 +148,9 @@ def main():
     with open(os.path.expandvars(os.path.expanduser(args.config))) as f:
         opt_config = yaml.full_load(f)
 
-    logging.basicConfig(filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
-    
+    logging.basicConfig(
+        filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
+
     if args.fixed_params is None:
         fixed_config = dict()
     else:
@@ -151,7 +158,8 @@ def main():
             fixed_config = yaml.full_load(f)
     oc = sorted(set(opt_config.keys()) & set(fixed_config.keys()))
     if len(oc) > 0:
-        raise ValueError(f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
+        raise ValueError(
+            f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
 
     if args.chem_dict is not None:
         with open(os.path.expandvars(os.path.expanduser(args.chem_dict)), 'rb') as f:
@@ -161,7 +169,8 @@ def main():
         os.makedirs(work_dir, exist_ok=True)
     single_objective = args.single
     merge_objectives = args.merge_objectives
-    storage = optuna.storages.RedisStorage(url=f'redis://{args.db_address}:{args.db_port}')
+    storage = optuna.storages.RedisStorage(
+        url=f'redis://{args.db_address}:{args.db_port}')
 
     if single_objective:
         study = optuna.create_study(
@@ -178,7 +187,8 @@ def main():
             storage=storage,
             load_if_exists=True)
     base_trail_number = len(study.trials)
-    obj = Objective(args.gpu_i, args, opt_config, fixed_config, base_trail_number, single_objective, merge_objectives)
+    obj = Objective(args.gpu_i, args, opt_config, fixed_config,
+                    base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, timeout=args.timeout)
 
     logging.info(f"Number of finished trials: {len(study.trials)}")
@@ -188,7 +198,7 @@ def main():
         logging.info(f"Best Params: {study.best_params}")
     else:
         logging.info("Pareto front:")
-        trials = {str(trial.values): trial for trial in study.get_pareto_front_trials()}
+        trials = {str(trial.values)                  : trial for trial in study.get_pareto_front_trials()}
         trials = list(trials.values())
         trials.sort(key=lambda t: t.values)
         for trial in trials:
