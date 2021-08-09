@@ -16,13 +16,6 @@ else
     num_gpus=-1
 fi
 
-export CONDA_SHLVL=1
-export CONDA_PROMPT_MODIFIER=(/hpcgpfs01/software/cfn-jupyter/software/xas_ml)
-export CONDA_EXE=/sdcc/u/xiaqu/program/miniconda3/bin/conda
-export PATH=/hpcgpfs01/software/cfn-jupyter/software/xas_ml/bin:$PATH
-export CONDA_PREFIX=/hpcgpfs01/software/cfn-jupyter/software/xas_ml
-export CONDA_PYTHON_EXE=/sdcc/u/xiaqu/program/miniconda3/bin/python
-export CONDA_DEFAULT_ENV=/hpcgpfs01/software/cfn-jupyter/software/xas_ml
 
 res_dir=resources_usage_${SLURM_JOB_ID}
 if [[ ! -d ${res_dir} ]]
