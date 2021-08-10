@@ -281,8 +281,8 @@ class Trainer:
                 aux_pred = z_aux[i_ka_i] - z_aux[i_ka_j]
                 aux_loss = - (aux_pred * aux_target).mean()
                 loss_dict = {"Aux": aux_loss.item()}
-                self.tb_writer.add_scalars(
-                    "Aux/val", loss_dict, global_step=epoch)
+                if self.verbose:
+                    self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
             else:
                 aux_loss = None
 
