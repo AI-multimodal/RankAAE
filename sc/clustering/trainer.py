@@ -147,6 +147,8 @@ class Trainer:
                 if self.train_loader.dataset.aux is None:
                     aux_in = None
                 else:
+                    assert len(aux_in.size()) == 2
+                    n_aux = aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
                 spec_in = spec_in.to(self.device)
                 spec_target = spec_in.clone()
@@ -176,14 +178,11 @@ class Trainer:
                 if aux_in is not None:
                     self.zerograd()
                     z = self.encoder(spec_in)
-                    i_ka_combs = list(itertools.combinations(
-                        range(aux_in.size()[0]), 2))
-                    i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
-                    aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
-                    n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
+                    aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
                     z_aux = z[:, :n_aux]
-                    aux_pred = z_aux[i_ka_i] - z_aux[i_ka_j]
-                    aux_loss = - (aux_pred * aux_target).mean()
+                    assert len(z_aux.size()) == 2
+                    aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
+                    aux_loss = - (aux_pred * aux_target) / (n_aux**2 - n_aux)
                     aux_loss.backward()
                     corr_solver.step()
                 else:
@@ -260,6 +259,8 @@ class Trainer:
             if self.train_loader.dataset.aux is None:
                 aux_in = None
             else:
+                assert len(aux_in.size()) == 2
+                n_aux = aux_in.size()[-1]
                 aux_in = aux_in.to(self.device)
             spec_in = spec_in.to(self.device)
             z = self.encoder(spec_in)
@@ -272,14 +273,11 @@ class Trainer:
                 self.tb_writer.add_scalars(
                     "Recon/val", loss_dict, global_step=epoch)
             if self.train_loader.dataset.aux is not None:
-                i_ka_combs = list(itertools.combinations(
-                    range(aux_in.size()[0]), 2))
-                i_ka_i, i_ka_j = torch.tensor(list(zip(*i_ka_combs)))
-                aux_target = torch.sign(aux_in[i_ka_i] - aux_in[i_ka_j])
-                n_aux = aux_in.size()[-1] if len(aux_in.size()) > 1 else 1
+                aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
                 z_aux = z[:, :n_aux]
-                aux_pred = z_aux[i_ka_i] - z_aux[i_ka_j]
-                aux_loss = - (aux_pred * aux_target).mean()
+                assert len(z_aux.size()) == 2
+                aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
+                aux_loss = - (aux_pred * aux_target) / (n_aux**2 - n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 self.tb_writer.add_scalars(
                     "Aux/val", loss_dict, global_step=epoch)
