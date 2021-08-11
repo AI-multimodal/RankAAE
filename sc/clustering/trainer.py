@@ -279,8 +279,8 @@ class Trainer:
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_loss = - (aux_pred * aux_target).sum() / (n_aux**2 - n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
-                self.tb_writer.add_scalars(
-                    "Aux/val", loss_dict, global_step=epoch)
+                if self.verbose:
+                    self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
             else:
                 aux_loss = None
 
