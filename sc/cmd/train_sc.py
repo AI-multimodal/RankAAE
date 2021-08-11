@@ -45,6 +45,9 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         os.makedirs(work_dir, exist_ok=True)
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
+    if torch.get_num_interop_threads() > 2:
+        torch.set_num_interop_threads(1)
+        torch.set_num_threads(1)
     logging.basicConfig(
         filename=f'{work_dir}/messages.txt', level=logging.INFO)
     ngpus_per_node = torch.cuda.device_count()
