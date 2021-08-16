@@ -2,6 +2,7 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 import pandas as pd
 from torchvision import transforms
+import numpy as np
 
 
 class AuxSpectraDataset(Dataset):
@@ -36,7 +37,7 @@ class AuxSpectraDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         if self.aux is None:
-            sample = self.spec[idx], None
+            sample = self.spec[idx], np.array([0.0])
         else:
             sample = self.spec[idx], self.aux[idx]
         if self.transform is not None:
