@@ -132,8 +132,6 @@ def main():
                         help='Min Resource for HyperbandPruner')
     parser.add_argument("--timeout", type=int, default=None,
                         help='Maximum time allowed per trial')
-    parser.add_argument("--chem_dict", type=str, default=None,
-                        help='File name for auxiliary chemical information')
     args = parser.parse_args()
 
     work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
@@ -154,9 +152,6 @@ def main():
         raise ValueError(
             f"The following exists in both optimizible and fixed params: {', '.join(oc)}")
 
-    if args.chem_dict is not None:
-        with open(os.path.expandvars(os.path.expanduser(args.chem_dict)), 'rb') as f:
-            fixed_config["chem_dict"] = pickle.load(f)
 
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
