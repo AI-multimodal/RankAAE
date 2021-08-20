@@ -98,12 +98,11 @@ class Objective:
                 break
         else:
             logging.warn(f"Can't fix train error after tied {max_redo} times")
-        if self.single_objective:
-            if self.merge_objectives:
-                metrics = (np.array(trainer_callback.metric_weights)
-                           * np.array(metrics)).sum()
-            else:
-                metrics = metrics[0]
+        if self.merge_objectives:
+            metrics = (np.array(trainer_callback.metric_weights)
+                        * np.array(metrics)).sum()
+        else:
+            metrics = metrics[0]
         return metrics
 
 
@@ -115,8 +114,6 @@ def main():
                         help='Config for fixed parameters to in YAML format')
     parser.add_argument('-d', '--data_file', type=str, required=True,
                         help='File name of the dataset in CSV format')
-    parser.add_argument('-e', '--max_epoch', type=int, default=2000,
-                        help='Maximum iterations')
     parser.add_argument('-v', '--verbose', action="store_true",
                         help='Show more information')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
@@ -131,10 +128,6 @@ def main():
                         help='Number of total trails to evaluate model')
     parser.add_argument('--name', type=str, default='opt_daae',
                         help='Database name')
-    parser.add_argument('-s', "--single", action="store_true",
-                        help='Optimize first metric only, this option will activate pruner')
-    parser.add_argument('-m', "--merge_objectives", action="store_true",
-                        help='Merge all all metrix into one')
     parser.add_argument("--min_resource", type=int, default=50,
                         help='Min Resource for HyperbandPruner')
     parser.add_argument("--timeout", type=int, default=None,
@@ -167,26 +160,18 @@ def main():
 
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-    single_objective = args.single
-    merge_objectives = args.merge_objectives
+    
     storage = optuna.storages.RedisStorage(
         url=f'redis://{args.db_address}:{args.db_port}')
-
-    if single_objective:
-        study = optuna.create_study(
-            direction='maximize',
-            study_name=args.name,
-            storage=storage,
-            load_if_exists=True,
-            pruner=HyperbandPruner(min_resource=args.min_resource)
-        )
-    else:
-        study = optuna.multi_objective.create_study(
-            directions=['maximize'] * 3 + ["minimize"] * 4,
-            study_name=args.name,
-            storage=storage,
-            load_if_exists=True)
+    study = optuna.create_study(
+        direction='maximize',
+        study_name=args.name,
+        storage=storage,
+        load_if_exists=True,
+        pruner=HyperbandPruner(min_resource=args.min_resource))
     base_trail_number = len(study.trials)
+    merge_objectives = True
+    single_objective = True
     obj = Objective(args.gpu_i, args, opt_config, fixed_config,
                     base_trail_number, single_objective, merge_objectives)
     study.optimize(obj, n_trials=args.trials, timeout=args.timeout)
