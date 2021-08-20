@@ -118,7 +118,7 @@ class Trainer:
         sol_list = [reconn_solver, mutual_info_solver,
                     smooth_solver, adversarial_solver]
         schedulers = [
-            ReduceLROnPlateau(sol, mode="max", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01,
+            ReduceLROnPlateau(sol, mode="min", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01,
                               verbose=self.verbose)
             for sol in sol_list]
 
