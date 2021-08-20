@@ -112,6 +112,8 @@ def main():
                         help='Config for parameter to optimize in YAML format')
     parser.add_argument('--fixed_params', type=str, default=None,
                         help='Config for fixed parameters to in YAML format')
+    parser.add_argument('-e', '--max_epoch', type=int, default=2000,
+                        help='Maximum iterations')
     parser.add_argument('-d', '--data_file', type=str, required=True,
                         help='File name of the dataset in CSV format')
     parser.add_argument('-v', '--verbose', action="store_true",
