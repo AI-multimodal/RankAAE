@@ -182,7 +182,8 @@ class Trainer:
                     z_aux = z[:, :n_aux]
                     assert len(z_aux.size()) == 2
                     aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
-                    aux_loss = - (aux_pred * aux_target).sum() / (n_aux**2 - n_aux)
+                    aux_len = aux_pred.size()[0]
+                    aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                     aux_loss.backward()
                     corr_solver.step()
                 else:
@@ -277,7 +278,8 @@ class Trainer:
                 z_aux = z[:, :n_aux]
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
-                aux_loss = - (aux_pred * aux_target).sum() / (n_aux**2 - n_aux)
+                aux_len = aux_pred.size()[0]
+                aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 if self.verbose:
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
