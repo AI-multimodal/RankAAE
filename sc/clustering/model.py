@@ -287,6 +287,38 @@ class CompactEncoder(nn.Module):
         return z_gauss
 
 
+class FCEncoder(nn.Module):
+    """ for Q vector only"""
+
+    def __init__(self, dropout_rate=0.2, nstyle=2):
+        super(CompactEncoder, self).__init__()
+        self.main = nn.Sequential(
+            nn.Linear(12, 8),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(8, 6),
+            nn.ReLU(),
+            nn.BatchNorm1d(6, affine=False),
+            nn.Linear(6, 4),
+            nn.Softplus(beta=2),
+            nn.BatchNorm1d(4, affine=False),
+            nn.Linear(4, nstyle),
+            nn.BatchNorm1d(nstyle, affine=False)
+        )
+
+        self.short_cut = nn.Sequential(
+            nn.Linear(12, 8),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(8, nstyle),
+            nn.BatchNorm1d(nstyle, affine=False)
+        )
+
+    def forward(self, q_vec):
+        z_gauss = self.main(q_vec) + self.short_cut(q_vec)
+        return z_gauss
+
+
 class Decoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
@@ -373,6 +405,47 @@ class CompactDecoder(nn.Module):
         spec = self.main(x)
         spec = spec.squeeze(dim=1)
         return spec
+
+
+class FCDecoder(nn.Module):
+
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
+        super(CompactDecoder, self).__init__()
+
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+
+        self.main = nn.Sequential(
+            nn.Linear(nstyle, 4),
+            nn.ReLU(),
+            nn.BatchNorm1d(4, affine=False),
+            nn.Linear(4, 6),
+            nn.ReLU(),
+            nn.BatchNorm1d(6, affine=False),
+            nn.Linear(6, 8),
+            ll_act,
+            nn.Dropout(dropout_rate),
+            nn.Linear(8, 12)
+        )
+
+        self.short_cut = nn.Sequential(
+            nn.Linear(nstyle, 8),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(8, 12)
+        )
+
+        self.nstyle = nstyle
+        self.debug = debug
+
+    def forward(self, z_gauss):
+        q_vec = self.main(z_gauss) + self.short_cut(z_gauss)
+        return q_vec
 
 
 class DiscriminatorCNN(nn.Module):
