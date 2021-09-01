@@ -291,7 +291,7 @@ class FCEncoder(nn.Module):
     """ for Q vector only"""
 
     def __init__(self, dropout_rate=0.2, nstyle=2):
-        super(CompactEncoder, self).__init__()
+        super(FCEncoder, self).__init__()
         self.main = nn.Sequential(
             nn.Linear(12, 8),
             nn.ReLU(),
@@ -410,7 +410,7 @@ class CompactDecoder(nn.Module):
 class FCDecoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
-        super(CompactDecoder, self).__init__()
+        super(FCDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
