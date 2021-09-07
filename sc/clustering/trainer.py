@@ -12,7 +12,7 @@ import os
 import logging
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
-from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
+from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, FCDecoder, FCEncoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
 from sc.clustering.dataloader import get_dataloaders
 from torchvision import transforms
 from sc.clustering.dataloader import AuxSpectraDataset, ToTensor
@@ -365,7 +365,8 @@ class Trainer:
                   decoder_activation='Softplus', ae_form='compact', n_aux=0,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
-                       "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
+                       "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder},
+                       "FC": {"encoder": FCEncoder, "decoder": FCDecoder}}
         assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
             csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=n_aux)
