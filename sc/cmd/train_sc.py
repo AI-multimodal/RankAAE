@@ -21,7 +21,7 @@ def timeout_handler(signum, frame):
 
 def get_parallel_map_func(work_dir="."):
     c = ipp.Client(
-        url_file=f"{work_dir}/ipypar/security/ipcontroller-client.json")
+        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json")
     with c[:].sync_imports():
         from sc.clustering.trainer import Trainer
         import os
