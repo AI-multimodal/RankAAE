@@ -13,3 +13,4 @@ nose2
 tensorboard
 torch_optimizer
 matminer>=0.7.2
+ipyparallel>=7.0.1
