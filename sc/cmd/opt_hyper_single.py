@@ -98,6 +98,7 @@ class Objective:
                 break
         else:
             logging.warn(f"Can't fix train error after tied {max_redo} times")
+        # final score is calculated.
         if self.merge_objectives:
             metrics = (np.array(trainer_callback.metric_weights)
                         * np.array(metrics)).sum()
