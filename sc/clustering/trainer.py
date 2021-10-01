@@ -135,6 +135,7 @@ class Trainer:
             self.decoder.train()
             self.discriminator.train()
 
+            # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
                                        epoch / self.max_epoch)) - 1) * self.alpha_limit
 
@@ -317,19 +318,18 @@ class Trainer:
 
             metrics = [min(style_shapiro), recon_loss.item(), avg_mutual_info, style_coupling,
                        aux_loss.item() if aux_in is not None else 0]
+            
             if callback is not None:
-                combined_metrics = (np.array(callback.metric_weights) * np.array(metrics)).sum()
+                combined_metric = - (np.array(callback.metric_weights) * np.array(metrics)).sum()
             else:
-                combined_metrics = metrics[3] # use style_coupling only
-            if combined_metrics < last_best * 1.01:
-                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metrics:07.6g}.pt"
-                torch.save(model_dict,
-                           chk_fn)
-                last_best = combined_metrics
+                combined_metric = metrics[3] # use style_coupling only
+            if combined_metric < last_best * 1.01:
+                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
+                torch.save(model_dict, chk_fn)
                 best_chk = chk_fn
             
             for sch in schedulers:
-                sch.step(last_best)
+                sch.step(combined_metric)
 
             if callback is not None:
                 callback(epoch, metrics)
