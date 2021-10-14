@@ -6,7 +6,7 @@ The clustering algorithm is based on the paper by P. Ge et al at IEEE TRANSACTIO
 ## Installation
 
 ```bash
-conda create -n py37 python=3.7
+conda create -n test5 python=3.8 pytorch=1.9.0 cudatoolkit=11.1 numpy=1.21.1 torchvision tomli -c nvidia -c pytorch -c conda-forge
 conda activate py37
 pip install -U setuptools
 git clone git@github.com:xhqu1981/semi_clustering.git
