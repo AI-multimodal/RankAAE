@@ -4,6 +4,7 @@ import math
 
 from matminer.featurizers.base import BaseFeaturizer
 from matminer.featurizers.utils.grdf import Gaussian, Histogram
+from pymatgen.core.structure import Structure
 
 class AngularPDF(BaseFeaturizer):
     """
@@ -226,7 +227,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         self.fit_labels = ["site2 {} {}".format(i, bin.name()) for bin in self.bins for i in range(max_sites)]
         return self
 
-    def featurize(self, struct, idx):
+    def featurize(self, struct: Structure, idx):
         """
         Get GRDF of the input structure.
         Args:
@@ -247,6 +248,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
         # Get list of neighbors by site
         # Indexing is [site#][neighbor#][pymatgen Site, distance, site index]
         sites = struct._sites
+        norm_factor = struct.volume / len(sites)
         central_site = sites[idx]
         neighbors_lst = struct.get_neighbors(central_site, self.cutoff, include_index=True)
         sites = range(0, len(sites))
@@ -285,7 +287,7 @@ class GeneralizedPartialRadialDistributionFunction(BaseFeaturizer):
             assert self.mode == "element_partial_GRDF"
             features = dict()
             for ele, values in zip(self.elements, bin_counts):
-                features[ele] =  np.array(values) / np.array(volumes)
+                features[ele] = norm_factor * np.array(values) / np.array(volumes)
 
         return features
 
