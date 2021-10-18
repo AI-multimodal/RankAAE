@@ -115,8 +115,8 @@ class Trainer:
                                      lr=self.lr_ratio_Style * self.base_lr,
                                      betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
-        sol_list = [reconn_solver, mutual_info_solver,
-                    smooth_solver, adversarial_solver]
+        sol_list = [reconn_solver, mutual_info_solver, smooth_solver,
+                     corr_solver, adversarial_solver]
         schedulers = [
             ReduceLROnPlateau(sol, mode="min", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01,
                               verbose=self.verbose)
