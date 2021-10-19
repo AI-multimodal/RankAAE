@@ -323,11 +323,12 @@ class Trainer:
                 combined_metric = - (np.array(callback.metric_weights) * np.array(metrics)).sum()
             else:
                 combined_metric = metrics[3] # use style_coupling only
-            if combined_metric > last_best * 1.01:
+            if abs(combined_metric) > abs(last_best) * 1.01:
                 chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
                 torch.save(model_dict, chk_fn)
                 best_chk = chk_fn
-            
+                last_best = combined_metric
+
             for sch in schedulers:
                 sch.step(combined_metric)
 
