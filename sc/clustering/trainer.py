@@ -20,7 +20,9 @@ from scipy.stats import shapiro, spearmanr
 
 
 class Trainer:
-
+    
+    metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
+    
     def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
                  base_lr=0.0001, nstyle=2,
                  batch_size=111, max_epoch=300,
@@ -319,11 +321,8 @@ class Trainer:
             metrics = [min(style_shapiro), recon_loss.item(), avg_mutual_info, style_coupling,
                        aux_loss.item() if aux_in is not None else 0]
             
-            if callback is not None:
-                combined_metric = - (np.array(callback.metric_weights) * np.array(metrics)).sum()
-            else:
-                combined_metric = metrics[3] # use style_coupling only
-            if abs(combined_metric) > abs(last_best) * 1.01:
+            combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
+            if combined_metric > last_best:
                 chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
                 torch.save(model_dict, chk_fn)
                 best_chk = chk_fn
