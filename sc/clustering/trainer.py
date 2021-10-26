@@ -365,7 +365,7 @@ class Trainer:
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15,
                   use_flex_spec_target=False, optimizer_name="AdamW",
-                  decoder_activation='Softplus', ae_form='compact', n_aux=0,
+                  decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder}}
@@ -394,7 +394,8 @@ class Trainer:
                 nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
             discriminator = DiscriminatorFC(
-                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
+                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise,
+                layers = discriminator_layers)
 
         for i in [encoder, decoder, discriminator]:
             i.to(device)

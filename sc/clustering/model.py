@@ -434,32 +434,26 @@ class DiscriminatorCNN(nn.Module):
 
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1):
+    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1, layers=3):
         super(DiscriminatorFC, self).__init__()
-        self.main = nn.Sequential(
+        
+        sequential_layers = [   
             nn.Linear(nstyle, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01),
-
+            nn.PReLU(num_parameters=hiden_size, init=0.01), 
+        ] + [
             nn.BatchNorm1d(hiden_size, affine=False),
             nn.Dropout(p=dropout_rate),
             nn.Linear(hiden_size, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01),
-
-            nn.BatchNorm1d(hiden_size, affine=False),
-            nn.Dropout(p=dropout_rate),
-            nn.Linear(hiden_size, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01),
-
-            nn.BatchNorm1d(hiden_size, affine=False),
-            nn.Dropout(p=dropout_rate),
-            nn.Linear(hiden_size, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01),
-
+            nn.PReLU(num_parameters=hiden_size, init=0.01)
+        ] * layers + [
             nn.BatchNorm1d(hiden_size, affine=False),
             nn.Dropout(p=dropout_rate),
             nn.Linear(hiden_size, 2),
             nn.LogSoftmax(dim=1)
-        )
+        ]
+        
+        self.main = nn.Sequential(*sequential_layers)
+        
         self.nstyle = nstyle
         self.noise = noise
 
