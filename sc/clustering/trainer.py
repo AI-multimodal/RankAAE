@@ -20,7 +20,9 @@ from scipy.stats import shapiro, spearmanr
 
 
 class Trainer:
-
+    
+    metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
+    
     def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
                  base_lr=0.0001, nstyle=2,
                  batch_size=111, max_epoch=300,
@@ -115,8 +117,8 @@ class Trainer:
                                      lr=self.lr_ratio_Style * self.base_lr,
                                      betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
-        sol_list = [reconn_solver, mutual_info_solver,
-                    smooth_solver, adversarial_solver]
+        sol_list = [reconn_solver, mutual_info_solver, smooth_solver,
+                     corr_solver, adversarial_solver]
         schedulers = [
             ReduceLROnPlateau(sol, mode="min", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01,
                               verbose=self.verbose)
@@ -135,6 +137,7 @@ class Trainer:
             self.decoder.train()
             self.discriminator.train()
 
+            # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
                                        epoch / self.max_epoch)) - 1) * self.alpha_limit
 
@@ -315,18 +318,18 @@ class Trainer:
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
 
-            if style_coupling < last_best * 1.01:
-                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{style_coupling:07.6g}.pt"
-                torch.save(model_dict,
-                           chk_fn)
-                last_best = style_coupling
-                best_chk = chk_fn
-
             metrics = [min(style_shapiro), recon_loss.item(), avg_mutual_info, style_coupling,
                        aux_loss.item() if aux_in is not None else 0]
+            
+            combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
+            if combined_metric > last_best:
+                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
+                torch.save(model_dict, chk_fn)
+                best_chk = chk_fn
+                last_best = combined_metric
 
             for sch in schedulers:
-                sch.step(last_best)
+                sch.step(combined_metric)
 
             if callback is not None:
                 callback(epoch, metrics)
@@ -362,7 +365,7 @@ class Trainer:
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15,
                   use_flex_spec_target=False, optimizer_name="AdamW",
-                  decoder_activation='Softplus', ae_form='compact', n_aux=0,
+                  decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder},
@@ -392,7 +395,8 @@ class Trainer:
                 nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
         else:
             discriminator = DiscriminatorFC(
-                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
+                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise,
+                layers = discriminator_layers)
 
         for i in [encoder, decoder, discriminator]:
             i.to(device)
