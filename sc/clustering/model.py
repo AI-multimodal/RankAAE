@@ -307,7 +307,7 @@ class FCEncoder(nn.Module):
         )
 
         self.short_cut = nn.Sequential(
-            nn.Linear(12, 8),
+            nn.Linear(dim_in, 8),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
             nn.Linear(8, nstyle),
@@ -437,7 +437,7 @@ class FCDecoder(nn.Module):
             nn.Linear(nstyle, 8),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(8, 12)
+            nn.Linear(8, dim_out)
         )
 
         self.nstyle = nstyle
