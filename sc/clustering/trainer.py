@@ -363,7 +363,7 @@ class Trainer:
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15,
+                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=12,
                   use_flex_spec_target=False, optimizer_name="AdamW",
                   decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
@@ -386,10 +386,16 @@ class Trainer:
 
         device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
 
+        enc_ex_kwargs = {}
+        dec_ex_kwargs = {}
+        if ae_form == "FC":
+            enc_ex_kwargs["dim_in"] = fc_dim
+            dec_ex_kwargs["dim_out"] = fc_dim
         encoder = ae_cls_dict[ae_form]["encoder"](
-            nstyle=nstyle, dropout_rate=dropout_rate)
+            nstyle=nstyle, dropout_rate=dropout_rate, **enc_ex_kwargs)
         decoder = ae_cls_dict[ae_form]["decoder"](
-            nstyle=nstyle, dropout_rate=dropout_rate, last_layer_activation=decoder_activation)
+            nstyle=nstyle, dropout_rate=dropout_rate, 
+            last_layer_activation=decoder_activation, **dec_ex_kwargs)
         if use_cnn_dis:
             discriminator = DiscriminatorCNN(
                 nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
