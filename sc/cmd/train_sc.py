@@ -4,6 +4,7 @@ import argparse
 
 import torch
 from sc.clustering.trainer import Trainer
+from sc.utils.generate_report import plot_report
 import os
 import yaml
 import datetime
@@ -11,6 +12,7 @@ import socket
 import ipyparallel as ipp
 import logging
 import signal
+
 
 engine_id = -1
 
@@ -137,3 +139,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    plot_report()
