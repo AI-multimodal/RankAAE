@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 from torchvision import transforms
 from sc.clustering.dataloader import ToTensor, AuxSpectraDataset
 import math
@@ -11,7 +12,7 @@ from sklearn.metrics import f1_score, confusion_matrix
 import re
 import itertools
 
-def get_style_correlations(encoder, nstyles):
+def get_style_correlations(val_ds, encoder, nstyles):
     encoder.eval()
     val_spec = torch.tensor(val_ds.spec, dtype=torch.float32)
     styles = encoder(val_spec).clone().detach().cpu().numpy()
@@ -60,7 +61,7 @@ def plot_report():
     least_style_cor = 1 
     for fn in fn_list:
         final_model = torch.load(fn, map_location=torch.device('cpu'))
-        style_cor = get_style_correlations(final_model["Encoder"],nstyles)
+        style_cor = get_style_correlations(val_ds, final_model["Encoder"],nstyles)
         style_cor_list.append(style_cor)
         if style_cor < least_style_cor:
             least_style_cor = style_cor
@@ -153,7 +154,7 @@ def plot_report():
         current_dir = os.getcwd().split('/')[-1]
         fig.savefig(f"report_{current_dir:s}.png", bbox_inches='tight')
         print("\nSuccess: training reporr saved!")
-    except Exceptioin as e:
+    except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
 
 if __name__ == "__main__":
