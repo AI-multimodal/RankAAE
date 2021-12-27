@@ -153,7 +153,7 @@ def plot_report():
     try:
         current_dir = os.getcwd().split('/')[-1]
         fig.savefig(f"report_{current_dir:s}.png", bbox_inches='tight')
-        print("\nSuccess: training reporr saved!")
+        print("\nSuccess: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
 
