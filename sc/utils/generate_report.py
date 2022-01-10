@@ -31,7 +31,7 @@ class ToTensor(object):
 def plot_report(data_file,n_aux=3):
 
     # Read data and model
-
+    
     val_ds = AuxSpectraDataset(data_file, split_portion="val", n_aux=n_aux)
     test_ds = AuxSpectraDataset(data_file, split_portion="test", n_aux=n_aux)
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
@@ -167,7 +167,15 @@ def main():
                         help="The name of the .csv data file.")
     args = parser.parse_args()
     work_dir = args.work_dir
-    file_path = os.path.join(work_dir, args.data_file)
+    file_name = args.data_file
+
+    # if datafile name nor provided, search for it.
+    if file_name==None: 
+        data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
+        assert len(data_file_list) == 1
+        file_name = data_file_list[0]
+    else:
+        file_path = os.path.join(work_dir, args.data_file)
     
     plot_report(file_path, n_aux=5)
 
