@@ -11,6 +11,7 @@ from scipy.stats import spearmanr
 from sklearn.metrics import f1_score, confusion_matrix
 import re
 import itertools
+import argparse
 
 def get_style_correlations(val_ds, encoder, nstyles):
     encoder.eval()
@@ -27,16 +28,12 @@ class ToTensor(object):
         return torch.Tensor(sample)
     
 
-def plot_report():
+def plot_report(data_file,n_aux=3):
 
     # Read data and model
 
-    data_file_list = [f for f in os.listdir() if f.endswith('.csv')]
-    assert len(data_file_list) == 1
-    data_file = data_file_list[0]
-
-    val_ds = AuxSpectraDataset(data_file, split_portion="val", n_aux=3)
-    test_ds = AuxSpectraDataset(data_file, split_portion="test", n_aux=3)
+    val_ds = AuxSpectraDataset(data_file, split_portion="val", n_aux=n_aux)
+    test_ds = AuxSpectraDataset(data_file, split_portion="test", n_aux=n_aux)
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
 
     # generate a figure object to host all the plots
@@ -157,5 +154,23 @@ def plot_report():
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
 
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--n_aux', type=int, default=3,
+                        help="The number of auxiliary parameters")
+    parser.add_arugment('-m', '--n_free', type=int, default=1,
+                        help="The number of free parameters")
+    parser.add_argument('-w', '--work_dir', type=str, default='.',
+                        help="The folder where the model and data are.")
+    parser.add_argument('-f', '--data_file', type=str, default=None,
+                        help="The name of the .csv data file.")
+    args = parser.parse_args()
+    work_dir = args.work_dir
+    file_path = os.path.join(work_dir, args.data_file)
+    
+    plot_report(file_path, n_aux=5)
+
+
 if __name__ == "__main__":
-    plot_report()
+    main()
