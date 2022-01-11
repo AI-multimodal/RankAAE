@@ -12,6 +12,9 @@ from sklearn.metrics import f1_score, confusion_matrix
 import re
 import itertools
 import argparse
+import plotly.express as px
+from scipy.interpolate import interp1d
+
 
 def get_style_correlations(val_ds, encoder, nstyles):
     encoder.eval()
@@ -26,9 +29,42 @@ def get_style_correlations(val_ds, encoder, nstyles):
 class ToTensor(object):
     def __call__(self, sample):
         return torch.Tensor(sample)
-    
 
-def plot_report(data_file,n_aux=3):
+def create_plotly_colormap(n_colors):
+    '''
+    Xiaohui's implementation of getting spectra color map.
+    '''
+    plotly3_hex_strings = px.colors.sequential.Plotly3
+    rgb_values = np.array([[int(f"0x{c_hex[i:i+2]}", 16) for i in range(1, 7, 2)] for c_hex in plotly3_hex_strings])
+    x0 = np.linspace(1, n_colors, rgb_values.shape[0])
+    x1 = np.linspace(1, n_colors, n_colors)
+    target_rgb_values = np.stack([interp1d(x0, rgb_values[:, i], kind='cubic')(x1) for i in range(3)]).T.round().astype('int')
+    target_rgb_strings = ["#"+"".join([f'{ch:02x}' for ch in rgb]) for rgb in target_rgb_values]
+    return target_rgb_strings
+
+
+def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000, 
+                           average=True):
+    decoder.eval()
+    if n_sampling == None:
+        c = np.linspace(*[-2, 2], n_spec)
+        c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
+        con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
+        spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
+        colors = sns.color_palette("hsv", n_spec)
+    else:
+        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle])
+        style_variation = torch.linspace(-2, 2, n_spec)
+        con_c[..., istyle] = style_variation[:,np.newaxis]
+        con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
+        spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
+        colors = create_plotly_colormap(n_spec)
+    for spec, color in zip(spec_out, colors):
+            ax.plot(spec, lw=0.8, c=color)
+    ax.set_title(f"Varying Style #{istyle+1}", y=1)
+
+
+def plot_report(data_file, training_path, n_aux=3, n_free=1):
 
     # Read data and model
     
@@ -37,12 +73,14 @@ def plot_report(data_file,n_aux=3):
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
 
     # generate a figure object to host all the plots
-    fig = plt.figure(figsize=(8,16),constrained_layout=True)
-    gs = fig.add_gridspec(8,4)
+    fig = plt.figure(figsize=(12,24),constrained_layout=True)
+    gs = fig.add_gridspec(12,6)
     ax1 = fig.add_subplot(gs[0:2,0:2])
     ax2 = fig.add_subplot(gs[0:2,2:4])
+    axa = fig.add_subplot(gs[0:2,4:6])
     ax3 = fig.add_subplot(gs[2:4,0:2])
     ax4 = fig.add_subplot(gs[2:4,2:4])
+    axb = fig.add_subplot(gs[2:4,4:6])
     ax5 = fig.add_subplot(gs[4:6,0:2])
     ax6 = fig.add_subplot(gs[4:6,2:4])
     ax7 = [fig.add_subplot(gs[6,i]) for i in [0,1,2,3]]
@@ -51,9 +89,10 @@ def plot_report(data_file,n_aux=3):
 
 
     # Find the model in which styles are least correlated
-    fn_list = sorted(glob.glob("training/job_*/final.pt"), 
+    model_files = os.path.join(training_path, "job_*/final.pt")
+    fn_list = sorted(glob.glob(model_files), 
                     key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
-    nstyles = 4
+    nstyles = n_aux + n_free
     style_cor_list = []
     least_style_cor = 1 
     for fn in fn_list:
@@ -71,24 +110,10 @@ def plot_report(data_file,n_aux=3):
     fig.suptitle(f"Least correlation of {least_style_cor:.4f} achieved in job_{least_cor_job_index}")
 
 
-
     # Plot out synthetic spectra variation
-    decoder.eval()
-    nspec_pc = 50
-    c = np.linspace(*[-2, 2], nspec_pc)
-
-    axs_spec = [ax1, ax2, ax3, ax4]
-    for istyle in [0,1,2,3]:
-        c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
-        con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
-        spec_out = decoder(con_c).reshape(nspec_pc, -1).clone().cpu().detach().numpy()
-        colors = sns.color_palette("hsv", nspec_pc)
-
-        for i, (spec, color) in enumerate(zip(spec_out, colors)):
-            axs_spec[istyle].plot(spec, lw=0.8, c=color)
-            axs_spec[istyle].plot(spec, lw=0.8, c=color)
-        title = f"Varying Style #{istyle+1}"
-        axs_spec[istyle].set_title(title, y=1)
+    axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
+    for istyle, ax in enumerate(axs_spec):
+        plot_spectra_variation(decoder, istyle, ax=ax, n_spec=50, n_sampling=1000)
 
 
     # Plot out BVS vs styles
@@ -144,32 +169,29 @@ def plot_report(data_file,n_aux=3):
     axs4[1].set_xlabel("Pred")
     axs4[1].set_ylabel("True")
 
+    return fig
 
-    # Save report
-
-    try:
-        current_dir = os.getcwd().split('/')[-1]
-        fig.savefig(f"report_{current_dir:s}.png", bbox_inches='tight')
-        print("Success: training report saved!")
-    except Exception as e:
-        print(f"Fail: Cannot save training report: {e:s}")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--n_aux', type=int, default=3,
                         help="The number of auxiliary parameters")
-    parser.add_arugment('-m', '--n_free', type=int, default=1,
+    parser.add_argument('-m', '--n_free', type=int, default=1,
                         help="The number of free parameters")
     parser.add_argument('-w', '--work_dir', type=str, default='.',
                         help="The folder where the model and data are.")
     parser.add_argument('-f', '--data_file', type=str, default=None,
                         help="The name of the .csv data file.")
+    parser.add_argument('-o', "--output_name", type=str, default="report.png",
+                        help="The saved report figure.")
+    
     args = parser.parse_args()
     work_dir = args.work_dir
     file_name = args.data_file
 
     # if datafile name nor provided, search for it.
+    training_path = os.path.join(work_dir, "training")
     if file_name==None: 
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1
@@ -177,8 +199,15 @@ def main():
     else:
         file_path = os.path.join(work_dir, args.data_file)
     
-    plot_report(file_path, n_aux=5)
+    fig = plot_report(file_path, training_path, n_aux=5)
 
+    # Save report
+    try:
+        fig_path = os.path.join(work_dir, f"{args.output_name:s}")
+        fig.savefig(fig_path, bbox_inches='tight')
+        print("Success: training report saved!")
+    except Exception as e:
+        print(f"Fail: Cannot save training report: {e:s}")
 
 if __name__ == "__main__":
     main()
