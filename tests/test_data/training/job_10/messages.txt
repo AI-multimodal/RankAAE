@@ -1,0 +1,19 @@
+INFO:root:Use GPU
+INFO:root:Training started at 2022-01-08 13:04:54.832120 on ichost037.sdcc.bnl.local
+INFO:root:ATen/Parallel:
+	at::get_num_threads() : 1
+	at::get_num_interop_threads() : 1
+OpenMP 201511 (a.k.a. OpenMP 4.5)
+	omp_get_max_threads() : 1
+Intel(R) oneAPI Math Kernel Library Version 2021.3-Product Build 20210617 for Intel(R) 64 architecture applications
+	mkl_get_max_threads() : 1
+Intel(R) MKL-DNN v2.1.2 (Git Hash 98be7e8afa711dc9b66c8ff3504129cb82013cdb)
+std::thread::hardware_concurrency() : 36
+Environment variables:
+	OMP_NUM_THREADS : 1
+	MKL_NUM_THREADS : 1
+ATen parallel backend: OpenMP
+
+INFO:root:[0.9399533271789551, 0.001925538876093924, 0.17509172360102335, 0.5253602601789421, -0.8983906507492065]
+INFO:root:training finished at 2022-01-08 13:37:37.006023
+INFO:root:Total 1962.17s used in traing
