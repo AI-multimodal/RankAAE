@@ -1,3 +1,4 @@
+from seaborn.rcmod import set_style
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,8 +44,7 @@ def create_plotly_colormap(n_colors):
     return target_rgb_strings
 
 
-def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000, 
-                           average=True):
+def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000):
     decoder.eval()
     if n_sampling == None:
         c = np.linspace(*[-2, 2], n_spec)
@@ -66,6 +66,11 @@ def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000,
 
 def plot_report(data_file, training_path, n_aux=3, n_free=1):
 
+    if n_aux == 5:
+        descriptor_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
+    elif n_aux == 3:
+        descriptor_list = ["BVs", "CN", "OCN"]
+
     # Read data and model
     
     val_ds = AuxSpectraDataset(data_file, split_portion="val", n_aux=n_aux)
@@ -81,10 +86,8 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
     ax3 = fig.add_subplot(gs[2:4,0:2])
     ax4 = fig.add_subplot(gs[2:4,2:4])
     axb = fig.add_subplot(gs[2:4,4:6])
-    ax5 = fig.add_subplot(gs[4:6,0:2])
-    ax6 = fig.add_subplot(gs[4:6,2:4])
-    ax7 = [fig.add_subplot(gs[6,i]) for i in [0,1,2,3]]
-    ax8 = [fig.add_subplot(gs[7,i]) for i in [0,1,2,3]]
+    ax5 = fig.add_subplot(gs[4:6,4:6])
+    ax6 = fig.add_subplot(gs[6:8,4:6])
 
 
 
@@ -116,32 +119,24 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
         plot_spectra_variation(decoder, istyle, ax=ax, n_spec=50, n_sampling=1000)
 
 
-    # Plot out BVS vs styles
+    # Plot out descriptors vs styles
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
-
-    bvs_test = test_ds.aux[:, 0]
-    for i, ax in enumerate(ax7):
-        ax.scatter(test_styles[:, i], bvs_test, s=20.0, c='blue', edgecolors='none', alpha=0.8)
-        _,_, r, _, _ = stats.linregress(test_styles[:, i], bvs_test)
-        sm = spearmanr(test_styles[:, i], bvs_test).correlation
-        ax.set_title(f"BVS: {r**2:.2f}/{sm:.2f}")
-
-    ocn_test = test_ds.aux[:, 2]
-    for i, ax in enumerate(ax8):
-        ax.scatter(test_styles[:, i], ocn_test, s=20.0, c='blue', edgecolors='none', alpha=0.8)
-        _,_, r, _, _ = stats.linregress(test_styles[:, i], ocn_test)
-        sm = spearmanr(test_styles[:, i], ocn_test).correlation
-
-
-        ax.set_xlabel(f"Style {i+1:d}")
-        ax.set_title(f"OCN: {r**2:.2f}/{sm:.2f}")
+    styles_no_s2 = np.delete(test_styles,1, axis=1)
+    descriptors_no_cn = np.delete(test_ds.aux, 1, axis=1)
+    descriptor_list_no_cn = np.delete(descriptor_list, 1, axis=0)
+    for row in [4,5,6,7]:
+        for col in [0,1,2,3]:
+            ax = fig.add_subplot(gs[row,col])
+            ax.scatter(styles_no_s2[:,col], descriptors_no_cn[:,row-4],
+                       s=20.0, c='blue', edgecolors='none', alpha=0.8)
+            _, _, r, _, _ = stats.linregress(styles_no_s2[:,col], descriptors_no_cn[:,row-4])
+            sm = spearmanr(styles_no_s2[:,col], descriptors_no_cn[:,row-4]).correlation
+            ax.set_title(f"{descriptor_list_no_cn[row-4]}: {r**2:.2f}/{sm:.2f}")
 
 
     # Plot out CN confusion matrix
-    transform_list = transforms.Compose([ToTensor()])
     iclasses  = (test_ds.aux[:, 1]).astype('int')
     min_coord_num = iclasses.min()
-    n_coord_num = iclasses.max() - min_coord_num + 1
     iclasses = iclasses - min_coord_num
 
     thresh_grid = np.linspace(-3.5, 1.5, 400)
@@ -154,7 +149,7 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
     sep_confusion_matrix = confusion_matrix(iclasses, sep_pred_iclasses)
     sep_threshed_f1_score = f1_score(iclasses, sep_pred_iclasses, average='weighted')
 
-    axs4 = [ax5, ax6]
+    axs4 = [ax6, ax5]
     sns.set_palette('bright', 2)
     axs4[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
     axs4[0].plot(thresh_grid, cn6_f1_scores, label='CN6')
