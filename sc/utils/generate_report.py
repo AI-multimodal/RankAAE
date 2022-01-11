@@ -196,8 +196,7 @@ def main():
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1
         file_name = data_file_list[0]
-    else:
-        file_path = os.path.join(work_dir, args.data_file)
+    file_path = os.path.join(work_dir, file_name)
     
     fig = plot_report(file_path, training_path, n_aux=5)
 
