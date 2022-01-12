@@ -15,6 +15,7 @@ import itertools
 import argparse
 import plotly.express as px
 from scipy.interpolate import interp1d
+import yaml
 
 
 def get_style_correlations(val_ds, encoder, nstyles):
@@ -119,6 +120,7 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
         plot_spectra_variation(decoder, istyle, ax=ax, n_spec=50, n_sampling=1000)
 
 
+    accuracy_dict = dict()
     # Plot out descriptors vs styles
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
     styles_no_s2 = np.delete(test_styles,1, axis=1)
@@ -132,7 +134,8 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
             _, _, r, _, _ = stats.linregress(styles_no_s2[:,col], descriptors_no_cn[:,row-4])
             sm = spearmanr(styles_no_s2[:,col], descriptors_no_cn[:,row-4]).correlation
             ax.set_title(f"{descriptor_list_no_cn[row-4]}: {r**2:.2f}/{sm:.2f}")
-
+            if col == row-4:
+                accuracy_dict[f'{descriptor_list_no_cn[row-4]}'] = [round(float(r),4), round(float(sm),4)]
 
     # Plot out CN confusion matrix
     iclasses  = (test_ds.aux[:, 1]).astype('int')
@@ -147,7 +150,7 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
 
     sep_pred_iclasses = (test_styles[:, 1] > cn45_thresh).astype('int') + (test_styles[:, 1] > cn56_thresh).astype('int')
     sep_confusion_matrix = confusion_matrix(iclasses, sep_pred_iclasses)
-    sep_threshed_f1_score = f1_score(iclasses, sep_pred_iclasses, average='weighted')
+    sep_threshold_f1_score = f1_score(iclasses, sep_pred_iclasses, average='weighted')
 
     axs4 = [ax6, ax5]
     sns.set_palette('bright', 2)
@@ -160,11 +163,13 @@ def plot_report(data_file, training_path, n_aux=3, n_free=1):
     sns.heatmap(sep_confusion_matrix, cmap='Blues', annot=True, fmt='d', cbar=False, ax=axs4[1],
                 xticklabels=[f'CN{cn+4}' for cn in range(3)],
                 yticklabels=[f'CN{cn+4}' for cn in range(3)])
-    axs4[1].set_title(f"F1 Score = {sep_threshed_f1_score:.1%}",fontsize=12)
+    axs4[1].set_title(f"F1 Score = {sep_threshold_f1_score:.1%}",fontsize=12)
     axs4[1].set_xlabel("Pred")
     axs4[1].set_ylabel("True")
 
-    return fig
+    accuracy_dict[descriptor_list[1]] = round(float(sep_threshold_f1_score),4)
+
+    return fig, accuracy_dict
 
 
 
@@ -178,7 +183,7 @@ def main():
                         help="The folder where the model and data are.")
     parser.add_argument('-f', '--data_file', type=str, default=None,
                         help="The name of the .csv data file.")
-    parser.add_argument('-o', "--output_name", type=str, default="report.png",
+    parser.add_argument('-o', "--output_name", type=str, default="report",
                         help="The saved report figure.")
     
     args = parser.parse_args()
@@ -193,15 +198,18 @@ def main():
         file_name = data_file_list[0]
     file_path = os.path.join(work_dir, file_name)
     
-    fig = plot_report(file_path, training_path, n_aux=5)
+    fig, accuracy_dict = plot_report(file_path, training_path, n_aux=5)
 
     # Save report
     try:
-        fig_path = os.path.join(work_dir, f"{args.output_name:s}")
+        fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
+        txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".yml")
         fig.savefig(fig_path, bbox_inches='tight')
+        yaml.dump(accuracy_dict, open(txt_path, 'wt'))
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
+    
 
 if __name__ == "__main__":
     main()

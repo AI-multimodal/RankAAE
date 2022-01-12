@@ -6,4 +6,5 @@ sc.egg-info/
 Semi_Clustering.egg-info
 nosetests.xml
 sc/utils/.ipynb_checkpoints/
-tests/test_data/report_hello.png
+tests/test_data/*.png
+tests/test_data/*.txt
