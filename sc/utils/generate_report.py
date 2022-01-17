@@ -4,13 +4,12 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from torchvision import transforms
 from sc.clustering.dataloader import AuxSpectraDataset
 import math
 import os, glob
 from scipy import stats
 from scipy.stats import spearmanr
-from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.metrics import f1_score, confusion_matrix, mean_absolute_error
 import re
 import itertools
 import argparse
@@ -77,7 +76,8 @@ def find_top_models(model_path, test_ds, n=5):
         model_list.append(model)
     # get the indices for top n least correlated styles.
     top_indices = np.argsort(style_cor_list)[:n]
-    return [model_list[i] for i in top_indices], [style_cor_list[i] for i in top_indices]
+    
+    return [model_list[i] for i in top_indices]
 
 
 def plot_confusion_matrix(cn_classes, test_styles, axs):
@@ -113,6 +113,23 @@ def plot_confusion_matrix(cn_classes, test_styles, axs):
 
     return axs, sep_threshold_f1_score
 
+def reconstruction_err(test_ds, model):
+    '''
+    calculate reconstruction error for a given model.
+    '''
+    encoder = model['Encoder']
+    decoder = model['Decoder']
+    
+    encoder.eval()
+    spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
+    styles = encoder(spec_in).clone().detach()
+    # con_c = torch.tensor(styles, dtype=torch.float, requires_grad=False)
+    spec_out = decoder(styles).clone().cpu().detach().numpy()
+
+    mae_list = []
+    for s1, s2 in zip(spec_in, spec_out):
+        mae_list.append(mean_absolute_error(s1, s2))
+    return (np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)
 
 
 def plot_report(test_ds, model, n_aux=5):
@@ -178,7 +195,6 @@ def plot_report(test_ds, model, n_aux=5):
 
 
 def main():
-
     #### Parse arguments ####
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--n_aux', type=int, default=3,
@@ -191,6 +207,9 @@ def main():
                         help="The name of the .csv data file.")
     parser.add_argument('-o', "--output_name", type=str, default="report",
                         help="The saved report figure.")
+    parser.add_arguments('-t', "--type", type=str, default="all",
+                        help="The type of report: plot or accuracy file")
+
     args = parser.parse_args()
     work_dir = args.work_dir
     file_name = args.data_file
@@ -201,7 +220,7 @@ def main():
         assert len(data_file_list) == 1
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
-    top_models, top_correlations = find_top_models(model_path, test_ds, n=5)
+    top_models = find_top_models(model_path, test_ds, n=5)
 
     #### Generate Report ####
     fig, accuracy_dict = plot_report(test_ds, top_models[0],n_aux=5)
