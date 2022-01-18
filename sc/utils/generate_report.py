@@ -207,7 +207,7 @@ def main():
                         help="The name of the .csv data file.")
     parser.add_argument('-o', "--output_name", type=str, default="report",
                         help="The saved report figure.")
-    parser.add_arguments('-t', "--type", type=str, default="all",
+    parser.add_argument('-t', "--type", type=str, default="all",
                         help="The type of report: plot or accuracy file")
 
     args = parser.parse_args()
