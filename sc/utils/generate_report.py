@@ -85,18 +85,24 @@ def find_top_models(model_path, test_ds, n=5):
 def get_confusion_matrix(cn_classes, style, ax=None):
     
     thresh_grid = np.linspace(-3.5, 3.5, 700)
+    cn_classes = cn_classes - 4 # the minimum CN is 4 by default.
+    cn_class_sets = list(set(cn_classes))
 
-    min_coord_num = cn_classes.min()
-    cn_classes = cn_classes - min_coord_num
-
-    
-    cn4_f1_scores = [f1_score(style < th, cn_classes<1) for th in thresh_grid]
-    cn6_f1_scores = [f1_score(style > th, cn_classes>1) for th in thresh_grid]
+    cn4_f1_scores = [f1_score(style < th, cn_classes<1,zero_division=0) for th in thresh_grid]
+    cn6_f1_scores = [f1_score(style > th, cn_classes>1,zero_division=0) for th in thresh_grid]
     cn45_thresh = thresh_grid[np.argmax(cn4_f1_scores)]
     cn56_thresh = thresh_grid[np.argmax(cn6_f1_scores)]
 
+    # calculate confusion matrix
     sep_pred_cn_classes = (style > cn45_thresh).astype('int') + (style > cn56_thresh).astype('int')
-    sep_confusion_matrix = confusion_matrix(cn_classes, sep_pred_cn_classes)
+    sep_confusion_matrix_ = confusion_matrix(cn_classes, sep_pred_cn_classes)
+    if len(cn_class_sets)==1: # when only one class is available, special care is needed.
+        cn = cn_class_sets[0].astype(int)
+        sep_confusion_matrix = np.zeros((3,3),dtype=int)
+        sep_confusion_matrix[cn, cn] = sep_confusion_matrix_[0,0]
+    else:
+        sep_confusion_matrix = sep_confusion_matrix_
+    
     sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
 
     if ax is not None:
@@ -117,7 +123,7 @@ def get_confusion_matrix(cn_classes, style, ax=None):
     return sep_threshold_f1_score
 
 
-def get_descriptor_accuracy(descriptor, style, ax=None):
+def get_descriptor_accuracy(style, descriptor, ax=None):
     '''
     Scatter plot of given descriptor and style on the given axix, and returns the accuracy list of [R^2, spearman].
     '''
@@ -158,8 +164,8 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
         for i in range(len(accuracies)):
             if i==1: # CN
                 accuracies[i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
-        else:
-            _, accuracies[i] = get_descriptor_accuracy(descriptors[:,i], styles[:,i], ax=None)
+            else:
+                _, accuracies[i] = get_descriptor_accuracy(descriptors[:,i], styles[:,i], ax=None)
     
     return reconstruct, accuracies
 
@@ -210,7 +216,7 @@ def plot_report(test_ds, model, n_aux=5):
             ax.set_title(f"{name_list_no_cn[row-4]}: "+"{0:.2f}/{1:.2f}".format(*accuracy))
 
     # Plot out CN confusion matrix
-    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles, [ax5, ax6])
+    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6])
     
     return fig
 
@@ -247,20 +253,26 @@ def main():
     model_path = os.path.join(work_dir, "training")
     top_models = find_top_models(model_path, test_ds, n=5)
 
-    accuracy_n_model = []
+    #### Generate report and calculate accuracy, reconstruction err,
+    accuracy_n_model = {}
     for i, model in enumerate(top_models):
         if i == 0: # Generate Report for best model
             fig = plot_report(test_ds, top_models[0],n_aux=5)
-        _, accuracies = model_evaluation(test_ds, model, return_construct=False, return_accuracy=True)
-        accuracy_n_model.append(accuracies)
-    accuracy_n_model = np.stack(accuracy_n_model)
-    average_accuracy = np.mean(accuracy_n_model,axis=0)
+        ((err, _),_), accuracies = model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+        accuracy_n_model[i] = {
+            'accuracy': accuracies,
+            'reconstruct_err': err
+        }
+    accuracy_n_model['average'] = {
+        'accuracy': np.mean([v['accuracy'] for v in accuracy_n_model.values()]),
+        'reconstruct_err': np.mean([v['reconstruct_err'] for v in accuracy_n_model.values()])
+    }
     #### Save report ####
     try:
         fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
         txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".yml")
         fig.savefig(fig_path, bbox_inches='tight')
-        yaml.dump(average_accuracy, open(txt_path, 'wt'))
+        yaml.dump(accuracy_n_model, open(txt_path, 'wt'))
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
