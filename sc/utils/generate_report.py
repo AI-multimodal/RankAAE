@@ -1,4 +1,5 @@
 from gettext import find
+from turtle import st
 from seaborn.rcmod import set_style
 import torch
 import numpy as np
@@ -63,7 +64,7 @@ def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000)
 
 def find_top_models(model_path, test_ds, n=5):
     '''
-    Find top 5 models with leas correlatioin among styles.
+    Find top 5 models with leas correlatioin among styles, in descending order of goodness.
     '''
     model_files = os.path.join(model_path, "job_*/final.pt")
     fn_list = sorted(glob.glob(model_files), 
@@ -74,70 +75,100 @@ def find_top_models(model_path, test_ds, n=5):
         model = torch.load(fn, map_location=torch.device('cpu'))
         style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
         model_list.append(model)
-    # get the indices for top n least correlated styles.
+    
+    # get the indices for top n least correlated styles, the first entry is the best model.
     top_indices = np.argsort(style_cor_list)[:n]
     
     return [model_list[i] for i in top_indices]
 
 
-def plot_confusion_matrix(cn_classes, test_styles, axs):
+def get_confusion_matrix(cn_classes, style, ax=None):
     
-    thresh_grid = np.linspace(-3.5, 1.5, 400)
+    thresh_grid = np.linspace(-3.5, 3.5, 700)
 
     min_coord_num = cn_classes.min()
     cn_classes = cn_classes - min_coord_num
 
     
-    cn4_f1_scores = [f1_score(test_styles[:, 1] < th, cn_classes<1) for th in thresh_grid]
-    cn6_f1_scores = [f1_score(test_styles[:, 1] > th, cn_classes>1) for th in thresh_grid]
+    cn4_f1_scores = [f1_score(style < th, cn_classes<1) for th in thresh_grid]
+    cn6_f1_scores = [f1_score(style > th, cn_classes>1) for th in thresh_grid]
     cn45_thresh = thresh_grid[np.argmax(cn4_f1_scores)]
     cn56_thresh = thresh_grid[np.argmax(cn6_f1_scores)]
 
-    sep_pred_cn_classes = (test_styles[:, 1] > cn45_thresh).astype('int') + (test_styles[:, 1] > cn56_thresh).astype('int')
+    sep_pred_cn_classes = (style > cn45_thresh).astype('int') + (style > cn56_thresh).astype('int')
     sep_confusion_matrix = confusion_matrix(cn_classes, sep_pred_cn_classes)
     sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
 
-    sns.set_palette('bright', 2)
-    axs[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
-    axs[0].plot(thresh_grid, cn6_f1_scores, label='CN6')
-    axs[0].axvline(cn45_thresh, c='blue')
-    axs[0].axvline(cn56_thresh, c='orange')
-    axs[0].legend(loc='lower left', fontsize=12)
+    if ax is not None:
+        sns.set_palette('bright', 2)
+        ax[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
+        ax[0].plot(thresh_grid, cn6_f1_scores, label='CN6')
+        ax[0].axvline(cn45_thresh, c='blue')
+        ax[0].axvline(cn56_thresh, c='orange')
+        ax[0].legend(loc='lower left', fontsize=12)
 
-    sns.heatmap(sep_confusion_matrix, cmap='Blues', annot=True, fmt='d', cbar=False, ax=axs[1],
-                xticklabels=[f'CN{cn+4}' for cn in range(3)],
-                yticklabels=[f'CN{cn+4}' for cn in range(3)])
-    axs[1].set_title(f"F1 Score = {sep_threshold_f1_score:.1%}",fontsize=12)
-    axs[1].set_xlabel("Pred")
-    axs[1].set_ylabel("True")
+        sns.heatmap(sep_confusion_matrix, cmap='Blues', annot=True, fmt='d', cbar=False, ax=ax[1],
+                    xticklabels=[f'CN{cn+4}' for cn in range(3)],
+                    yticklabels=[f'CN{cn+4}' for cn in range(3)])
+        ax[1].set_title(f"F1 Score = {sep_threshold_f1_score:.1%}",fontsize=12)
+        ax[1].set_xlabel("Pred")
+        ax[1].set_ylabel("True")
 
-    return axs, sep_threshold_f1_score
+    return sep_threshold_f1_score
 
-def reconstruction_err(test_ds, model):
+
+def get_descriptor_accuracy(descriptor, style, ax=None):
     '''
-    calculate reconstruction error for a given model.
+    Scatter plot of given descriptor and style on the given axix, and returns the accuracy list of [R^2, spearman].
     '''
+    _, _, r, _, _ = stats.linregress(style, descriptor)
+    sm = spearmanr(style, descriptor).correlation
+    accuracy = [round(float(r**2),4), round(float(sm),4)]
+    if ax is not None:
+        ax.scatter(style, descriptor, s=10.0, c='blue', edgecolors='none', alpha=0.8)
+    return accuracy
+
+
+def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True):
+    '''
+    calculate reconstruction error for a given model, or accuracy.
+    
+    Returns:
+    --------
+    '''
+    descriptors = test_ds.aux
+    accuracies = [None] * descriptors.shape[1]
     encoder = model['Encoder']
     decoder = model['Decoder']
     
     encoder.eval()
     spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
     styles = encoder(spec_in).clone().detach()
-    # con_c = torch.tensor(styles, dtype=torch.float, requires_grad=False)
-    spec_out = decoder(styles).clone().cpu().detach().numpy()
 
-    mae_list = []
-    for s1, s2 in zip(spec_in, spec_out):
-        mae_list.append(mean_absolute_error(s1, s2))
-    return (np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)
+    reconstruct = [None, None]
+    if return_reconstruct:
+        spec_out = decoder(styles).clone().cpu().detach().numpy()
+        mae_list = []
+        for s1, s2 in zip(spec_in, spec_out):
+            mae_list.append(mean_absolute_error(s1, s2))
+        reconstruct = [(np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)]
+    
+    if return_accuracy:
+        styles = styles.numpy()
+        for i in range(len(accuracies)):
+            if i==1: # CN
+                accuracies[i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
+        else:
+            _, accuracies[i] = get_descriptor_accuracy(descriptors[:,i], styles[:,i], ax=None)
+    
+    return reconstruct, accuracies
 
 
 def plot_report(test_ds, model, n_aux=5):
-
     if n_aux == 5:
-        descriptor_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
+        name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
     elif n_aux == 3:
-        descriptor_list = ["BVs", "CN", "OCN"]
+        name_list = ["BVs", "CN", "OCN"]
 
     encoder = model['Encoder']
     decoder = model['Decoder']
@@ -166,31 +197,22 @@ def plot_report(test_ds, model, n_aux=5):
     for istyle, ax in enumerate(axs_spec):
         plot_spectra_variation(decoder, istyle, ax=ax, n_spec=50, n_sampling=1000)
 
-
-    accuracy_dict = dict()
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
     descriptors_no_cn = np.delete(descriptors, 1, axis=1)
-    descriptor_list_no_cn = np.delete(descriptor_list, 1, axis=0)
+    name_list_no_cn = np.delete(name_list, 1, axis=0)
     for row in [4,5,6,7]:
         for col in [0,1,2,3]:
             ax = fig.add_subplot(gs[row,col])
-            ax.scatter(styles_no_s2[:,col], descriptors_no_cn[:,row-4],
-                       s=20.0, c='blue', edgecolors='none', alpha=0.8)
-            _, _, r, _, _ = stats.linregress(styles_no_s2[:,col], descriptors_no_cn[:,row-4])
-            sm = spearmanr(styles_no_s2[:,col], descriptors_no_cn[:,row-4]).correlation
-            ax.set_title(f"{descriptor_list_no_cn[row-4]}: {r**2:.2f}/{sm:.2f}")
-            if col == row-4:
-                accuracy_dict[f'{descriptor_list_no_cn[row-4]}'] = [round(float(r),4), round(float(sm),4)]
+            accuracy = get_descriptor_accuracy(styles_no_s2[:,col], 
+                                               descriptors_no_cn[:,row-4], 
+                                               ax=ax)
+            ax.set_title(f"{name_list_no_cn[row-4]}: "+"{0:.2f}/{1:.2f}".format(*accuracy))
 
     # Plot out CN confusion matrix
-    axs_cn = [ax5, ax6]
-    cn = descriptors[:,1].astype('int')
-    (ax5, ax6), sep_threshold_f1_score = plot_confusion_matrix(cn, test_styles, axs_cn)
-
-    accuracy_dict[descriptor_list[1]] = round(float(sep_threshold_f1_score),4)
-
-    return fig, accuracy_dict
+    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles, [ax5, ax6])
+    
+    return fig
 
 
 
@@ -213,24 +235,32 @@ def main():
     args = parser.parse_args()
     work_dir = args.work_dir
     file_name = args.data_file
-    # if datafile name nor provided, search for it.
-    model_path = os.path.join(work_dir, "training")
-    if file_name==None: 
+    
+    #### Create test data set from file ####
+    if file_name==None:  # if datafile name nor provided, search for it.
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
+    
+    #### Choose top n model based on inter style correlation ####
+    model_path = os.path.join(work_dir, "training")
     top_models = find_top_models(model_path, test_ds, n=5)
 
-    #### Generate Report ####
-    fig, accuracy_dict = plot_report(test_ds, top_models[0],n_aux=5)
-
+    accuracy_n_model = []
+    for i, model in enumerate(top_models):
+        if i == 0: # Generate Report for best model
+            fig = plot_report(test_ds, top_models[0],n_aux=5)
+        _, accuracies = model_evaluation(test_ds, model, return_construct=False, return_accuracy=True)
+        accuracy_n_model.append(accuracies)
+    accuracy_n_model = np.stack(accuracy_n_model)
+    average_accuracy = np.mean(accuracy_n_model,axis=0)
     #### Save report ####
     try:
         fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
         txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".yml")
         fig.savefig(fig_path, bbox_inches='tight')
-        yaml.dump(accuracy_dict, open(txt_path, 'wt'))
+        yaml.dump(average_accuracy, open(txt_path, 'wt'))
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
