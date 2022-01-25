@@ -143,7 +143,7 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     --------
     '''
     descriptors = test_ds.aux
-    accuracies = [None] * descriptors.shape[1]
+    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
     encoder = model['Encoder']
     decoder = model['Decoder']
     
@@ -260,13 +260,16 @@ def main():
             fig = plot_report(test_ds, top_models[0],n_aux=5)
         ((err, _),_), accuracies = model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
         accuracy_n_model[i] = {
-            'accuracy': accuracies,
-            'reconstruct_err': err
+            'accuracy': accuracies.round(4).tolist(),
+            'reconstruct_err': round(err.tolist(),4)
         }
+    average_accuracy = np.mean([v['accuracy'] for v in accuracy_n_model.values()],axis=0)
+    average_reconstruct_err = np.mean([v['reconstruct_err'] for v in accuracy_n_model.values()])
     accuracy_n_model['average'] = {
-        'accuracy': np.mean([v['accuracy'] for v in accuracy_n_model.values()]),
-        'reconstruct_err': np.mean([v['reconstruct_err'] for v in accuracy_n_model.values()])
+        'accuracy': average_accuracy.round(4).tolist(),
+        'reconstruct_err': average_reconstruct_err.round(4).tolist()
     }
+
     #### Save report ####
     try:
         fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
