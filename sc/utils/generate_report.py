@@ -169,6 +169,25 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     
     return reconstruct, accuracies
 
+def qqplot_normal(x, ax=None, grid=True):
+
+    data_length = len(x)
+    
+    # standardize input data, and calculate the z-score
+    x_std = (x - x.mean())/x.std()
+    z_score = sorted(x_std)
+    
+    # sample from standard normal distribution and calculate quantiles
+    normal = np.random.randn(data_length)
+    q_normal = np.quantile(normal, np.linspace(0,1,data_length))
+    
+    # make the q-q plot if ax is given
+    if ax is not None:
+        ax.plot(q_normal, z_score, ls='',marker='.', color='k')
+        ax.plot([q_normal.min(),q_normal.max()],[q_normal.min(),q_normal.max()],
+                 color='k',alpha=0.5)
+        ax.grid(grid)
+    return q_normal, z_score
 
 def plot_report(test_ds, model, n_aux=5):
     if n_aux == 5:
@@ -214,6 +233,10 @@ def plot_report(test_ds, model, n_aux=5):
                                                descriptors_no_cn[:,row-4], 
                                                ax=ax)
             ax.set_title(f"{name_list_no_cn[row-4]}: "+"{0:.2f}/{1:.2f}".format(*accuracy))
+    # Plot q-q plot of the style distribution
+    for col in [0,1,2,3]:
+        ax = fig.add_subplot(gs[8,col])
+        _ = qqplot_normal(styles_no_s2[:,col], ax)
 
     # Plot out CN confusion matrix
     _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6])
