@@ -237,6 +237,8 @@ def plot_report(test_ds, model, n_aux=5):
     for col in [0,1,2,3]:
         ax = fig.add_subplot(gs[8,col])
         _ = qqplot_normal(styles_no_s2[:,col], ax)
+        if col > 0: col += 1 # skip style 2 which is CN
+        ax.set_title(f'style_{col+1}')
 
     # Plot out CN confusion matrix
     _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6])
