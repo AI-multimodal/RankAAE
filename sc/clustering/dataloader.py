@@ -9,6 +9,7 @@ class AuxSpectraDataset(Dataset):
     def __init__(self, csv_fn, split_portion, train_val_test_ratios=(0.7, 0.15, 0.15),
                  n_aux=0, transform=None):
         full_df = pd.read_csv(csv_fn, index_col=[0, 1], comment='#')
+        self.grid = np.array([float(col.strip('ENE_')) for col in full_df.columns if col.startswith('ENE_')])
         n_train_val_test = [int(len(full_df) * ratio)
                             for ratio in train_val_test_ratios]
         n_train_val_test[-1] = int(len(full_df)) - sum(n_train_val_test[:-1])

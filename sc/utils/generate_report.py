@@ -3,7 +3,10 @@ from turtle import st
 from seaborn.rcmod import set_style
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib import pyplot as plt
+from matplotlib.colors import colorConverter
+from matplotlib import ticker as ticker
 import seaborn as sns
 from sc.clustering.dataloader import AuxSpectraDataset
 import math
@@ -43,7 +46,7 @@ def create_plotly_colormap(n_colors):
     return target_rgb_strings
 
 
-def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000):
+def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000):
     decoder.eval()
     if n_sampling == None:
         c = np.linspace(*[-2, 2], n_spec)
@@ -59,7 +62,10 @@ def plot_spectra_variation(decoder, istyle, ax=None, n_spec=50, n_sampling=1000)
         spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
         colors = create_plotly_colormap(n_spec)
     for spec, color in zip(spec_out, colors):
+        if x is None:
             ax.plot(spec, lw=0.8, c=color)
+        else: 
+            ax.plot(x, spec, lw=0.8, c=color)
     ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
 def find_top_models(model_path, test_ds, n=5):
@@ -82,19 +88,19 @@ def find_top_models(model_path, test_ds, n=5):
     return [model_list[i] for i in top_indices]
 
 
-def get_confusion_matrix(cn_classes, style, ax=None):
-    
+def get_confusion_matrix(cn, style_cn, ax=None):
+    data_length = len(cn)
     thresh_grid = np.linspace(-3.5, 3.5, 700)
-    cn_classes = cn_classes - 4 # the minimum CN is 4 by default.
+    cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
     cn_class_sets = list(set(cn_classes))
 
-    cn4_f1_scores = [f1_score(style < th, cn_classes<1,zero_division=0) for th in thresh_grid]
-    cn6_f1_scores = [f1_score(style > th, cn_classes>1,zero_division=0) for th in thresh_grid]
+    cn4_f1_scores = [f1_score(style_cn < th, cn_classes<1,zero_division=0) for th in thresh_grid]
+    cn6_f1_scores = [f1_score(style_cn > th, cn_classes>1,zero_division=0) for th in thresh_grid]
     cn45_thresh = thresh_grid[np.argmax(cn4_f1_scores)]
     cn56_thresh = thresh_grid[np.argmax(cn6_f1_scores)]
 
     # calculate confusion matrix
-    sep_pred_cn_classes = (style > cn45_thresh).astype('int') + (style > cn56_thresh).astype('int')
+    sep_pred_cn_classes = (style_cn > cn45_thresh).astype('int') + (style_cn > cn56_thresh).astype('int')
     sep_confusion_matrix_ = confusion_matrix(cn_classes, sep_pred_cn_classes)
     if len(cn_class_sets)==1: # when only one class is available, special care is needed.
         cn = cn_class_sets[0].astype(int)
@@ -120,8 +126,31 @@ def get_confusion_matrix(cn_classes, style, ax=None):
         ax[1].set_xlabel("Pred")
         ax[1].set_ylabel("True")
 
-    return sep_threshold_f1_score
+        # color splitting plot
+        colors = np.array(sns.color_palette("bright", data_length))
+        test_colors = colors[cn_classes]
+        test_colors = np.array([colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
 
+        random_style = np.random.uniform(style_cn.min(),style_cn.max(),data_length)
+        ax[2].scatter(style_cn, random_style, color=test_colors, alpha=0.8)
+        ax[2].set_xlabel("Style 2")
+        ax[2].set_ylabel("Random")
+        ax[2].set_xlim([-3, 3])
+        ax[2].set_ylim([-3, 3])
+        ax[2].axhline(cn45_thresh, c='gray')
+        ax[2].axhline(cn56_thresh, c='gray')
+
+        n = len(colors)
+        axins = ax[2].inset_axes([0.02, 0.06, 0.5, 0.1])
+        axins.imshow(np.arange(n).reshape(1,n), cmap=mpl.colors.ListedColormap(list(colors)),
+                    interpolation="nearest", aspect="auto")
+        axins.set_xticks([i+4 for i in range(n)])
+        axins.set_xticklabels([f"CN{i+4}" for i in range(n)])
+        axins.tick_params(bottom=False, labelsize=10)
+        axins.yaxis.set_major_locator(ticker.NullLocator())
+
+    return sep_threshold_f1_score
+    
 
 def get_descriptor_accuracy(style, descriptor, ax=None):
     '''
@@ -200,6 +229,7 @@ def plot_report(test_ds, model, n_aux=5):
     style_correlation = get_style_correlations(test_ds, encoder)
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
+    test_grid = test_ds.grid
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
     descriptors = test_ds.aux
 
@@ -214,13 +244,14 @@ def plot_report(test_ds, model, n_aux=5):
     axb = fig.add_subplot(gs[2:4,4:6])
     ax5 = fig.add_subplot(gs[4:6,4:6])
     ax6 = fig.add_subplot(gs[6:8,4:6])
+    ax7 = fig.add_subplot(gs[8:10,4:6])
 
     fig.suptitle(f"Least correlation: {style_correlation:.4f}")
     
     # Plot out synthetic spectra variation
     axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
     for istyle, ax in enumerate(axs_spec):
-        plot_spectra_variation(decoder, istyle, ax=ax, n_spec=50, n_sampling=1000)
+        plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax)
 
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
@@ -241,7 +272,7 @@ def plot_report(test_ds, model, n_aux=5):
         ax.set_title(f'style_{col+1}')
 
     # Plot out CN confusion matrix
-    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6])
+    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
     
     return fig
 
@@ -298,7 +329,7 @@ def main():
     #### Save report ####
     try:
         fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
-        txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".yml")
+        txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".txt")
         fig.savefig(fig_path, bbox_inches='tight')
         yaml.dump(accuracy_n_model, open(txt_path, 'wt'))
         print("Success: training report saved!")
