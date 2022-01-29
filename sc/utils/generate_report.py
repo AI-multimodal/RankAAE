@@ -127,24 +127,25 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         ax[1].set_ylabel("True")
 
         # color splitting plot
-        colors = np.array(sns.color_palette("bright", data_length))
+        cn_list = [4,5,6]
+        colors = np.array(sns.color_palette("bright", len(cn_list)))
         test_colors = colors[cn_classes]
         test_colors = np.array([colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
 
         random_style = np.random.uniform(style_cn.min(),style_cn.max(),data_length)
-        ax[2].scatter(style_cn, random_style, color=test_colors, alpha=0.8)
+        ax[2].scatter(style_cn, random_style, s=10.0, color=test_colors, alpha=0.8)
         ax[2].set_xlabel("Style 2")
         ax[2].set_ylabel("Random")
         ax[2].set_xlim([-3, 3])
         ax[2].set_ylim([-3, 3])
-        ax[2].axhline(cn45_thresh, c='gray')
-        ax[2].axhline(cn56_thresh, c='gray')
+        ax[2].axvline(cn45_thresh, c='gray')
+        ax[2].axvline(cn56_thresh, c='gray')
 
         n = len(colors)
         axins = ax[2].inset_axes([0.02, 0.06, 0.5, 0.1])
         axins.imshow(np.arange(n).reshape(1,n), cmap=mpl.colors.ListedColormap(list(colors)),
                     interpolation="nearest", aspect="auto")
-        axins.set_xticks([i+4 for i in range(n)])
+        axins.set_xticks(list(range(n)))
         axins.set_xticklabels([f"CN{i+4}" for i in range(n)])
         axins.tick_params(bottom=False, labelsize=10)
         axins.yaxis.set_major_locator(ticker.NullLocator())
