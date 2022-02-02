@@ -302,7 +302,7 @@ def main():
     #### Create test data set from file ####
     if file_name==None:  # if datafile name nor provided, search for it.
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
-        assert len(data_file_list) == 1
+        assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
     
