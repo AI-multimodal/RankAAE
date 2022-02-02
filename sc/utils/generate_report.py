@@ -56,7 +56,7 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
         colors = sns.color_palette("hsv", n_spec)
     else:
         con_c = torch.randn([n_spec, n_sampling, decoder.nstyle])
-        style_variation = torch.linspace(-2, 2, n_spec)
+        style_variation = torch.linspace(-amplitude, amplitude, n_spec)
         con_c[..., istyle] = style_variation[:,np.newaxis]
         con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
         spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
