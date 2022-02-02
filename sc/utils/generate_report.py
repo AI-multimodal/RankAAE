@@ -46,10 +46,10 @@ def create_plotly_colormap(n_colors):
     return target_rgb_strings
 
 
-def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000):
+def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000, amplitude=2):
     decoder.eval()
     if n_sampling == None:
-        c = np.linspace(*[-2, 2], n_spec)
+        c = np.linspace(*[-amplitude, amplitude], n_spec)
         c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
         con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
         spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
@@ -252,7 +252,7 @@ def plot_report(test_ds, model, n_aux=5):
     # Plot out synthetic spectra variation
     axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
     for istyle, ax in enumerate(axs_spec):
-        plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax)
+        plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax, amplitude=2)
 
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
