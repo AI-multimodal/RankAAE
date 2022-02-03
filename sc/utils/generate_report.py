@@ -136,8 +136,8 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         ax[2].scatter(style_cn, random_style, s=10.0, color=test_colors, alpha=0.8)
         ax[2].set_xlabel("Style 2")
         ax[2].set_ylabel("Random")
-        ax[2].set_xlim([-3, 3])
-        ax[2].set_ylim([-3, 3])
+        ax[2].set_xlim([style_cn.min()-1, style_cn.max()+1])
+        ax[2].set_ylim([style_cn.min()-2, style_cn.max()+1])
         ax[2].axvline(cn45_thresh, c='gray')
         ax[2].axvline(cn56_thresh, c='gray')
 
