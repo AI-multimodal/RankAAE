@@ -319,7 +319,8 @@ def main():
     for i, model in enumerate(top_models):
         if i == 0: # Generate Report for best model
             fig = plot_report(test_ds, top_models[0],n_aux=5)
-        ((err, _),_), accuracies = model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+        ((err, _),(_, spec_out)), accuracies = \
+             model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
         accuracy_n_model[i] = {
             'accuracy': accuracies.round(4).tolist(),
             'reconstruct_err': round(err.tolist(),4)
@@ -335,8 +336,10 @@ def main():
     try:
         fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
         txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".txt")
+        dat_path = os.path.join(work_dir, f"{args.output_name:s}"+".dat")
         fig.savefig(fig_path, bbox_inches='tight')
         yaml.dump(accuracy_n_model, open(txt_path, 'wt'))
+        np.savetxt(dat_path,spec_out)
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
