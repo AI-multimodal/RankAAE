@@ -287,11 +287,11 @@ class CompactEncoder(nn.Module):
         return z_gauss
 
 
-class FCEncoder(nn.Module):
+class QvecEncoder(nn.Module):
     """ for Q vector only"""
 
     def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=12):
-        super(FCEncoder, self).__init__()
+        super(QvecEncoder, self).__init__()
         self.main = nn.Sequential(
             nn.Linear(dim_in, 8),
             nn.ReLU(),
@@ -316,6 +316,44 @@ class FCEncoder(nn.Module):
 
     def forward(self, q_vec):
         z_gauss = self.main(q_vec) + self.short_cut(q_vec)
+        return z_gauss
+
+
+class FCEncoder(nn.Module):
+    
+    """
+    Fully connected layers for encoder.
+    """
+
+    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256, last_layer_activation='Softplus'):
+        super(QvecEncoder, self).__init__()
+        
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+        
+        self.main = nn.Sequential(
+            
+            nn.Linear(dim_in, 64),
+            nn.ReLU(),
+            
+            nn.BatchNorm1d(64, affine=False),
+            nn.Dropout(dropout_rate),
+            nn.Linear(64, 16),
+            nn.ReLU(),
+            
+            nn.BatchNorm1d(16, affine=False),
+            nn.Dropout(dropout_rate),
+            nn.Linear(16, nstyle),
+            nn.Softplus(beta=2),
+        )
+
+    def forward(self, spec):
+        z_gauss = self.main(spec)
         return z_gauss
 
 
@@ -407,10 +445,10 @@ class CompactDecoder(nn.Module):
         return spec
 
 
-class FCDecoder(nn.Module):
+class QvecDecoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=12):
-        super(FCDecoder, self).__init__()
+        super(QvecDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
@@ -446,6 +484,39 @@ class FCDecoder(nn.Module):
     def forward(self, z_gauss):
         q_vec = self.main(z_gauss) + self.short_cut(z_gauss)
         return q_vec
+
+
+class FCDecoder(nn.Module):
+
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, dim_out=256, last_layer_activation='ReLu'):
+        super(QvecDecoder, self).__init__()
+
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+
+        self.main = nn.Sequential(
+            nn.Linear(nstyle, 16),
+            nn.ReLU(),
+            nn.BatchNorm1d(16, affine=False),
+            nn.Dropout(dropout_rate),
+            nn.Linear(16, 64),
+            ll_act,
+            nn.BatchNorm1d(64, affine=False),
+            nn.Dropout(dropout_rate),
+            nn.Linear(64, dim_out)
+        )
+
+        self.nstyle = nstyle
+        self.debug = debug
+
+    def forward(self, z_gauss):
+        spec = self.main(z_gauss)
+        return spec
 
 
 class DiscriminatorCNN(nn.Module):
