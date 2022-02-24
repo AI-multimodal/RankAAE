@@ -219,7 +219,7 @@ def qqplot_normal(x, ax=None, grid=True):
         ax.grid(grid)
     return q_normal, z_score
 
-def plot_report(test_ds, model, n_aux=5):
+def plot_report(test_ds, model, n_aux=5, title='report'):
     if n_aux == 5:
         name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
     elif n_aux == 3:
@@ -247,7 +247,10 @@ def plot_report(test_ds, model, n_aux=5):
     ax6 = fig.add_subplot(gs[6:8,4:6])
     ax7 = fig.add_subplot(gs[8:10,4:6])
 
-    fig.suptitle(f"Least correlation: {style_correlation:.4f}")
+    fig.suptitle(
+        f"{title:s}\n"\
+        f"Least correlation: {style_correlation:.4f}"
+    )
     
     # Plot out synthetic spectra variation
     axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
@@ -318,7 +321,7 @@ def main():
     accuracy_n_model = {}
     for i, model in enumerate(top_models):
         if i == 0: # Generate Report for best model
-            fig = plot_report(test_ds, top_models[0],n_aux=5)
+            fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
         ((err, _),(spec_in, spec_out)), accuracies = \
              model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
         accuracy_n_model[i] = {
