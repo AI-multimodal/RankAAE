@@ -326,7 +326,7 @@ class FCEncoder(nn.Module):
     """
 
     def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256, last_layer_activation='Softplus'):
-        super(QvecEncoder, self).__init__()
+        super(FCEncoder, self).__init__()
         
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
@@ -349,7 +349,7 @@ class FCEncoder(nn.Module):
             nn.BatchNorm1d(16, affine=False),
             nn.Dropout(dropout_rate),
             nn.Linear(16, nstyle),
-            nn.Softplus(beta=2),
+            ll_act,
         )
 
     def forward(self, spec):
@@ -489,7 +489,7 @@ class QvecDecoder(nn.Module):
 class FCDecoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, dim_out=256, last_layer_activation='ReLu'):
-        super(QvecDecoder, self).__init__()
+        super(FCDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
