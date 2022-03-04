@@ -376,7 +376,7 @@ class Trainer:
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=12,
+                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=256,
                   use_flex_spec_target=False, optimizer_name="AdamW",
                   decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
