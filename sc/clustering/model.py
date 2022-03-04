@@ -325,7 +325,14 @@ class FCEncoder(nn.Module):
     Fully connected layers for encoder.
     """
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256, last_layer_activation='Softplus'):
+    def __init__(
+        self, 
+        dropout_rate=0.2, 
+        nstyle=2, 
+        dim_in=256, 
+        last_layer_activation='Softplus',
+        n_layers=3,
+        hidden_size=64):
         super(FCEncoder, self).__init__()
         
         if last_layer_activation == 'ReLu':
@@ -336,20 +343,30 @@ class FCEncoder(nn.Module):
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
         
-        self.main = nn.Sequential(
-            
-            nn.Linear(dim_in, 64),
+        sequential_layers = [
+            nn.Linear(dim_in, hidden_size),
             nn.ReLU(),
-            
-            nn.BatchNorm1d(64, affine=False),
-            nn.Dropout(dropout_rate),
-            nn.Linear(64, 16),
-            nn.ReLU(),
-            
-            nn.BatchNorm1d(16, affine=False),
-            nn.Dropout(dropout_rate),
-            nn.Linear(16, nstyle),
-            ll_act,
+            nn.BatchNorm1d(hidden_size, affine=False),
+            nn.Dropout(dropout_rate)
+        ]
+        for _ in range(n_layers):
+            sequential_layers.extend(
+                [
+                    nn.Linear(hidden_size, hidden_size),
+                    nn.ReLU(),
+                    nn.BatchNorm1d(hidden_size, affine=False),
+                    nn.Dropout(dropout_rate)
+                ]
+            )
+        sequential_layers.extend(
+            [
+                nn.Linear(64, 16),
+                ll_act,
+                nn.BatchNorm1d(16, affine=False),
+                nn.Dropout(dropout_rate),
+                nn.Linear(16, nstyle),
+                nn.BatchNorm1d(16, affine=False)
+            ]
         )
 
     def forward(self, spec):
@@ -488,7 +505,15 @@ class QvecDecoder(nn.Module):
 
 class FCDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, dim_out=256, last_layer_activation='ReLu'):
+    def __init__(
+        self, 
+        dropout_rate=0.2, 
+        nstyle=2, 
+        debug=False, 
+        dim_out=256, 
+        last_layer_activation='ReLu', 
+        layers=3,
+        hidden_size=64):
         super(FCDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -498,19 +523,43 @@ class FCDecoder(nn.Module):
         else:
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-
-        self.main = nn.Sequential(
+    
+        sequential_layers = [ # first layer
             nn.Linear(nstyle, 16),
-            nn.ReLU(),
+            nn.PReLU(num_parameters=16, init=0.01),
             nn.BatchNorm1d(16, affine=False),
-            nn.Dropout(dropout_rate),
-            nn.Linear(16, 64),
-            ll_act,
-            nn.BatchNorm1d(64, affine=False),
-            nn.Dropout(dropout_rate),
-            nn.Linear(64, dim_out)
-        )
+            nn.Dropout(p=dropout_rate)
+        ]
 
+        sequential_layers.extend( # 2nd layer
+            [
+                nn.Linear(16, hidden_size),
+                nn.PReLU(num_parameters=hidden_size, init=0.01),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(p=dropout_rate)
+            ]
+        )
+        for _ in range(layers-3):
+            sequential_layers.extend( # the n layers in the middle
+                [
+                    nn.Linear(hidden_size, hidden_size),
+                    nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    nn.BatchNorm1d(hidden_size, affine=False),
+                    nn.Dropout(p=dropout_rate),
+                ]
+            )
+        sequential_layers.extend( # the last 2 layers
+            [
+                nn.Linear(hidden_size, hidden_size),
+                ll_act,
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(dropout_rate),
+                nn.Linear(hidden_size, dim_out)
+            ]
+        )  
+
+        self.main = nn.Sequential(*sequential_layers)
+        
         self.nstyle = nstyle
         self.debug = debug
 
