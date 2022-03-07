@@ -21,4 +21,4 @@ Average:
   - 0.7354
   - 0.7158
   - 0.6144
-  Reconstruct_err: 0.031
+  Reconstruct_err: 0.03099999949336052

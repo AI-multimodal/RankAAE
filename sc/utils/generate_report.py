@@ -79,6 +79,38 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     
     return fig
 
+def save_evaluation_result(save_dir, file_name, accuracy_dict, save_spectra=False):
+    """
+    Input is a dictionary of result dictionaries of model_evaluation.
+    And file name to save the resul.
+    Information is saved to a txt file.
+    """
+    save_dict = {}
+    for i, result in accuracy_dict.items():
+        if (i == 0) and save_spectra:
+            spec_in = result["Input"]
+            spec_out = result["Output"]
+        save_dict[i] = {
+            'Accuracy': result["Accuracy"].round(4).tolist(),
+            'Reconstruct_err': round(result["Reconstruct Err"][0].tolist(),4)
+        }
+    average_accuracy = np.mean([v['Accuracy'] for v in accuracy_dict.values()],axis=0)
+    average_reconstruct_err = np.mean([v['Reconstruct Err'][0] for v in accuracy_dict.values()])
+    save_dict['Average'] = {
+        'Accuracy': average_accuracy.round(4).tolist(),
+        'Reconstruct_err': average_reconstruct_err.round(4).tolist()
+    }
+    
+    yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
+    np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
+    np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
+
+def save_report_plot(save_dir, file_name, fig):
+    fig.savefig(
+            os.path.join(save_dir, file_name+".png"),
+            bbox_inches='tight'
+        )
+
 
 def main():
     #### Parse arguments ####
@@ -108,38 +140,22 @@ def main():
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
     
     #### Choose top n model based on inter style correlation ####
-    model_path = os.path.join(work_dir, "training")
-    top_models = analysis.find_top_models(model_path, test_ds, n=5)
+    top_models = analysis.find_top_models(
+        os.path.join(work_dir, "training"), 
+        test_ds, 
+        n = 5
+    )
 
-    #### Generate report and calculate accuracy, reconstruction err,
-    accuracy_n_model = {}
-    for i, model in enumerate(top_models):
-        result = analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
-        accuracy_n_model[i] = {
-            'Accuracy': result["Accuracy"].round(4).tolist(),
-            'Reconstruct_err': round(result["Reconstruct Err"][0].tolist(),4)
-        }
-        if i == 0: # Generate Report for best model
-            fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
-            spec_in = result["Input"]
-            spec_out = result["Output"]
-    average_accuracy = np.mean([v['Accuracy'] for v in accuracy_n_model.values()],axis=0)
-    average_reconstruct_err = np.mean([v['Reconstruct_err'] for v in accuracy_n_model.values()])
-    accuracy_n_model['Average'] = {
-        'Accuracy': average_accuracy.round(4).tolist(),
-        'Reconstruct_err': average_reconstruct_err.round(4).tolist()
-    }
-
-    #### Save report ####
+    #### Generate report and calculate accuracy, reconstruction err, and save them
     try:
-        fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
-        txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".txt")
-        spec_out_path = os.path.join(work_dir, f"{args.output_name:s}"+".out")
-        spec_in_path = os.path.join(work_dir, f"{args.output_name:s}"+".in")
-        fig.savefig(fig_path, bbox_inches='tight')
-        yaml.dump(accuracy_n_model, open(txt_path, 'wt'))
-        np.savetxt(spec_out_path,spec_out)
-        np.savetxt(spec_in_path,spec_in)
+        accuracy_n_model = {}
+        for i, model in enumerate(top_models):
+            result = analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+            accuracy_n_model[i] = result
+            if i == 0: # Generate Report for best model
+                fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
+        save_report_plot(work_dir, args.output_name, fig)
+        save_evaluation_result(work_dir, args.output_name, accuracy_n_model, save_spectra=True)
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
