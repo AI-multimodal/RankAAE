@@ -1,24 +1,24 @@
 0:
-  accuracy:
+  Accuracy:
   - 0.8377
   - 1.0
   - 0.7415
   - 0.722
   - 0.6134
-  reconstruct_err: 0.0313
+  Reconstruct_err: 0.0313
 1:
-  accuracy:
+  Accuracy:
   - 0.8466
   - 1.0
   - 0.7293
   - 0.7097
   - 0.6154
-  reconstruct_err: 0.0308
-average:
-  accuracy:
+  Reconstruct_err: 0.0308
+Average:
+  Accuracy:
   - 0.8422
   - 1.0
   - 0.7354
   - 0.7158
   - 0.6144
-  reconstruct_err: 0.031
+  Reconstruct_err: 0.031

@@ -88,9 +88,9 @@ def find_top_models(model_path, test_ds, n=5):
         model = torch.load(fn, map_location=torch.device('cpu'))
         model_list.append(model)
         style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
-        ((reconst_err, _), (_, _)), accuracy = model_evaluation(test_ds, model)
-        reconst_err_list.append(reconst_err) # reconstruction err
-        accuracy_list.append(np.mean(accuracy)) # average accuracy for descriptors
+        result = model_evaluation(test_ds, model)
+        reconst_err_list.append(result["Reconstruct Err"][0]) # reconstruction err
+        accuracy_list.append(np.mean(result["Accuracy"])) # average accuracy for descriptors
     
     scores = np.stack(
         (
@@ -232,34 +232,43 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     Returns:
     --------
     '''
+    descriptors = test_ds.aux
+    result = {
+        "Accuracy": np.empty(descriptors.shape[1]),
+        "Input": None, 
+        "Output": None,
+        "Reconstruct Err": (None, None)
+    }
+    result["Accuracy"].fill(np.NaN)
+    
     encoder = model['Encoder']
     decoder = model['Decoder']
-    
     encoder.eval()
+    
+    # Get styles via encoder
     spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
     styles = encoder(spec_in).clone().detach()
-
-    descriptors = test_ds.aux
-    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
-    reconstruct = [(None, None), (None, None)]
+    result["Input"] = spec_in
 
     if return_reconstruct:
         spec_out = decoder(styles).clone().cpu().detach().numpy()
         mae_list = []
         for s1, s2 in zip(spec_in, spec_out):
             mae_list.append(mean_absolute_error(s1, s2))
-        reconstruct = [(np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)]
-    
+        result["Reconstruct Err"] = np.mean(mae_list), np.std(mae_list)
+        result["Output"] = spec_out
+
     if return_accuracy:
         styles = styles.numpy()
-        for i in range(len(accuracies)):
+        for i in range(len(result["Accuracy"])):
             if i==1: # CN
-                accuracies[i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
+                result["Accuracy"][i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
             else:
                 accuracy_dict = get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None)
-                accuracies[i] = accuracy_dict["Spearman"]
+                result["Accuracy"][i] = accuracy_dict["Spearman"]
     
-    return reconstruct, accuracies
+    return result
+
 
 def qqplot_normal(x, ax=None, grid=True):
     """

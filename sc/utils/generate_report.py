@@ -114,19 +114,20 @@ def main():
     #### Generate report and calculate accuracy, reconstruction err,
     accuracy_n_model = {}
     for i, model in enumerate(top_models):
+        result = analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+        accuracy_n_model[i] = {
+            'Accuracy': result["Accuracy"].round(4).tolist(),
+            'Reconstruct_err': round(result["Reconstruct Err"][0].tolist(),4)
+        }
         if i == 0: # Generate Report for best model
             fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
-        ((err, _),(spec_in, spec_out)), accuracies = \
-             analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
-        accuracy_n_model[i] = {
-            'accuracy': accuracies.round(4).tolist(),
-            'reconstruct_err': round(err.tolist(),4)
-        }
-    average_accuracy = np.mean([v['accuracy'] for v in accuracy_n_model.values()],axis=0)
-    average_reconstruct_err = np.mean([v['reconstruct_err'] for v in accuracy_n_model.values()])
-    accuracy_n_model['average'] = {
-        'accuracy': average_accuracy.round(4).tolist(),
-        'reconstruct_err': average_reconstruct_err.round(4).tolist()
+            spec_in = result["Input"]
+            spec_out = result["Output"]
+    average_accuracy = np.mean([v['Accuracy'] for v in accuracy_n_model.values()],axis=0)
+    average_reconstruct_err = np.mean([v['Reconstruct_err'] for v in accuracy_n_model.values()])
+    accuracy_n_model['Average'] = {
+        'Accuracy': average_accuracy.round(4).tolist(),
+        'Reconstruct_err': average_reconstruct_err.round(4).tolist()
     }
 
     #### Save report ####
@@ -142,7 +143,6 @@ def main():
         print("Success: training report saved!")
     except Exception as e:
         print(f"Fail: Cannot save training report: {e:s}")
-    
 
 if __name__ == "__main__":
     main()
