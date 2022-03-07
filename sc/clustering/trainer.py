@@ -428,7 +428,7 @@ class Trainer:
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
-                          lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name,
+                          lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name, 
                           use_flex_spec_target=use_flex_spec_target,
                           verbose=verbose, work_dir=work_dir)
         return trainer
