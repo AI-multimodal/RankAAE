@@ -1,9 +1,8 @@
 import sys
-from sc.clustering.dataloader import AuxSpectraDataset
 import torch
-
-sys.path.append('/home/zliang/Documents/semi_clustering/')
+from sc.clustering.dataloader import AuxSpectraDataset
 from sc.utils.generate_report import *
+import sc.utils.analysis as analysis
 
 class Test_GenerateReport():
 
@@ -13,7 +12,7 @@ class Test_GenerateReport():
         self.model = torch.load(model_file, map_location=torch.device('cpu'))
         self.ds = AuxSpectraDataset(data_file, split_portion="test", n_aux=5)
 
-        reconstruction, accuracy = model_evaluation(self.ds, self.model)
+        reconstruction, accuracy = analysis.model_evaluation(self.ds, self.model)
         (mae, std), _ = reconstruction
         print(accuracy)
         assert np.allclose(mae, 0.0389, atol=1e-4)

@@ -1,252 +1,21 @@
-from gettext import find
-from turtle import st
-from click import style
-from seaborn.rcmod import set_style
-from sympy import symarray
 import torch
 import numpy as np
-import matplotlib as mpl
 from matplotlib import pyplot as plt
-from matplotlib.colors import colorConverter
-from matplotlib import ticker as ticker
-import seaborn as sns
-from sc.clustering.dataloader import AuxSpectraDataset
-import math
-import os, glob
-from scipy import stats
-from scipy.stats import spearmanr
-from sklearn.metrics import f1_score, confusion_matrix, mean_absolute_error
-import re
-import itertools
+import os
 import argparse
-import plotly.express as px
-from scipy.interpolate import interp1d
 import yaml
-
-
-def get_style_correlations(ds, encoder):
-    encoder.eval()
-    val_spec = torch.tensor(ds.spec, dtype=torch.float32)
-    styles = encoder(val_spec).clone().detach().cpu().numpy()
-    nstyles = styles.shape[1]
-    inter_style_sm = max([math.fabs(spearmanr(*styles[:, pair].T).correlation) \
-                          for pair in itertools.combinations(range(nstyles), 2)])
-   
-    return inter_style_sm
-
-
-def create_plotly_colormap(n_colors):
-    '''
-    Xiaohui's implementation of getting spectra color map.
-    '''
-    plotly3_hex_strings = px.colors.sequential.Plotly3
-    rgb_values = np.array([[int(f"0x{c_hex[i:i+2]}", 16) for i in range(1, 7, 2)] for c_hex in plotly3_hex_strings])
-    x0 = np.linspace(1, n_colors, rgb_values.shape[0])
-    x1 = np.linspace(1, n_colors, n_colors)
-    target_rgb_values = np.stack([interp1d(x0, rgb_values[:, i], kind='cubic')(x1) for i in range(3)]).T.round().astype('int')
-    target_rgb_strings = ["#"+"".join([f'{ch:02x}' for ch in rgb]) for rgb in target_rgb_values]
-    return target_rgb_strings
-
-
-def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000, amplitude=2):
-    decoder.eval()
-    if n_sampling == None:
-        c = np.linspace(*[-amplitude, amplitude], n_spec)
-        c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
-        con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
-        spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
-        colors = sns.color_palette("hsv", n_spec)
-    else:
-        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle])
-        style_variation = torch.linspace(-amplitude, amplitude, n_spec)
-        con_c[..., istyle] = style_variation[:,np.newaxis]
-        con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
-        spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
-        colors = create_plotly_colormap(n_spec)
-    for spec, color in zip(spec_out, colors):
-        if x is None:
-            ax.plot(spec, lw=0.8, c=color)
-        else: 
-            ax.plot(x, spec, lw=0.8, c=color)
-    ax.set_title(f"Varying Style #{istyle+1}", y=1)
-
-def find_top_models(model_path, test_ds, n=5):
-    '''
-    Find top 5 models with leas correlatioin among styles, in descending order of goodness.
-    '''
-    model_files = os.path.join(model_path, "job_*/final.pt")
-    fn_list = sorted(glob.glob(model_files), 
-                    key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
-    
-    style_cor_list = []
-    reconst_err_list = []
-    accuracy_list = []
-    model_list = []
-    for fn in fn_list:
-        model = torch.load(fn, map_location=torch.device('cpu'))
-        model_list.append(model)
-        style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
-        ((reconst_err, _), (_, _)), accuracy = model_evaluation(test_ds, model)
-        reconst_err_list.append(reconst_err) # reconstruction err
-        accuracy_list.append(np.mean(accuracy)) # average accuracy for descriptors
-    
-    scores = np.stack(
-        (
-            style_cor_list,
-            reconst_err_list,
-            accuracy_list
-        )
-    )
-
-    final_score = (scores[2] - scores[0]) / scores[1]
-
-    # get the indices for top n least correlated styles, the first entry is the best model.
-    top_indices = np.argsort(final_score)[:n]
-    
-    return [model_list[i] for i in top_indices]
-
-
-def get_confusion_matrix(cn, style_cn, ax=None):
-    data_length = len(cn)
-    thresh_grid = np.linspace(-3.5, 3.5, 700)
-    cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
-    cn_class_sets = list(set(cn_classes))
-
-    cn4_f1_scores = [f1_score(style_cn < th, cn_classes<1,zero_division=0) for th in thresh_grid]
-    cn6_f1_scores = [f1_score(style_cn > th, cn_classes>1,zero_division=0) for th in thresh_grid]
-    cn45_thresh = thresh_grid[np.argmax(cn4_f1_scores)]
-    cn56_thresh = thresh_grid[np.argmax(cn6_f1_scores)]
-
-    # calculate confusion matrix
-    sep_pred_cn_classes = (style_cn > cn45_thresh).astype('int') + (style_cn > cn56_thresh).astype('int')
-    sep_confusion_matrix_ = confusion_matrix(cn_classes, sep_pred_cn_classes)
-    if len(cn_class_sets)==1: # when only one class is available, special care is needed.
-        cn = cn_class_sets[0].astype(int)
-        sep_confusion_matrix = np.zeros((3,3),dtype=int)
-        sep_confusion_matrix[cn, cn] = sep_confusion_matrix_[0,0]
-    else:
-        sep_confusion_matrix = sep_confusion_matrix_
-    
-    sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
-
-    if ax is not None:
-        sns.set_palette('bright', 2)
-        ax[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
-        ax[0].plot(thresh_grid, cn6_f1_scores, label='CN6')
-        ax[0].axvline(cn45_thresh, c='blue')
-        ax[0].axvline(cn56_thresh, c='orange')
-        ax[0].legend(loc='lower left', fontsize=12)
-
-        sns.heatmap(sep_confusion_matrix, cmap='Blues', annot=True, fmt='d', cbar=False, ax=ax[1],
-                    xticklabels=[f'CN{cn+4}' for cn in range(3)],
-                    yticklabels=[f'CN{cn+4}' for cn in range(3)])
-        ax[1].set_title(f"F1 Score = {sep_threshold_f1_score:.1%}",fontsize=12)
-        ax[1].set_xlabel("Pred")
-        ax[1].set_ylabel("True")
-
-        # color splitting plot
-        cn_list = [4,5,6]
-        colors = np.array(sns.color_palette("bright", len(cn_list)))
-        test_colors = colors[cn_classes]
-        test_colors = np.array([colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
-
-        random_style = np.random.uniform(style_cn.min(),style_cn.max(),data_length)
-        ax[2].scatter(style_cn, random_style, s=10.0, color=test_colors, alpha=0.8)
-        ax[2].set_xlabel("Style 2")
-        ax[2].set_ylabel("Random")
-        ax[2].set_xlim([style_cn.min()-1, style_cn.max()+1])
-        ax[2].set_ylim([style_cn.min()-2, style_cn.max()+1])
-        ax[2].axvline(cn45_thresh, c='gray')
-        ax[2].axvline(cn56_thresh, c='gray')
-
-        n = len(colors)
-        axins = ax[2].inset_axes([0.02, 0.06, 0.5, 0.1])
-        axins.imshow(np.arange(n).reshape(1,n), cmap=mpl.colors.ListedColormap(list(colors)),
-                    interpolation="nearest", aspect="auto")
-        axins.set_xticks(list(range(n)))
-        axins.set_xticklabels([f"CN{i+4}" for i in range(n)])
-        axins.tick_params(bottom=False, labelsize=10)
-        axins.yaxis.set_major_locator(ticker.NullLocator())
-
-    return sep_threshold_f1_score
-    
-
-def get_descriptor_accuracy(style, descriptor, ax=None):
-    '''
-    Scatter plot of given descriptor and style on the given axix, and returns the accuracy list of [R^2, spearman].
-    '''
-    _, _, r, _, _ = stats.linregress(style, descriptor)
-    sm = spearmanr(style, descriptor).correlation
-    accuracy = [round(float(r**2),4), round(float(sm),4)]
-    if ax is not None:
-        ax.scatter(style, descriptor, s=10.0, c='blue', edgecolors='none', alpha=0.8)
-    return accuracy
-
-
-def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True):
-    '''
-    calculate reconstruction error for a given model, or accuracy.
-    
-    Returns:
-    --------
-    '''
-    encoder = model['Encoder']
-    decoder = model['Decoder']
-    
-    encoder.eval()
-    spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
-    styles = encoder(spec_in).clone().detach()
-
-    descriptors = test_ds.aux
-    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
-    reconstruct = [(None, None), (None, None)]
-
-    if return_reconstruct:
-        spec_out = decoder(styles).clone().cpu().detach().numpy()
-        mae_list = []
-        for s1, s2 in zip(spec_in, spec_out):
-            mae_list.append(mean_absolute_error(s1, s2))
-        reconstruct = [(np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)]
-    
-    if return_accuracy:
-        styles = styles.numpy()
-        for i in range(len(accuracies)):
-            if i==1: # CN
-                accuracies[i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
-            else:
-                _, accuracies[i] = get_descriptor_accuracy(descriptors[:,i], styles[:,i], ax=None)
-    
-    return reconstruct, accuracies
-
-def qqplot_normal(x, ax=None, grid=True):
-
-    data_length = len(x)
-    
-    # standardize input data, and calculate the z-score
-    x_std = (x - x.mean())/x.std()
-    z_score = sorted(x_std)
-    
-    # sample from standard normal distribution and calculate quantiles
-    normal = np.random.randn(data_length)
-    q_normal = np.quantile(normal, np.linspace(0,1,data_length))
-    
-    # make the q-q plot if ax is given
-    if ax is not None:
-        ax.plot(q_normal, z_score, ls='',marker='.', color='k')
-        ax.plot([q_normal.min(),q_normal.max()],[q_normal.min(),q_normal.max()],
-                 color='k',alpha=0.5)
-        ax.grid(grid)
-    return q_normal, z_score
+import sc.utils.analysis as analysis
+from sc.clustering.dataloader import AuxSpectraDataset
 
 def plot_report(test_ds, model, n_aux=5, title='report'):
     if n_aux == 5:
         name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
     elif n_aux == 3:
-        name_list = ["BVs", "CN", "OCN"]
+        name_list = ["BVS", "CN", "OCN"]
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    style_correlation = get_style_correlations(test_ds, encoder)
+    style_correlation = analysis.get_style_correlations(test_ds, encoder)
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
     test_grid = test_ds.grid
@@ -274,7 +43,7 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     # Plot out synthetic spectra variation
     axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
     for istyle, ax in enumerate(axs_spec):
-        plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax, amplitude=2)
+        analysis.plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax, amplitude=2)
 
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
@@ -283,26 +52,32 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     for row in [4,5,6,7]:
         for col in [0,1,2,3]:
             ax = fig.add_subplot(gs[row,col])
-            accuracy = get_descriptor_accuracy(styles_no_s2[:,col], 
-                                               descriptors_no_cn[:,row-4], 
-                                               ax=ax)
-            ax.set_title(f"{name_list_no_cn[row-4]}: "+"{0:.2f}/{1:.2f}".format(*accuracy))
+            accuracy = analysis.get_descriptor_style_relation(
+                styles_no_s2[:,col], 
+                descriptors_no_cn[:,row-4], 
+                ax=ax
+            )
+         
+            ax.set_title(
+                f"{name_list_no_cn[row-4]}: " +
+                "{0:.2f}/{1:.2f}".format(accuracy["Linear"]["R2"], accuracy["Spearman"])
+            )
+
     # Plot q-q plot of the style distribution
     for col in [0,1,2,3]:
         ax = fig.add_subplot(gs[8,col])
-        _ = qqplot_normal(styles_no_s2[:,col], ax)
+        _ = analysis.qqplot_normal(styles_no_s2[:,col], ax)
         if col > 0: col += 1 # skip style 2 which is CN
         ax.set_title(f'style_{col+1}')
     
     ax = fig.add_subplot(gs[9,3])
-    _ = qqplot_normal(test_styles[:,1], ax)
+    _ = analysis.qqplot_normal(test_styles[:,1], ax)
     ax.set_title('style_2')
 
     # Plot out CN confusion matrix
-    _ = get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
+    _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
     
     return fig
-
 
 
 def main():
@@ -334,7 +109,7 @@ def main():
     
     #### Choose top n model based on inter style correlation ####
     model_path = os.path.join(work_dir, "training")
-    top_models = find_top_models(model_path, test_ds, n=5)
+    top_models = analysis.find_top_models(model_path, test_ds, n=5)
 
     #### Generate report and calculate accuracy, reconstruction err,
     accuracy_n_model = {}
@@ -342,7 +117,7 @@ def main():
         if i == 0: # Generate Report for best model
             fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
         ((err, _),(spec_in, spec_out)), accuracies = \
-             model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+             analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
         accuracy_n_model[i] = {
             'accuracy': accuracies.round(4).tolist(),
             'reconstruct_err': round(err.tolist(),4)
