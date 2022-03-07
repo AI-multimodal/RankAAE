@@ -1,6 +1,8 @@
 from gettext import find
 from turtle import st
+from click import style
 from seaborn.rcmod import set_style
+from sympy import symarray
 import torch
 import numpy as np
 import matplotlib as mpl
@@ -75,15 +77,31 @@ def find_top_models(model_path, test_ds, n=5):
     model_files = os.path.join(model_path, "job_*/final.pt")
     fn_list = sorted(glob.glob(model_files), 
                     key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
+    
     style_cor_list = []
+    reconst_err_list = []
+    accuracy_list = []
     model_list = []
     for fn in fn_list:
         model = torch.load(fn, map_location=torch.device('cpu'))
-        style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
         model_list.append(model)
+        style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
+        ((reconst_err, _), (_, _)), accuracy = model_evaluation(test_ds, model)
+        reconst_err_list.append(reconst_err) # reconstruction err
+        accuracy_list.append(np.mean(accuracy)) # average accuracy for descriptors
     
+    scores = np.stack(
+        (
+            style_cor_list,
+            reconst_err_list,
+            accuracy_list
+        )
+    )
+
+    final_score = (scores[2] - scores[0]) / scores[1]
+
     # get the indices for top n least correlated styles, the first entry is the best model.
-    top_indices = np.argsort(style_cor_list)[:n]
+    top_indices = np.argsort(final_score)[:n]
     
     return [model_list[i] for i in top_indices]
 
@@ -172,8 +190,6 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     Returns:
     --------
     '''
-    descriptors = test_ds.aux
-    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
     encoder = model['Encoder']
     decoder = model['Decoder']
     
@@ -181,7 +197,10 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
     styles = encoder(spec_in).clone().detach()
 
-    reconstruct = [None, None]
+    descriptors = test_ds.aux
+    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
+    reconstruct = [(None, None), (None, None)]
+
     if return_reconstruct:
         spec_out = decoder(styles).clone().cpu().detach().numpy()
         mae_list = []
