@@ -287,11 +287,11 @@ class CompactEncoder(nn.Module):
         return z_gauss
 
 
-class FCEncoder(nn.Module):
+class QvecEncoder(nn.Module):
     """ for Q vector only"""
 
     def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=12):
-        super(FCEncoder, self).__init__()
+        super(QvecEncoder, self).__init__()
         self.main = nn.Sequential(
             nn.Linear(dim_in, 8),
             nn.ReLU(),
@@ -316,6 +316,61 @@ class FCEncoder(nn.Module):
 
     def forward(self, q_vec):
         z_gauss = self.main(q_vec) + self.short_cut(q_vec)
+        return z_gauss
+
+
+class FCEncoder(nn.Module):
+    
+    """
+    Fully connected layers for encoder.
+    """
+
+    def __init__(
+        self, 
+        dropout_rate=0.2, 
+        nstyle=2, 
+        dim_in=256, 
+        last_layer_activation='Softplus',
+        n_layers=3,
+        hidden_size=64):
+        super(FCEncoder, self).__init__()
+        
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+        
+        sequential_layers = [
+            nn.Linear(dim_in, hidden_size),
+            nn.ReLU(),
+            nn.BatchNorm1d(hidden_size, affine=False),
+            nn.Dropout(dropout_rate)
+        ]
+        for _ in range(n_layers):
+            sequential_layers.extend(
+                [
+                    nn.Linear(hidden_size, hidden_size),
+                    nn.ReLU(),
+                    nn.BatchNorm1d(hidden_size, affine=False),
+                    nn.Dropout(dropout_rate)
+                ]
+            )
+        sequential_layers.extend(
+            [
+                nn.Linear(64, 16),
+                ll_act,
+                nn.BatchNorm1d(16, affine=False),
+                nn.Dropout(dropout_rate),
+                nn.Linear(16, nstyle),
+                nn.BatchNorm1d(16, affine=False)
+            ]
+        )
+
+    def forward(self, spec):
+        z_gauss = self.main(spec)
         return z_gauss
 
 
@@ -407,10 +462,10 @@ class CompactDecoder(nn.Module):
         return spec
 
 
-class FCDecoder(nn.Module):
+class QvecDecoder(nn.Module):
 
     def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=12):
-        super(FCDecoder, self).__init__()
+        super(QvecDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
@@ -446,6 +501,71 @@ class FCDecoder(nn.Module):
     def forward(self, z_gauss):
         q_vec = self.main(z_gauss) + self.short_cut(z_gauss)
         return q_vec
+
+
+class FCDecoder(nn.Module):
+
+    def __init__(
+        self, 
+        dropout_rate=0.2, 
+        nstyle=2, 
+        debug=False, 
+        dim_out=256, 
+        last_layer_activation='ReLu', 
+        layers=3,
+        hidden_size=64):
+        super(FCDecoder, self).__init__()
+
+        if last_layer_activation == 'ReLu':
+            ll_act = nn.ReLU()
+        elif last_layer_activation == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+    
+        sequential_layers = [ # first layer
+            nn.Linear(nstyle, 16),
+            nn.PReLU(num_parameters=16, init=0.01),
+            nn.BatchNorm1d(16, affine=False),
+            nn.Dropout(p=dropout_rate)
+        ]
+
+        sequential_layers.extend( # 2nd layer
+            [
+                nn.Linear(16, hidden_size),
+                nn.PReLU(num_parameters=hidden_size, init=0.01),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(p=dropout_rate)
+            ]
+        )
+        for _ in range(layers-3):
+            sequential_layers.extend( # the n layers in the middle
+                [
+                    nn.Linear(hidden_size, hidden_size),
+                    nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    nn.BatchNorm1d(hidden_size, affine=False),
+                    nn.Dropout(p=dropout_rate),
+                ]
+            )
+        sequential_layers.extend( # the last 2 layers
+            [
+                nn.Linear(hidden_size, hidden_size),
+                ll_act,
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(dropout_rate),
+                nn.Linear(hidden_size, dim_out)
+            ]
+        )  
+
+        self.main = nn.Sequential(*sequential_layers)
+        
+        self.nstyle = nstyle
+        self.debug = debug
+
+    def forward(self, z_gauss):
+        spec = self.main(z_gauss)
+        return spec
 
 
 class DiscriminatorCNN(nn.Module):

@@ -12,7 +12,20 @@ import os
 import logging
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
-from sc.clustering.model import CompactDecoder, CompactEncoder, Encoder, Decoder, FCDecoder, FCEncoder, GaussianSmoothing, DummyDualAAE, DiscriminatorCNN, DiscriminatorFC
+from sc.clustering.model import (
+    CompactDecoder, 
+    CompactEncoder, 
+    Encoder, 
+    Decoder, 
+    QvecDecoder, 
+    QvecEncoder, 
+    FCDecoder,
+    FCEncoder,
+    GaussianSmoothing, 
+    DummyDualAAE, 
+    DiscriminatorCNN, 
+    DiscriminatorFC
+)
 from sc.clustering.dataloader import get_dataloaders
 from torchvision import transforms
 from sc.clustering.dataloader import AuxSpectraDataset, ToTensor
@@ -363,12 +376,13 @@ class Trainer:
                   sch_factor=0.25, sch_patience=300, spec_noise=0.01,
                   lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=12,
+                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=256,
                   use_flex_spec_target=False, optimizer_name="AdamW",
                   decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
                        "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder},
+                       "qved": {"encoder": QvecEncoder, "decoder": QvecDecoder},
                        "FC": {"encoder": FCEncoder, "decoder": FCDecoder}}
         assert ae_form in ae_cls_dict
         dl_train, dl_val, dl_test = get_dataloaders(
@@ -414,7 +428,7 @@ class Trainer:
                           sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
-                          lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name,
+                          lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name, batch_size=batch_size,
                           use_flex_spec_target=use_flex_spec_target,
                           verbose=verbose, work_dir=work_dir)
         return trainer

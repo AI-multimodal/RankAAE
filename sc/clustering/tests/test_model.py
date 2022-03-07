@@ -1,5 +1,16 @@
 from unittest import TestCase
-from sc.clustering.model import EncodingBlock, DecodingBlock, Encoder, Decoder, FCDecoder, FCEncoder, GaussianSmoothing, DummyDualAAE, CompactEncoder, CompactDecoder
+from sc.clustering.model import (
+    CompactDecoder, 
+    CompactEncoder, 
+    EncodingBlock,
+    DecodingBlock,
+    Encoder, 
+    Decoder, 
+    QvecDecoder, 
+    QvecEncoder, 
+    GaussianSmoothing, 
+    DummyDualAAE
+)
 import torch
 from torch import nn
 
@@ -48,10 +59,10 @@ class TestCompactDecoder(TestCase):
         self.assertEqual(eb(tz).shape, (32, 256))
 
 
-class TestFCDecoder(TestCase):
+class TestQvecDecoder(TestCase):
     def test_model(self):
         tz = torch.ones(32, 3)
-        eb = FCDecoder(nstyle=3)
+        eb = QvecDecoder(nstyle=3)
         self.assertEqual(eb(tz).shape, (32, 12))
 
 
@@ -62,10 +73,10 @@ class TestCompactEncoder(TestCase):
         self.assertEqual(eb(t).shape, (64, 2))
 
 
-class TestFCEncoder(TestCase):
+class TestQvecEncoder(TestCase):
     def test_model(self):
         t = torch.ones((64, 12))
-        eb = FCEncoder(nstyle=3)
+        eb = QvecEncoder(nstyle=3)
         self.assertEqual(eb(t).shape, (64, 3))
 
 
