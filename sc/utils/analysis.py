@@ -92,6 +92,7 @@ def get_confusion_matrix(cn, style_cn, ax=None):
     """
     get donfusion matrix for a discrete descriptor, such as coordination number.
     """
+    
     data_length = len(cn)
     thresh_grid = np.linspace(-3.5, 3.5, 700)
     cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
@@ -113,6 +114,12 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         sep_confusion_matrix = sep_confusion_matrix_
     
     sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
+
+    result = {
+        "F1 Score": np.round(sep_threshold_f1_score, 4).tolist(),
+        "CN45 Threshold": np.round(cn45_thresh, 4).tolist(),
+        "CN56 Threshold": np.round(cn56_thresh, 4).tolist()
+    }
 
     if ax is not None:
         sns.set_palette('bright', 2)
@@ -153,7 +160,7 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         axins.tick_params(bottom=False, labelsize=10)
         axins.yaxis.set_major_locator(ticker.NullLocator())
 
-    return round(sep_threshold_f1_score.tolist(), 4)
+    return result
     
 
 def get_descriptor_style_relation(

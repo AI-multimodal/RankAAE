@@ -1,63 +1,5 @@
 0:
   Reconstruct Err:
-  - 0.0313
-  - 0.0099
-  Style:
-    0:
-      Linear:
-        R2: 0.7491
-        intercept: 0.211
-        slope: 5.2001
-      Quadruple:
-        Parameters:
-        - 0.1951
-        - 5.2581
-        - 0.3884
-        residue:
-        - 0.4009
-      Spearman: 0.8377
-    1: 1.0
-    2:
-      Linear:
-        R2: 0.5387
-        intercept: -3.1956
-        slope: 0.9303
-      Quadruple:
-        Parameters:
-        - -3.4395
-        - 1.0766
-        - -0.0206
-        residue:
-        - 0.5408
-      Spearman: 0.7415
-    3:
-      Linear:
-        R2: 0.5366
-        intercept: -0.9864
-        slope: 18.143
-      Quadruple:
-        Parameters:
-        - -0.9923
-        - 18.4577
-        - -2.4568
-        residue:
-        - 0.4293
-      Spearman: 0.722
-    4:
-      Linear:
-        R2: 0.3516
-        intercept: -11.4019
-        slope: 4.0811
-      Quadruple:
-        Parameters:
-        - 10.0893
-        - -12.0273
-        - 3.0119
-        residue:
-        - 0.4701
-      Spearman: 0.6134
-1:
-  Reconstruct Err:
   - 0.0308
   - 0.0091
   Style:
@@ -74,7 +16,10 @@
         residue:
         - 0.3839
       Spearman: 0.8466
-    1: 1.0
+    1:
+      CN45 Threshold: -3.5
+      CN56 Threshold: -3.5
+      F1 Score: 1.0
     2:
       Linear:
         R2: 0.5227
@@ -114,3 +59,64 @@
         residue:
         - 0.3972
       Spearman: 0.6154
+1:
+  Reconstruct Err:
+  - 0.0313
+  - 0.0099
+  Style:
+    0:
+      Linear:
+        R2: 0.7491
+        intercept: 0.211
+        slope: 5.2001
+      Quadruple:
+        Parameters:
+        - 0.1951
+        - 5.2581
+        - 0.3884
+        residue:
+        - 0.4009
+      Spearman: 0.8377
+    1:
+      CN45 Threshold: -3.5
+      CN56 Threshold: -3.5
+      F1 Score: 1.0
+    2:
+      Linear:
+        R2: 0.5387
+        intercept: -3.1956
+        slope: 0.9303
+      Quadruple:
+        Parameters:
+        - -3.4395
+        - 1.0766
+        - -0.0206
+        residue:
+        - 0.5408
+      Spearman: 0.7415
+    3:
+      Linear:
+        R2: 0.5366
+        intercept: -0.9864
+        slope: 18.143
+      Quadruple:
+        Parameters:
+        - -0.9923
+        - 18.4577
+        - -2.4568
+        residue:
+        - 0.4293
+      Spearman: 0.722
+    4:
+      Linear:
+        R2: 0.3516
+        intercept: -11.4019
+        slope: 4.0811
+      Quadruple:
+        Parameters:
+        - 10.0893
+        - -12.0273
+        - 3.0119
+        residue:
+        - 0.4701
+      Spearman: 0.6134
