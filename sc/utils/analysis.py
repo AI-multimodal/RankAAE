@@ -107,6 +107,25 @@ def find_top_models(model_path, test_ds, n=5):
     
     return [model_list[i] for i in top_indices]
 
+def find_top_models(model_path, test_ds, n=5):
+    '''
+    Find top 5 models with leas correlatioin among styles, in descending order of goodness.
+    '''
+    model_files = os.path.join(model_path, "job_*/final.pt")
+    fn_list = sorted(glob.glob(model_files), 
+                    key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
+    style_cor_list = []
+    model_list = []
+    for fn in fn_list:
+        model = torch.load(fn, map_location=torch.device('cpu'))
+        style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
+        model_list.append(model)
+    
+    # get the indices for top n least correlated styles, the first entry is the best model.
+    top_indices = np.argsort(style_cor_list)[:n]
+    
+    return [model_list[i] for i in top_indices]
+    
 
 def get_confusion_matrix(cn, style_cn, ax=None):
     """
