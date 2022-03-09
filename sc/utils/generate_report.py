@@ -52,10 +52,25 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     for row in [4,5,6,7]:
         for col in [0,1,2,3]:
             ax = fig.add_subplot(gs[row,col])
+            
+            # only correlated style has fitted line plotted.
+            if col == row-4: 
+                plot_fit = True
+            else:
+                plot_fit = False
+
+            # for the first style (CT) use polynomial as fitting
+            if col == 0:
+                result_choice = ["R2", "Spearman", "Quadruple"]
+            else:
+                result_choice = ["R2", "Spearman"]
+            
             accuracy = analysis.get_descriptor_style_relation(
                 styles_no_s2[:,col], 
                 descriptors_no_cn[:,row-4], 
-                ax=ax
+                ax=ax,
+                choice = result_choice,
+                fit = plot_fit,
             )
          
             ax.set_title(
@@ -78,6 +93,7 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
     
     return fig
+    
 
 def save_evaluation_result(save_dir, file_name, accuracy_dict, save_spectra=False):
     """
@@ -86,21 +102,15 @@ def save_evaluation_result(save_dir, file_name, accuracy_dict, save_spectra=Fals
     Information is saved to a txt file.
     """
     save_dict = {}
+    
     for i, result in accuracy_dict.items():
         if (i == 0) and save_spectra:
             spec_in = result["Input"]
             spec_out = result["Output"]
         save_dict[i] = {
-            'Accuracy': result["Accuracy"].round(4).tolist(),
-            'Reconstruct_err': round(result["Reconstruct Err"][0].tolist(),4)
+            k:v for k, v in result.items() if k not in ["Input", "Output"]
         }
-    average_accuracy = np.mean([v['Accuracy'] for v in accuracy_dict.values()],axis=0)
-    average_reconstruct_err = np.mean([v['Reconstruct Err'][0] for v in accuracy_dict.values()])
-    save_dict['Average'] = {
-        'Accuracy': average_accuracy.round(4).tolist(),
-        'Reconstruct_err': average_reconstruct_err.round(4).tolist()
-    }
-    
+
     yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
     np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
@@ -147,18 +157,18 @@ def main():
     )
 
     #### Generate report and calculate accuracy, reconstruction err, and save them
-    try:
-        accuracy_n_model = {}
-        for i, model in enumerate(top_models):
-            result = analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
-            accuracy_n_model[i] = result
-            if i == 0: # Generate Report for best model
-                fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
-        save_report_plot(work_dir, args.output_name, fig)
-        save_evaluation_result(work_dir, args.output_name, accuracy_n_model, save_spectra=True)
-        print("Success: training report saved!")
-    except Exception as e:
-        print(f"Fail: Cannot save training report: {e:s}")
+    accuracy_n_model = {}
+    
+    for i, model in enumerate(top_models):
+        accuracy_n_model[i] = \
+            analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+        if i == 0: # Generate Report for best model
+            fig = plot_report(test_ds, top_models[0], n_aux=5, title=args.output_name)
+    
+    save_report_plot(work_dir, args.output_name, fig)
+    save_evaluation_result(work_dir, args.output_name, accuracy_n_model, save_spectra=True)
+    
+    print("Success: training report saved!")
 
 if __name__ == "__main__":
     main()

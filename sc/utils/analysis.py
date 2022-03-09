@@ -18,10 +18,6 @@ import seaborn as sns
 import plotly.express as px
 
 
-
-
-
-
 def get_style_correlations(ds, encoder):
     encoder.eval()
     val_spec = torch.tensor(ds.spec, dtype=torch.float32)
@@ -90,7 +86,11 @@ def find_top_models(model_path, test_ds, n=5):
         style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
         result = model_evaluation(test_ds, model)
         reconst_err_list.append(result["Reconstruct Err"][0]) # reconstruction err
-        accuracy_list.append(np.mean(result["Accuracy"])) # average accuracy for descriptors
+        accuracy_list.append(
+            np.mean( # CN f1-score not included. 
+                [result["Style"][i]["Spearman"] for i in result["Style"] if i!=1]
+            )
+        ) # average accuracy for descriptors
     
     scores = np.stack(
         (
@@ -173,21 +173,26 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         axins.tick_params(bottom=False, labelsize=10)
         axins.yaxis.set_major_locator(ticker.NullLocator())
 
-    return sep_threshold_f1_score
+    return round(sep_threshold_f1_score.tolist(), 4)
     
 
 def get_descriptor_style_relation(
     style, 
     descriptor, 
     ax = None,
-    choice = ["R2", "Spearman"]
-    ):
-    
+    choice = ["R2", "Spearman"],
+    fit = True
+):
     """
     Calculate the relations between styles and descriptors including R^2, Spearman, Polynomial/Linear fitting etc.
     If axis is given, scatter plot of given descriptor and style is also plotted.
     """
     
+    # Make sure "style" is sorted.
+    sorted_index = np.argsort(style)
+    style = style[sorted_index]
+    descriptor = descriptor[sorted_index]
+
     # Initialize accuracy dictionary.
     accuracy = {
         "Spearman": None,
@@ -205,23 +210,27 @@ def get_descriptor_style_relation(
     # R^2 for the linear fitting
     if "R2" in choice:
         result = stats.linregress(style, descriptor)
-        accuracy["Linear"]["R2"] = round(float(result.rvalue**2))
-        accuracy["Linear"]["intercept"] = round(float(result.intercept))
-        accuracy["Linear"]["slope"] = round(float(result.slope))
-    
+        accuracy["Linear"]["R2"] = round(float(result.rvalue**2), 4)
+        accuracy["Linear"]["intercept"] = round(float(result.intercept), 4)
+        accuracy["Linear"]["slope"] = round(float(result.slope), 4)
+        fitted_value = result.intercept + style * result.slope
+
     # spearman coefficient
     if "Spearman" in choice:
         sm = spearmanr(style, descriptor).correlation
-        accuracy["Spearman"] = round(float(sm),4)
+        accuracy["Spearman"] = round(float(sm), 4)
     
     if "Quadruple" in choice:
-        series, info = Polynomial.fit(style, descriptor, 2, full=True)
-        accuracy["Quadruple"]["Parameters"] = series.convert().coef
-        accuracy["Quadruple"]["residue"] = info[0]/len(style)
-    
+        p, info = Polynomial.fit(style, descriptor, 2, full=True)
+        accuracy["Quadruple"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
+        accuracy["Quadruple"]["residue"] = np.round(info[0]/len(style), 4).tolist()
+        fitted_value = p(style)
+
     if ax is not None:
         ax.scatter(style, descriptor, s=10.0, c='blue', edgecolors='none', alpha=0.8)
-    
+        if fit:
+            ax.plot(style, fitted_value, lw=2, c='black', alpha=0.5)
+
     return accuracy
 
 
@@ -234,12 +243,11 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
     '''
     descriptors = test_ds.aux
     result = {
-        "Accuracy": np.empty(descriptors.shape[1]),
+        "Style": {},
         "Input": None, 
         "Output": None,
-        "Reconstruct Err": (None, None)
+        "Reconstruct Err": (None, None),
     }
-    result["Accuracy"].fill(np.NaN)
     
     encoder = model['Encoder']
     decoder = model['Decoder']
@@ -255,18 +263,22 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
         mae_list = []
         for s1, s2 in zip(spec_in, spec_out):
             mae_list.append(mean_absolute_error(s1, s2))
-        result["Reconstruct Err"] = np.mean(mae_list), np.std(mae_list)
+        result["Reconstruct Err"] = [
+            round(np.mean(mae_list).tolist(),4),
+            round(np.std(mae_list).tolist(),4)
+        ]
         result["Output"] = spec_out
 
     if return_accuracy:
         styles = styles.numpy()
-        for i in range(len(result["Accuracy"])):
+        for i in range(descriptors.shape[1]):
             if i==1: # CN
-                result["Accuracy"][i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
+                result["Style"][i] = \
+                    get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
             else:
-                accuracy_dict = get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None)
-                result["Accuracy"][i] = accuracy_dict["Spearman"]
-    
+                result["Style"][i] = \
+                    get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None,
+                                                  choice = ["R2", "Spearman", "Quadruple"])
     return result
 
 
