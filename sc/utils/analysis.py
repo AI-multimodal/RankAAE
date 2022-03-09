@@ -70,40 +70,20 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
 
 def find_top_models(model_path, test_ds, n=5):
     '''
-    Find top 5 models using multi metrics, in descending order of goodness.
+    Find top 5 models with leas correlatioin among styles, in descending order of goodness.
     '''
     model_files = os.path.join(model_path, "job_*/final.pt")
     fn_list = sorted(glob.glob(model_files), 
                     key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
-    
     style_cor_list = []
-    reconst_err_list = []
-    accuracy_list = []
     model_list = []
     for fn in fn_list:
         model = torch.load(fn, map_location=torch.device('cpu'))
-        model_list.append(model)
         style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
-        result = model_evaluation(test_ds, model)
-        reconst_err_list.append(result["Reconstruct Err"][0]) # reconstruction err
-        accuracy_list.append(
-            np.mean( # CN f1-score not included. 
-                [result["Style"][i]["Spearman"] for i in result["Style"] if i!=1]
-            )
-        ) # average accuracy for descriptors
+        model_list.append(model)
     
-    scores = np.stack(
-        (
-            style_cor_list,
-            reconst_err_list,
-            accuracy_list
-        )
-    )
-
-    final_score = (scores[2] - scores[0]) / scores[1]
-
     # get the indices for top n least correlated styles, the first entry is the best model.
-    top_indices = np.argsort(final_score)[:n]
+    top_indices = np.argsort(style_cor_list)[:n]
     
     return [model_list[i] for i in top_indices]
 
