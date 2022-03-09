@@ -188,7 +188,7 @@ def get_descriptor_style_relation(
             "intercept": None,
             "R2": None
         },
-        "Quadruple": {
+        "Quadratic": {
             "Parameters": [None, None, None],
             "residue": None
         }
@@ -207,10 +207,10 @@ def get_descriptor_style_relation(
         sm = spearmanr(style, descriptor).correlation
         accuracy["Spearman"] = round(float(sm), 4)
     
-    if "Quadruple" in choice:
+    if "Quadratic" in choice:
         p, info = Polynomial.fit(style, descriptor, 2, full=True)
-        accuracy["Quadruple"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
-        accuracy["Quadruple"]["residue"] = np.round(info[0]/len(style), 4).tolist()
+        accuracy["Quadratic"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
+        accuracy["Quadratic"]["residue"] = np.round(info[0]/len(style), 4).tolist()
         fitted_value = p(style)
 
     if ax is not None:
@@ -265,7 +265,7 @@ def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=Tr
             else:
                 result["Style"][i] = \
                     get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None,
-                                                  choice = ["R2", "Spearman", "Quadruple"])
+                                                  choice = ["R2", "Spearman", "Quadratic"])
     return result
 
 
