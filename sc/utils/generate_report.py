@@ -115,6 +115,7 @@ def save_evaluation_result(save_dir, file_name, accuracy_dict, save_spectra=Fals
     np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
 
+
 def save_report_plot(save_dir, file_name, fig):
     fig.savefig(
             os.path.join(save_dir, file_name+".png"),
