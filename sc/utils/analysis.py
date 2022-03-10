@@ -190,28 +190,31 @@ def get_descriptor_style_relation(
         },
         "Quadratic": {
             "Parameters": [None, None, None],
-            "residue": None
+            "residue": None,
+            "R2": None
         }
     }
 
     # R^2 for the linear fitting
     if "R2" in choice:
         result = stats.linregress(style, descriptor)
-        accuracy["Linear"]["R2"] = round(float(result.rvalue**2), 4)
-        accuracy["Linear"]["intercept"] = round(float(result.intercept), 4)
-        accuracy["Linear"]["slope"] = round(float(result.slope), 4)
+        accuracy["Linear"]["R2"] = np.round(float(result.rvalue**2), 4).tolist()
+        accuracy["Linear"]["intercept"] = np.round(float(result.intercept), 4).tolist()
+        accuracy["Linear"]["slope"] = np.round(float(result.slope), 4).tolist()
         fitted_value = result.intercept + style * result.slope
 
     # spearman coefficient
     if "Spearman" in choice:
         sm = spearmanr(style, descriptor).correlation
-        accuracy["Spearman"] = round(float(sm), 4)
+        accuracy["Spearman"] = np.round(float(sm), 4).tolist()
     
     if "Quadratic" in choice:
         p, info = Polynomial.fit(style, descriptor, 2, full=True)
         accuracy["Quadratic"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
         accuracy["Quadratic"]["residue"] = np.round(info[0]/len(style), 4).tolist()
         fitted_value = p(style)
+        accuracy['Quadratic']["R2"] = \
+            np.round(stats.linregress(fitted_value, descriptor).rvalue**2, 4).tolist()
 
     if ax is not None:
         ax.scatter(style, descriptor, s=10.0, c='blue', edgecolors='none', alpha=0.8)
