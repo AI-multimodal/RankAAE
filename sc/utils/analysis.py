@@ -42,9 +42,28 @@ def create_plotly_colormap(n_colors):
     return target_rgb_strings
 
 
-def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000, amplitude=2):
+def plot_spectra_variation(decoder, istyle, styles=None, x=None, ax=None, n_spec=50, n_sampling=1000, amplitude=2):
     """
     Spectra variation plot by varying one of the styles.
+
+    Parameters : 
+    decoder : sc.clustering.model.Decoder
+        The decoder from the model.
+    istyle : int
+        The style index ranging from 0~5.
+    x : array_like
+        If not none, x axis varials in the plot.
+    ax : 
+        The axis to plot on
+    n_spec : int
+        Number of spectra needed to plot the spread of the spectra variation.
+    n_sampling : int
+        The core idea is a 3-D matrix of shape (n_spec, n_sampling, n_styles) sampled form a normal
+        distribution. The dimension of `n_sampling` will be averaged to achive the average effect.
+        For the correlated style_i the slice matrix[...,i] will be set to `n_sampling` repetition of
+        uniformly sampled `n_spec` numbers. 
+    styles : array_like
+        The styles array of shape [N, n_style]. It is not none only if n_sampling is "percentile"
     """
     decoder.eval()
     if n_sampling == None:
@@ -53,13 +72,16 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
         con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
         spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
         colors = sns.color_palette("hsv", n_spec)
-    else:
+    elif isinstance(n_sampling, int):
         con_c = torch.randn([n_spec, n_sampling, decoder.nstyle])
         style_variation = torch.linspace(-amplitude, amplitude, n_spec)
         con_c[..., istyle] = style_variation[:,np.newaxis]
         con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
         spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
         colors = create_plotly_colormap(n_spec)
+    elif n_sampling == "percentile":
+        percentile_grid = np.percentile(styles, np.linspace(1,99,99), axis=0)
+        
     for spec, color in zip(spec_out, colors):
         if x is None:
             ax.plot(spec, lw=0.8, c=color)
