@@ -15,7 +15,8 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    style_correlation = analysis.get_style_correlations(test_ds, encoder)
+    result = analysis.model_evaluation(test_ds, model)
+    style_correlation = result["Style"]
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
     test_grid = test_ds.grid
@@ -153,17 +154,17 @@ def main():
     top_models = analysis.find_top_models(
         os.path.join(work_dir, "training"), 
         test_ds, 
-        n = 5
     )
 
     #### Generate report and calculate accuracy, reconstruction err, and save them
     accuracy_n_model = {}
     
-    for i, model in enumerate(top_models):
-        accuracy_n_model[i] = \
-            analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
+    for i, (model, result) in enumerate(top_models):
+        if i >= 5: # for now only choose five best models
+            break
+        accuracy_n_model[i] = result
         if i == 0: # Generate Report for best model
-            fig = plot_report(test_ds, top_models[0], n_aux=5, title=args.output_name)
+            fig = plot_report(test_ds, model, n_aux=5, title=args.output_name)
     
     save_report_plot(work_dir, args.output_name, fig)
     save_evaluation_result(work_dir, args.output_name, accuracy_n_model, save_spectra=True)
