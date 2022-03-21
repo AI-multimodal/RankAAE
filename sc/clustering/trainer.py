@@ -302,7 +302,7 @@ class Trainer:
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_len = aux_pred.size()[0]
-                aux_loss = - (self.aux_weights[np.newaxis, :, np.newaxis] * aux_pred * aux_target).sum() / (
+                aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / (
                     (aux_len**2 - aux_len) * n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 if self.verbose:
