@@ -44,6 +44,7 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
+                 aux_weights=None,
                  verbose=True, work_dir='.', use_flex_spec_target=False):
 
         self.encoder = encoder.to(device)
@@ -88,6 +89,12 @@ class Trainer:
         self.use_flex_spec_target = use_flex_spec_target
         self.optimizer_name = optimizer_name
         self.weight_decay = weight_decay
+        train_ds: AuxSpectraDataset = train_loader.dataset
+        n_aux = train_ds.aux.shape[1]
+        if aux_weights is None:
+            aux_weights = [1.0] * n_aux
+        assert len(aux_weights) == n_aux
+        self.aux_weights = torch.tensor(aux_weights, device=self.device)
 
     def zerograd(self):
         self.encoder.zero_grad()
@@ -295,7 +302,8 @@ class Trainer:
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_len = aux_pred.size()[0]
-                aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                aux_loss = - (self.aux_weights[np.newaxis, :, np.newaxis] * aux_pred * aux_target).sum() / (
+                    (aux_len**2 - aux_len) * n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 if self.verbose:
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
@@ -378,6 +386,7 @@ class Trainer:
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=256,
                   use_flex_spec_target=False, optimizer_name="AdamW",
+                  aux_weights=None,
                   decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
@@ -429,7 +438,7 @@ class Trainer:
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
                           lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name, batch_size=batch_size,
-                          use_flex_spec_target=use_flex_spec_target,
+                          use_flex_spec_target=use_flex_spec_target, aux_weights=aux_weights,
                           verbose=verbose, work_dir=work_dir)
         return trainer
 
