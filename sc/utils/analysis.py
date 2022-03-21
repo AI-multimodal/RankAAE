@@ -54,37 +54,62 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
     ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
 
-def find_top_models(model_path, test_ds, plot=False):
+def find_top_models(
+    model_path, 
+    test_ds, 
+    plot = False, 
+    sort_score = lambda x: (x[:,2] - x[:,0]) / x[:,1]
+):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
-    model_list = []
-    result_list = []
-    
-    for job_path in os.listdir(model_path):
-        if not job_path.startswith("job_"):
-            continue
+
+    # define the returned dictionary
+    result = {
+        job_path: {
+            "result": None,
+            "rank": None
+        }
+        for job_path in os.listdir(model_path) if job_path.startswith("job_")
+    }
+
+    # evaluate model
+    for job_path in result.keys():        
         model = torch.load(
             os.path.join(model_path, job_path, "final.pt"), 
             map_location = torch.device('cpu')
         )
-        model_list.append(model)
-        result_list.append(model_evaluation(test_ds, model))
-    
-    # get the indices for top n least correlated styles, the first entry is the best model.
-    scores = show_evaluation(result_list, plot=plot)    
-    final_score = (scores[:,2] - scores[:,0]) / scores[:,1]
-    top_indices = np.argsort(final_score)
-    
-    return [(model_list[i], result_list[i]) for i in top_indices]
+        result[job_path]["result"] = model_evaluation(test_ds, model)
 
-def show_evaluation(result_list, plot=False):
+    # sort model
+    result = sort_evaluation(
+        result, # takes a list of "result".
+        plot=plot, 
+        sort_score=sort_score
+    ) 
+    
+    return result
+
+
+def sort_evaluation(
+    result_dict, 
+    plot = False,
+    top_n = None, 
+    color_range = (-10,10), 
+    sort_score = None,
+    ascending = True
+):
     """
-    Given the input result_list, calculate (and plot) the scre matrix.
+    Given the input result dict, calculate (and plot) the score matrix.
+    Update the "rank" attribute and return the updated result dict.
     """
-    score_names = ["Style", "Reconst", "Spearm"]
+    # define the scores to be sorted
+    score_names = ["Style", "Reconstion Err", "Descriptor"]
     scores = []
-    for result in result_list:
+    jobs = []
+    for job, result in result_dict.items():
+        result = result['result']
+        jobs.append(job)
         scores.append(
             [
                 result["Style"],
@@ -94,25 +119,49 @@ def show_evaluation(result_list, plot=False):
                 )
             ]
         )
+    jobs = np.array(jobs)
     scores = np.array(scores)
 
+
+    # sort scroes
+    if callable(sort_score):  # sort according to the `sort_score` algorithm 
+        rank = np.argsort(sort_score(scores))
+    elif isinstance(sort_score, int) and sort_score>=0: # sort according to a single column
+        rank = np.argsort(scores[:,sort_score])
+    else:
+        rank = np.arange(len(scores)) # no sorting
+    if not (sort_score is None or ascending):
+        rank = rank[::-1] # descending order
+    
+    for i, job in enumerate(jobs[rank]):
+        result_dict[job]['rank'] = i
+
+    # plot out the heat map of scores
     if plot:
-        fig, ax = plt.subplots(figsize = scores.shape)
+        # normalize the score so their color fall in the same range
+        scores_standard = (scores - scores.mean(axis=0)) / scores.std(axis=0)
+
+        if top_n is None:
+            rank_plot = rank
+        else:
+            rank_plot = rank[:top_n]
+
+        fig, ax = plt.subplots(figsize = (scores.shape[1], len(rank_plot)))
         ax.autoscale(enable=True)
         sns.heatmap(
-            scores,
-            cmap = 'Blues',
-            annot = True,
-            cbar = True,
+            scores_standard[rank_plot],
+            vmin = color_range[0], vmax = color_range[1],
+            cmap = 'Blues', cbar = True, 
+            annot = scores[rank_plot],  # annotate the map using unnormalized score
             xticklabels = score_names,
-            yticklabels = np.arange(len(scores)),
+            yticklabels = jobs[rank_plot],
             ax = ax
         )
         ax.tick_params(labelbottom=False,labeltop=True, axis='both', length=0,labelsize=15)
         fig
         # plt.close() # prevent the figure from showing inside the function
 
-    return scores
+    return result_dict
 
 
 def get_confusion_matrix(cn, style_cn, ax=None):
@@ -208,7 +257,7 @@ def get_descriptor_style_relation(
             "intercept": None,
             "R2": None
         },
-        "Quadruple": {
+        "Quadratic": {
             "Parameters": [None, None, None],
             "residue": None
         }
@@ -227,10 +276,10 @@ def get_descriptor_style_relation(
         sm = spearmanr(style, descriptor).correlation
         accuracy["Spearman"] = round(float(sm), 4)
     
-    if "Quadruple" in choice:
+    if "Quadratic" in choice:
         p, info = Polynomial.fit(style, descriptor, 2, full=True)
-        accuracy["Quadruple"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
-        accuracy["Quadruple"]["residue"] = np.round(info[0]/len(style), 4).tolist()
+        accuracy["Quadratic"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
+        accuracy["Quadratic"]["residue"] = np.round(info[0]/len(style), 4).tolist()
         fitted_value = p(style)
 
     if ax is not None:
@@ -292,7 +341,7 @@ def model_evaluation(
             else:
                 result["Descriptor"][i] = \
                     get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None,
-                                                  choice = ["R2", "Spearman", "Quadruple"])
+                                                  choice = ["R2", "Spearman", "Quadratic"])
     if style:
         result["Style"] = max(
             [
