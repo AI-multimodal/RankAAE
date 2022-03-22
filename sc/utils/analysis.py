@@ -58,32 +58,25 @@ def find_top_models(
     model_path, 
     test_ds, 
     plot = False, 
-    sort_score = lambda x: (x[:,2] - x[:,0]) / x[:,1]
+    sort_score = lambda x: (x[:,0] - np.mean(x[:,2:])) / x[:,1]
 ):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
 
-    # define the returned dictionary
-    result = {
-        job_path: {
-            "result": None,
-            "rank": None
-        }
-        for job_path in os.listdir(model_path) if job_path.startswith("job_")
-    }
-
     # evaluate model
-    for job_path in result.keys():        
-        model = torch.load(
-            os.path.join(model_path, job_path, "final.pt"), 
-            map_location = torch.device('cpu')
-        )
-        result[job_path]["result"] = model_evaluation(test_ds, model)
+    result = {}
+    for job in os.listdir(model_path):
+        if job.startswith("job_"):
+            model = torch.load(
+                os.path.join(model_path, job, "final.pt"), 
+                map_location = torch.device('cpu')
+            )
+            result[job] = model_evaluation(test_ds, model)
 
     # sort model
     result = sort_evaluation(
-        result, # takes a list of "result".
+        result, # takes a diction of "result".
         plot=plot, 
         sort_score=sort_score
     ) 
@@ -97,66 +90,87 @@ def sort_evaluation(
     top_n = None, 
     color_range = (-10,10), 
     sort_score = None,
-    ascending = True
+    ascending = True,
+    annot_z_score = False
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.
     Update the "rank" attribute and return the updated result dict.
+    Add key "score" to the result.
     """
     # define the scores to be sorted
-    score_names = ["Style", "Reconstion Err", "Descriptor"]
+    score_names = [
+        "Inter-style Corr", # 0
+        "Reconstion Err", # 1
+        "Style_1 - CT Corr", # 2
+        "Style_2 - CN Corr", # 3
+        "Style_3 - OCN Corr", # 4
+        "Style_4 - Rstd Corr", # 5
+        "Style_5 - MOOD Corr", # 6
+        
+    ]
     scores = []
     jobs = []
     for job, result in result_dict.items():
-        result = result['result']
+        
         jobs.append(job)
         scores.append(
             [
-                result["Style"],
-                result["Reconstruct Err"][0],
-                np.mean( # CN f1-score not included. 
-                        [result["Descriptor"][i]["Spearman"] for i in result["Descriptor"] if i!=1]
-                )
+                result["Inter-style Corr"], # 0
+                result["Reconstruct Err"][0], # 1
+                result["Style-descriptor Corr"][0]['Spearman'], # 2
+                result["Style-descriptor Corr"][1]["F1 score"], # 3
+                result["Style-descriptor Corr"][2]['Spearman'], # 4
+                result["Style-descriptor Corr"][3]['Spearman'], # 5
+                result["Style-descriptor Corr"][4]['Spearman'], # 6
             ]
         )
     jobs = np.array(jobs)
     scores = np.array(scores)
 
+    # normalize the score so their color fall in the same range
+    mu_std = np.stack((scores.mean(axis=0), scores.std(axis=0)), axis=1)
+    z_scores = (scores - mu_std[:,0]) / mu_std[:,1]
 
+    
     # sort scroes
     if callable(sort_score):  # sort according to the `sort_score` algorithm 
-        rank = np.argsort(sort_score(scores))
+        final_score = sort_score(z_scores)
     elif isinstance(sort_score, int) and sort_score>=0: # sort according to a single column
-        rank = np.argsort(scores[:,sort_score])
+        final_score = scores[:, sort_score]
     else:
-        rank = np.arange(len(scores)) # no sorting
-    if not (sort_score is None or ascending):
+        final_score = np.arange(len(scores)) # no sorting
+    rank = np.argsort(final_score)
+    if (sort_score is not None) and (not ascending):
         rank = rank[::-1] # descending order
     
-    for i, job in enumerate(jobs[rank]):
-        result_dict[job]['rank'] = i
-
+    for i, (job, score) in enumerate(zip(jobs[rank], final_score[rank])):
+        result_dict[job]['Rank'] = i
+        result_dict[job]['Score'] = round(score, 4)
+        
     # plot out the heat map of scores
     if plot:
-        # normalize the score so their color fall in the same range
-        scores_standard = (scores - scores.mean(axis=0)) / scores.std(axis=0)
 
         if top_n is None:
             rank_plot = rank
         else:
             rank_plot = rank[:top_n]
 
-        fig, ax = plt.subplots(figsize = (scores.shape[1], len(rank_plot)))
+        fig, ax = plt.subplots(figsize = (len(rank_plot), scores.shape[1]))
         ax.autoscale(enable=True)
         sns.heatmap(
-            scores_standard[rank_plot],
+            z_scores[rank_plot].T,
             vmin = color_range[0], vmax = color_range[1],
             cmap = 'Blues', cbar = True, 
-            annot = scores[rank_plot],  # annotate the map using unnormalized score
-            xticklabels = score_names,
-            yticklabels = jobs[rank_plot],
+            annot = z_scores[rank_plot].T if annot_z_score else scores[rank_plot].T, 
+            yticklabels = [
+                f"{name}\n{ms[0]:.3f}+-{ms[1]:.3f}" for name, ms in zip(score_names, mu_std)
+            ],
+            xticklabels = jobs[rank_plot],
             ax = ax
         )
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+        ax.set_xticklabels(ax.get_xticklabels(),rotation=45, ha='left',va='bottom')
         ax.tick_params(labelbottom=False,labeltop=True, axis='both', length=0,labelsize=15)
         fig
         # plt.close() # prevent the figure from showing inside the function
@@ -168,6 +182,11 @@ def get_confusion_matrix(cn, style_cn, ax=None):
     """
     get donfusion matrix for a discrete descriptor, such as coordination number.
     """
+    result = {
+        "F1 score": None,
+        "CN45 Threshold": None,
+        "CN56 Threshold": None
+    }
     data_length = len(cn)
     thresh_grid = np.linspace(-3.5, 3.5, 700)
     cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
@@ -189,6 +208,10 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         sep_confusion_matrix = sep_confusion_matrix_
     
     sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
+
+    result["F1 score"] = round(sep_threshold_f1_score.tolist(), 4)
+    result["CN45 Threshold"] = round(cn45_thresh.tolist(), 4)
+    result["CN56 Threshold"] = round(cn56_thresh.tolist(), 4)
 
     if ax is not None:
         sns.set_palette('bright', 2)
@@ -229,7 +252,8 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         axins.tick_params(bottom=False, labelsize=10)
         axins.yaxis.set_major_locator(mpl.ticker.NullLocator())
 
-    return round(sep_threshold_f1_score.tolist(), 4)
+    
+    return result
     
 
 def get_descriptor_style_relation(
@@ -244,7 +268,7 @@ def get_descriptor_style_relation(
     If axis is given, scatter plot of given descriptor and style is also plotted.
     """
     
-    # Make sure "Descriptor" is sorted.
+    # Make sure "Style-descriptor Corr" is sorted.
     sorted_index = np.argsort(style)
     style = style[sorted_index]
     descriptor = descriptor[sorted_index]
@@ -305,11 +329,11 @@ def model_evaluation(
     '''
     descriptors = test_ds.aux
     result = {
-        "Descriptor": {},
+        "Style-descriptor Corr": {},
         "Input": None, 
         "Output": None,
         "Reconstruct Err": (None, None),
-        "Style": None  # Inter-style correlation
+        "Inter-style Corr": None  # Inter-style correlation
     }
     
     encoder = model['Encoder']
@@ -336,14 +360,14 @@ def model_evaluation(
         styles = styles.numpy()
         for i in range(descriptors.shape[1]):
             if i==1: # CN
-                result["Descriptor"][i] = \
+                result["Style-descriptor Corr"][i] = \
                     get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
             else:
-                result["Descriptor"][i] = \
+                result["Style-descriptor Corr"][i] = \
                     get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None,
                                                   choice = ["R2", "Spearman", "Quadratic"])
     if style:
-        result["Style"] = max(
+        result["Inter-style Corr"] = max(
             [
                 math.fabs(spearmanr(*styles[:, pair].T).correlation) \
                         for pair in itertools.combinations(range(descriptors.shape[1]), 2)

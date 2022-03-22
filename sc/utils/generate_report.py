@@ -16,7 +16,7 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     encoder = model['Encoder']
     decoder = model['Decoder']
     result = analysis.model_evaluation(test_ds, model)
-    style_correlation = result["Style"]
+    style_correlation = result["Inter-style Corr"]
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
     test_grid = test_ds.grid
@@ -62,7 +62,7 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
 
             # for the first style (CT) use polynomial as fitting
             if col == 0:
-                result_choice = ["R2", "Spearman", "Quadruple"]
+                result_choice = ["R2", "Spearman", "Quadratic"]
             else:
                 result_choice = ["R2", "Spearman"]
             
@@ -96,21 +96,21 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     return fig
     
 
-def save_evaluation_result(save_dir, file_name, accuracy_dict, save_spectra=False):
+def save_evaluation_result(save_dir, file_name, model_results, save_spectra=False, top_n=5):
     """
     Input is a dictionary of result dictionaries of model_evaluation.
     And file name to save the resul.
     Information is saved to a txt file.
     """
     save_dict = {}
-    
-    for i, result in accuracy_dict.items():
-        if (i == 0) and save_spectra:
+    for job, result in model_results.items():
+        if result['Rank'] < top_n:
+            save_dict[job] = {
+                k: v for k, v in result.items() if k not in ["Input", "Output"]
+            }
+        if (result['Rank'] == 0) and save_spectra:
             spec_in = result["Input"]
             spec_out = result["Output"]
-        save_dict[i] = {
-            k:v for k, v in result.items() if k not in ["Input", "Output"]
-        }
 
     yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
     np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
@@ -141,6 +141,7 @@ def main():
 
     args = parser.parse_args()
     work_dir = args.work_dir
+    jobs_dir = os.path.join(work_dir, "training")
     file_name = args.data_file
     
     #### Create test data set from file ####
@@ -150,24 +151,21 @@ def main():
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
     
-    #### Choose top n model based on inter style correlation ####
-    top_models = analysis.find_top_models(
-        os.path.join(work_dir, "training"), 
-        test_ds, 
-    )
+    #### Choose the 5 top model based on evaluation criteria ####
+    model_results = analysis.find_top_models(jobs_dir, test_ds)
 
-    #### Generate report and calculate accuracy, reconstruction err, and save them
-    accuracy_n_model = {}
+    for job, result in model_results.items():
+        if result['Rank'] == 0:
+            top_model = torch.load(
+                    os.path.join(jobs_dir, job, "final.pt"), 
+                    map_location = torch.device('cpu')
+            )
+            # generate report for top model
+            fig = plot_report(test_ds, top_model, n_aux=5, title=args.output_name)
     
-    for i, (model, result) in enumerate(top_models):
-        if i >= 5: # for now only choose five best models
-            break
-        accuracy_n_model[i] = result
-        if i == 0: # Generate Report for best model
-            fig = plot_report(test_ds, model, n_aux=5, title=args.output_name)
-    
+    #### Calculate accuracy, reconstruction err, and save them for top 5 models
     save_report_plot(work_dir, args.output_name, fig)
-    save_evaluation_result(work_dir, args.output_name, accuracy_n_model, save_spectra=True)
+    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=5)
     
     print("Success: training report saved!")
 
