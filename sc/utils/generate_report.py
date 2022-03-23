@@ -7,17 +7,7 @@ import yaml
 import sc.utils.analysis as analysis
 from sc.clustering.dataloader import AuxSpectraDataset
 
-WEIGHT = [ 
-    -5, # "Inter-style Corr"
-    0, # "Reconstion Err"
-    1, # "Style-Descriptor Corr 1"
-    1, # "Style-Descriptor Corr 2"
-    1, # "Style-Descriptor Corr 3"
-    1, # "Style-Descriptor Corr 4"
-    1, # "Style-Descriptor Corr 5"
-]
-
-def score(x, weight = [-5,0,1,1,1,1,1]):
+def sorting_algorithm(x):
     """
     columns of `x` respresents: 
         "Inter-style Corr", # 0
@@ -29,12 +19,13 @@ def score(x, weight = [-5,0,1,1,1,1,1]):
         "Style-Descriptor Corr 5" # 6
     """
     xx = x.copy()
-    xx[:,0] = x[:,0] * weight[0]
-    xx[:,1] = x[:,1] ** weight[1]
-    xx[:,2] = x[:,2] * weight[2]
-    xx[:,3] = x[:,3] * weight[3]
-    xx[:,4] = x[:,4] * weight[4]
-    xx[:,5] = x[:,5] * weight[5]
+    xx[:,0] = x[:,0] * (-5) # Inter-style Corr
+    xx[:,1] = x[:,1] ** (0) # Reconstion Err
+    xx[:,2] = x[:,2] * (1) # Style1 - CT Corr
+    xx[:,3] = x[:,3] * (1) # Style2 - CN Corr
+    xx[:,4] = x[:,4] * (1) # Style3 - OCN Corr
+    xx[:,5] = x[:,5] * (1) # Style4 - Rstd Corr
+    xx[:,6] = x[:,6] * (1) # Style5 - MOOD Corr
 
     return (xx[:,0] + np.sum(xx[:,2:])) / xx[:,1]
 
@@ -195,7 +186,8 @@ def main():
         model_results, 
         plot = True, 
         top_n = 20, 
-        sort_score = lambda x: score(x, weight=WEIGHT)
+        sort_score = sorting_algorithm(x),
+        ascending = False # best model has the highest score
     ) # models are sorted
     
     # genearte model selection scores plot
