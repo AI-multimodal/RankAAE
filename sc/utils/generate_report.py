@@ -186,7 +186,7 @@ def main():
         model_results, 
         plot = True, 
         top_n = 20, 
-        sort_score = sorting_algorithm(x),
+        sort_score = sorting_algorithm,
         ascending = False # best model has the highest score
     ) # models are sorted
     
