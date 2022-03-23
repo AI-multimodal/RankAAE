@@ -54,11 +54,10 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
     ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
 
-def find_top_models(
+def evaluate_all_models(
     model_path, 
     test_ds, 
-    plot = False, 
-    sort_score = lambda x: (x[:,0] - np.mean(x[:,2:])) / x[:,1]
+    sort_score = None
 ):
     '''
     Sort models according to multi metrics, in descending order of goodness.
@@ -72,23 +71,16 @@ def find_top_models(
                 os.path.join(model_path, job, "final.pt"), 
                 map_location = torch.device('cpu')
             )
-            result[job] = model_evaluation(test_ds, model)
-
-    # sort model
-    result = sort_evaluation(
-        result, # takes a diction of "result".
-        plot=plot, 
-        sort_score=sort_score
-    ) 
+            result[job] = evaluate_model(test_ds, model)
     
     return result
 
 
-def sort_evaluation(
+def sort_all_models(
     result_dict, 
     plot = False,
     top_n = None, 
-    color_range = (-10,10), 
+    color_range = (-3,3), # 3 sigma
     sort_score = None,
     ascending = True,
     annot_z_score = False
@@ -144,13 +136,15 @@ def sort_evaluation(
     if (sort_score is not None) and (not ascending):
         rank = rank[::-1] # descending order
     
-    for i, (job, score) in enumerate(zip(jobs[rank], final_score[rank])):
+    ranked_scores = final_score[rank]
+    ranked_jobs = jobs[rank]
+    for i, (job, score) in enumerate(zip(ranked_jobs, ranked_scores)):
         result_dict[job]['Rank'] = i
-        result_dict[job]['Score'] = round(score, 4)
+        result_dict[job]['Score'] = round(float(score), 4)
         
     # plot out the heat map of scores
+    fig = None
     if plot:
-
         if top_n is None:
             rank_plot = rank
         else:
@@ -175,7 +169,7 @@ def sort_evaluation(
         fig
         # plt.close() # prevent the figure from showing inside the function
 
-    return result_dict
+    return result_dict, ranked_jobs, fig
 
 
 def get_confusion_matrix(cn, style_cn, ax=None):
@@ -314,7 +308,7 @@ def get_descriptor_style_relation(
     return accuracy
 
     
-def model_evaluation(
+def evaluate_model(
     test_ds, 
     model, 
     reconstruct = True, 
