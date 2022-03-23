@@ -1,8 +1,27 @@
-0:
+job_1:
+  Inter-style Corr: 0.6388652779827163
+  Rank: 1
   Reconstruct Err:
   - 0.0308
   - 0.0091
-  Style:
+  Score: !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    AAAAAAAA+P8=
+  Style-descriptor Corr:
     0:
       Linear:
         R2: 0.7518
@@ -20,7 +39,7 @@
     1:
       CN45 Threshold: -3.5
       CN56 Threshold: -3.5
-      F1 Score: 1.0
+      F1 score: 1.0
     2:
       Linear:
         R2: 0.5227
@@ -63,11 +82,17 @@
         residue:
         - 0.3972
       Spearman: 0.6154
-1:
+job_10:
+  Inter-style Corr: 0.6177094572612573
+  Rank: 0
   Reconstruct Err:
   - 0.0313
   - 0.0099
-  Style:
+  Score: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAA+P8=
+  Style-descriptor Corr:
     0:
       Linear:
         R2: 0.7491
@@ -78,14 +103,13 @@
         - 0.1951
         - 5.2581
         - 0.3884
-        R2: 0.7493
         residue:
         - 0.4009
       Spearman: 0.8377
     1:
       CN45 Threshold: -3.5
       CN56 Threshold: -3.5
-      F1 Score: 1.0
+      F1 score: 1.0
     2:
       Linear:
         R2: 0.5387
@@ -96,7 +120,6 @@
         - -3.4395
         - 1.0766
         - -0.0206
-        R2: 0.539
         residue:
         - 0.5408
       Spearman: 0.7415
@@ -110,7 +133,6 @@
         - -0.9923
         - 18.4577
         - -2.4568
-        R2: 0.5366
         residue:
         - 0.4293
       Spearman: 0.722
@@ -124,7 +146,6 @@
         - 10.0893
         - -12.0273
         - 3.0119
-        R2: 0.3575
         residue:
         - 0.4701
       Spearman: 0.6134
