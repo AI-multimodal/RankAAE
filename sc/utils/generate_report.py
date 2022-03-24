@@ -89,7 +89,7 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
             else:
                 result_choice = ["R2", "Spearman"]
             
-            accuracy = analysis.get_descriptor_style_relation(
+            accuracy = analysis.get_descriptor_style_correlation(
                 styles_no_s2[:,col], 
                 descriptors_no_cn[:,row-4], 
                 ax=ax,
@@ -184,7 +184,7 @@ def main():
     model_results = analysis.evaluate_all_models(jobs_dir, test_ds) # models are not sorted
     model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
         model_results, 
-        plot = True, 
+        plot_score = True, 
         top_n = 20, 
         sort_score = sorting_algorithm,
         ascending = False # best model has the highest score
