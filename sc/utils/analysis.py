@@ -54,11 +54,7 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
     ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
 
-def evaluate_all_models(
-    model_path, 
-    test_ds, 
-    sort_score = None
-):
+def evaluate_all_models(model_path, test_ds):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
@@ -78,12 +74,10 @@ def evaluate_all_models(
 
 def sort_all_models(
     result_dict, 
-    plot = False,
-    top_n = None, 
-    color_range = (-3,3), # 3 sigma
     sort_score = None,
+    plot_score = False,
     ascending = True,
-    annot_z_score = False
+    top_n = None, 
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.
@@ -144,7 +138,7 @@ def sort_all_models(
         
     # plot out the heat map of scores
     fig = None
-    if plot:
+    if plot_score:
         if top_n is None:
             rank_plot = rank
         else:
@@ -154,9 +148,9 @@ def sort_all_models(
         ax.autoscale(enable=True)
         sns.heatmap(
             z_scores[rank_plot].T,
-            vmin = color_range[0], vmax = color_range[1],
+            vmin = -3, vmax = 3,
             cmap = 'Blues', cbar = True, 
-            annot = z_scores[rank_plot].T if annot_z_score else scores[rank_plot].T, 
+            annot = z_scores[rank_plot].T, 
             yticklabels = [
                 f"{name}\n{ms[0]:.3f}+-{ms[1]:.3f}" for name, ms in zip(score_names, mu_std)
             ],
@@ -166,8 +160,6 @@ def sort_all_models(
         ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
         ax.set_xticklabels(ax.get_xticklabels(),rotation=45, ha='left',va='bottom')
         ax.tick_params(labelbottom=False,labeltop=True, axis='both', length=0,labelsize=15)
-        fig
-        # plt.close() # prevent the figure from showing inside the function
 
     return result_dict, ranked_jobs, fig
 
