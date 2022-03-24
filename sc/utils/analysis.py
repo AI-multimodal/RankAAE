@@ -249,8 +249,18 @@ def get_confusion_matrix(cn, style_cn, ax=None):
     
     return result
     
+def get_max_inter_style_correlation(styles):
+    """
+    The maximum of inter-style correlation.
+    """
+    corr_list = [
+            math.fabs(spearmanr(*styles[:, pair].T).correlation) \
+                    for pair in itertools.combinations(range(styles.shape[1]), 2)
+    ]
+    return round(max(corr_list), 4)
+    
 
-def get_descriptor_style_relation(
+def get_descriptor_style_correlation(
     style, 
     descriptor, 
     ax = None,
@@ -361,15 +371,10 @@ def evaluate_model(
                     get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
             else:
                 result["Style-descriptor Corr"][i] = \
-                    get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None,
+                    get_descriptor_style_correlation(descriptors[:,i], styles[:,i], ax=None,
                                                   choice = ["R2", "Spearman", "Quadratic"])
     if style:
-        result["Inter-style Corr"] = max(
-            [
-                math.fabs(spearmanr(*styles[:, pair].T).correlation) \
-                        for pair in itertools.combinations(range(descriptors.shape[1]), 2)
-            ]
-        )
+        result["Inter-style Corr"] = get_max_inter_style_correlation(styles)
 
     return result
 
