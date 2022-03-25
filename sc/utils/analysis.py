@@ -78,6 +78,7 @@ def sort_all_models(
     plot_score = False,
     ascending = True,
     top_n = None, 
+    true_value = False # whether annotate tru value or z score
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.
@@ -87,7 +88,7 @@ def sort_all_models(
     # define the scores to be sorted
     score_names = [
         "Inter-style Corr", # 0
-        "Reconstion Err", # 1
+        "Reconstuction Err", # 1
         "Style_1 - CT Corr", # 2
         "Style_2 - CN Corr", # 3
         "Style_3 - OCN Corr", # 4
@@ -113,7 +114,6 @@ def sort_all_models(
         )
     jobs = np.array(jobs)
     scores = np.array(scores)
-
     # normalize the score so their color fall in the same range
     mu_std = np.stack((scores.mean(axis=0), scores.std(axis=0)), axis=1)
     z_scores = (scores - mu_std[:,0]) / mu_std[:,1]
@@ -126,13 +126,17 @@ def sort_all_models(
         final_score = scores[:, sort_score]
     else:
         final_score = np.arange(len(scores)) # no sorting
+    
     rank = np.argsort(final_score)
     if (sort_score is not None) and (not ascending):
         rank = rank[::-1] # descending order
     
-    ranked_scores = final_score[rank]
+    ranked_scores = scores[rank]
+    ranked_final_scores = final_score[rank]
     ranked_jobs = jobs[rank]
-    for i, (job, score) in enumerate(zip(ranked_jobs, ranked_scores)):
+    ranked_z_scores = z_scores[rank]
+
+    for i, (job, score) in enumerate(zip(ranked_jobs, ranked_final_scores)):
         result_dict[job]['Rank'] = i
         result_dict[job]['Score'] = round(float(score), 4)
         
@@ -140,22 +144,23 @@ def sort_all_models(
     fig = None
     if plot_score:
         if top_n is None:
-            rank_plot = rank
-        else:
-            rank_plot = rank[:top_n]
+            top_n = len(ranked_z_scores)
 
-        fig, ax = plt.subplots(figsize = (len(rank_plot), scores.shape[1]))
+        fig, ax = plt.subplots(figsize = (top_n, scores.shape[1]))
         ax.autoscale(enable=True)
         sns.heatmap(
-            z_scores[rank_plot].T,
+            ranked_z_scores[:top_n].T,
             vmin = -3, vmax = 3,
             cmap = 'Blues', cbar = True, 
-            annot = z_scores[rank_plot].T, 
+            annot = ranked_z_scores[:top_n].T if not true_value else ranked_scores[:top_n].T,
+            ax = ax,
             yticklabels = [
                 f"{name}\n{ms[0]:.3f}+-{ms[1]:.3f}" for name, ms in zip(score_names, mu_std)
             ],
-            xticklabels = jobs[rank_plot],
-            ax = ax
+            xticklabels = [
+                f"{ranked_jobs[i]}: {ranked_final_scores[i]:.2f} "for i in range(top_n)
+            ]
+            
         )
         ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
         ax.set_xticklabels(ax.get_xticklabels(),rotation=45, ha='left',va='bottom')
