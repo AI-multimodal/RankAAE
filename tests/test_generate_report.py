@@ -7,13 +7,11 @@ import sc.utils.analysis as analysis
 class Test_GenerateReport():
 
     def test_reconstrusction_err(self):
-        # need to replace it with absolute path.
-        # def setUp(self) -> None:
-        # self.data_fn = os.path.join(os.path.dirname(__file__), "../../../data", "cu_feff_aux_bvs_cn_density.csv")
 
-        
-        model_file = 'tests/test_data/training/job_1/final.pt'
-        data_file = 'tests/test_data/feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202201071543_4200.csv'
+        data_dir = os.path.join(os.path.dirname(__file__), "test_data/")
+        model_file = os.path.join(data_dir, 'training/job_1/final.pt')
+        data_file = os.path.join(data_dir, 'feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202201071543_4200.csv')
+
         self.model = torch.load(model_file, map_location=torch.device('cpu'))
         self.ds = AuxSpectraDataset(data_file, split_portion="test", n_aux=5)
 
