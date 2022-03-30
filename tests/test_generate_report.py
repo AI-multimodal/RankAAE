@@ -22,4 +22,4 @@ class Test_GenerateReport():
         assert np.allclose(std, 0.0093, atol=1e-4)
 
 if __name__ == "__main__":
-    Test_GenerateReport().test_reconstrusction_err()
+    main()
