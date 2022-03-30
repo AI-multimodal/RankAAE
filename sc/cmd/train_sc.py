@@ -4,7 +4,6 @@ import argparse
 
 import torch
 from sc.clustering.trainer import Trainer
-from sc.utils.generate_report import plot_report
 import os
 import yaml
 import datetime

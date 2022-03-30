@@ -10,10 +10,10 @@ from pymatgen.analysis.chemenv.coordination_environments\
     .coordination_geometry_finder import LocalGeometryFinder
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 
-from sc.core.symmetry import get_cesym
+from sc.legacy.symmetry import get_cesym
 
-from sc.utils.logger import log as default_logger
-from sc.utils.timing import time_func, time_remaining
+from sc.legacy.logger import log as default_logger
+from sc.legacy.timing import time_func, time_remaining
 
 
 # Initializng the LGF produces a ridiculous amount of logging output for

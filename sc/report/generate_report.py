@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 import os
 import argparse
 import yaml
-import sc.utils.analysis as analysis
+import sc.report.analysis as analysis
 from sc.clustering.dataloader import AuxSpectraDataset
 
 def sorting_algorithm(x):

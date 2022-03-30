@@ -29,6 +29,7 @@ from sc.clustering.model import (
 from sc.clustering.dataloader import get_dataloaders
 from torchvision import transforms
 from sc.clustering.dataloader import AuxSpectraDataset, ToTensor
+import sc.clustering.utils as utils
 from scipy.stats import shapiro, spearmanr
 
 
@@ -44,7 +45,7 @@ class Trainer:
                  sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
                  lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
-                 aux_weights=None,
+                 aux_weights=None, kendall_activation = False,
                  verbose=True, work_dir='.', use_flex_spec_target=False):
 
         self.encoder = encoder.to(device)
@@ -57,6 +58,7 @@ class Trainer:
         self.device = device
         self.train_loader = train_loader
         self.val_loader = val_loader
+        self.kendall_activation = kendall_activation
 
         self.noise_test_range = (-2, 2)
         self.ntest_per_spectra = 10
@@ -195,21 +197,11 @@ class Trainer:
                 adversarial_loss.backward()
                 adversarial_solver.step()
 
-                # Correlation constration
-                # Kendall Rank Correlation Coefficeint
-                # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
+                # Kendall Correlation constraint
                 if aux_in is not None:
                     self.zerograd()
-                    z = self.encoder(spec_in)
-                    aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
-                    z_aux = z[:, :n_aux]
-                    assert len(z_aux.size()) == 2
-                    aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
-                    aux_len = aux_pred.size()[0]
-                    product = aux_pred * aux_target
-                    product[product>0] = 0 # product is 3-D, TO-DO: make it optional, False by default.
-                    aux_loss = - product.sum() / ((aux_len**2 - aux_len) * n_aux)
-
+                    z_aux = self.encoder(spec_in)[:,:n_aux]
+                    aux_loss = utils.constraint_kendall(aux_in, z_aux, activate=self.kendall_activation)
                     aux_loss.backward()
                     corr_solver.step()
                 else:
@@ -217,18 +209,12 @@ class Trainer:
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                z = self.encoder(spec_in)
-                spec_re = self.decoder(z)
-                if not self.use_flex_spec_target:
-                    recon_loss = mse_dis(spec_re, spec_target)
-                else:
-                    spec_scale = torch.abs(spec_re.mean(
-                        dim=1)) / torch.abs(spec_target.mean(dim=1))
-                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.1
-                    spec_scale = spec_scale.detach()
-                    spec_scale = torch.clamp(spec_scale, min=0.7, max=1.3)
-                    recon_loss += mse_dis(spec_re,
-                                          (spec_target.T * spec_scale).T)
+                recon_loss = utils.loss_reconstruction(
+                    spec_target,  # input spectra
+                    self.decoder(self.encoder(spec_in)),  # reconstructed spectra
+                    use_flex_spec_in = self.use_flex_spec_target, 
+                    mse_loss = mse_dis
+                )
                 recon_loss.backward()
                 reconn_solver.step()
 
@@ -293,6 +279,7 @@ class Trainer:
             z = self.encoder(spec_in)
             spec_re = self.decoder(z)
             recon_loss = mse_dis(spec_re, spec_in)
+            
             loss_dict = {
                 'Recon': recon_loss.item()
             }

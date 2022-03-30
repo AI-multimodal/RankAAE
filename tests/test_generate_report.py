@@ -1,8 +1,8 @@
 import sys
 import torch
 from sc.clustering.dataloader import AuxSpectraDataset
-from sc.utils.generate_report import *
-import sc.utils.analysis as analysis
+from sc.report.generate_report import *
+import sc.report.analysis as analysis
 
 class Test_GenerateReport():
 
