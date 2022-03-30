@@ -7,4 +7,3 @@ Semi_Clustering.egg-info
 nosetests.xml
 sc/utils/.ipynb_checkpoints/
 report_*.*
-sc/tests/test_data/
