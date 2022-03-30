@@ -22,7 +22,9 @@ def timeout_handler(signum, frame):
 
 def get_parallel_map_func(work_dir="."):
     c = ipp.Client(
-        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json")
+        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json"
+    )
+
     with c[:].sync_imports():
         from sc.clustering.trainer import Trainer
         import os
@@ -125,14 +127,16 @@ def main():
         par_map, nprocesses = map, 1
     logging.info("running with {} processes".format(nprocesses))
 
-    result = par_map(run_training,
-                     list(range(trails)),
-                     [work_dir]*trails,
-                     [trainer_config]*trails,
-                     [max_epoch]*trails,
-                     [verbose]*trails,
-                     [data_file]*trails,
-                     [args.timeout]*trails)
+    result = par_map(
+        run_training,
+        list(range(trails)),
+        [work_dir] * trails,
+        [trainer_config] * trails,
+        [max_epoch] * trails,
+        [verbose] * trails,
+        [data_file] * trails,
+        [args.timeout] * trails
+    )
     list(result)
 
 

@@ -376,7 +376,7 @@ class Trainer:
                   lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
                   train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=256,
                   use_flex_spec_target=False, optimizer_name="AdamW",
-                  aux_weights=None,
+                  aux_weights=None, kendall_activation=False,
                   decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
                   verbose=True, work_dir='.'):
         ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
@@ -428,7 +428,8 @@ class Trainer:
                           lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
                           lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
                           lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name, batch_size=batch_size,
-                          use_flex_spec_target=use_flex_spec_target, aux_weights=aux_weights,
+                          use_flex_spec_target=use_flex_spec_target, aux_weights=aux_weights, 
+                          kendall_activation=kendall_activation,
                           verbose=verbose, work_dir=work_dir)
         return trainer
 
