@@ -206,7 +206,10 @@ class Trainer:
                     assert len(z_aux.size()) == 2
                     aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                     aux_len = aux_pred.size()[0]
-                    aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                    product = aux_pred * aux_target
+                    product[product>0] = 0 # product is 3-D, TO-DO: make it optional, False by default.
+                    aux_loss = - product.sum() / ((aux_len**2 - aux_len) * n_aux)
+
                     aux_loss.backward()
                     corr_solver.step()
                 else:

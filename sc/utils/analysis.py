@@ -1,8 +1,6 @@
 import math
-import os, glob
-import re
+import os
 import itertools
-
 import torch
 import numpy as np
 from numpy.polynomial import Polynomial
@@ -12,25 +10,9 @@ from scipy.interpolate import interp1d
 from sklearn.metrics import f1_score, confusion_matrix, mean_absolute_error
 
 import matplotlib as mpl
-from matplotlib.colors import colorConverter
-from matplotlib import ticker as ticker
+import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
-
-
-
-
-
-
-def get_style_correlations(ds, encoder):
-    encoder.eval()
-    val_spec = torch.tensor(ds.spec, dtype=torch.float32)
-    styles = encoder(val_spec).clone().detach().cpu().numpy()
-    nstyles = styles.shape[1]
-    inter_style_sm = max([math.fabs(spearmanr(*styles[:, pair].T).correlation) \
-                          for pair in itertools.combinations(range(nstyles), 2)])
-   
-    return inter_style_sm
 
 
 def create_plotly_colormap(n_colors):
@@ -72,46 +54,130 @@ def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampli
     ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
 
-def find_top_models(model_path, test_ds, n=5):
+def evaluate_all_models(model_path, test_ds):
     '''
-    Find top 5 models using multi metrics, in descending order of goodness.
+    Sort models according to multi metrics, in descending order of goodness.
     '''
-    model_files = os.path.join(model_path, "job_*/final.pt")
-    fn_list = sorted(glob.glob(model_files), 
-                    key=lambda fn: int(re.search(r"job_(?P<num>\d+)/", fn).group('num')))
+
+    # evaluate model
+    result = {}
+    for job in os.listdir(model_path):
+        if job.startswith("job_"):
+            model = torch.load(
+                os.path.join(model_path, job, "final.pt"), 
+                map_location = torch.device('cpu')
+            )
+            result[job] = evaluate_model(test_ds, model)
     
-    style_cor_list = []
-    reconst_err_list = []
-    accuracy_list = []
-    model_list = []
-    for fn in fn_list:
-        model = torch.load(fn, map_location=torch.device('cpu'))
-        model_list.append(model)
-        style_cor_list.append(get_style_correlations(test_ds, model["Encoder"]))
-        ((reconst_err, _), (_, _)), accuracy = model_evaluation(test_ds, model)
-        reconst_err_list.append(reconst_err) # reconstruction err
-        accuracy_list.append(np.mean(accuracy)) # average accuracy for descriptors
-    
-    scores = np.stack(
-        (
-            style_cor_list,
-            reconst_err_list,
-            accuracy_list
+    return result
+
+
+def sort_all_models(
+    result_dict, 
+    sort_score = None,
+    plot_score = False,
+    ascending = True,
+    top_n = None, 
+    true_value = False # whether annotate tru value or z score
+):
+    """
+    Given the input result dict, calculate (and plot) the score matrix.
+    Update the "rank" attribute and return the updated result dict.
+    Add key "score" to the result.
+    """
+    # define the scores to be sorted
+    score_names = [
+        "Inter-style Corr", # 0
+        "Reconstuction Err", # 1
+        "Style_1 - CT Corr", # 2
+        "Style_2 - CN Corr", # 3
+        "Style_3 - OCN Corr", # 4
+        "Style_4 - Rstd Corr", # 5
+        "Style_5 - MOOD Corr", # 6
+        
+    ]
+    scores = []
+    jobs = []
+    for job, result in result_dict.items():
+        
+        jobs.append(job)
+        scores.append(
+            [
+                result["Inter-style Corr"], # 0
+                result["Reconstruct Err"][0], # 1
+                result["Style-descriptor Corr"][0]['Spearman'], # 2
+                result["Style-descriptor Corr"][1]["F1 score"], # 3
+                result["Style-descriptor Corr"][2]['Spearman'], # 4
+                result["Style-descriptor Corr"][3]['Spearman'], # 5
+                result["Style-descriptor Corr"][4]['Spearman'], # 6
+            ]
         )
-    )
+    jobs = np.array(jobs)
+    scores = np.array(scores)
+    # normalize the score so their color fall in the same range
+    mu_std = np.stack((scores.mean(axis=0), scores.std(axis=0)), axis=1)
+    z_scores = (scores - mu_std[:,0]) / mu_std[:,1]
 
-    final_score = (scores[2] - scores[0]) / scores[1]
-
-    # get the indices for top n least correlated styles, the first entry is the best model.
-    top_indices = np.argsort(final_score)[:n]
     
-    return [model_list[i] for i in top_indices]
+    # sort scroes
+    if callable(sort_score):  # sort according to the `sort_score` algorithm 
+        final_score = sort_score(z_scores)
+    elif isinstance(sort_score, int) and sort_score>=0: # sort according to a single column
+        final_score = scores[:, sort_score]
+    else:
+        final_score = np.arange(len(scores)) # no sorting
+    
+    rank = np.argsort(final_score)
+    if (sort_score is not None) and (not ascending):
+        rank = rank[::-1] # descending order
+    
+    ranked_scores = scores[rank]
+    ranked_final_scores = final_score[rank]
+    ranked_jobs = jobs[rank]
+    ranked_z_scores = z_scores[rank]
+
+    for i, (job, score) in enumerate(zip(ranked_jobs, ranked_final_scores)):
+        result_dict[job]['Rank'] = i
+        result_dict[job]['Score'] = round(float(score), 4)
+        
+    # plot out the heat map of scores
+    fig = None
+    if plot_score:
+        if top_n is None:
+            top_n = len(ranked_z_scores)
+
+        fig, ax = plt.subplots(figsize = (top_n, scores.shape[1]))
+        ax.autoscale(enable=True)
+        sns.heatmap(
+            ranked_z_scores[:top_n].T,
+            vmin = -3, vmax = 3,
+            cmap = 'Blues', cbar = True, 
+            annot = ranked_z_scores[:top_n].T if not true_value else ranked_scores[:top_n].T,
+            ax = ax,
+            yticklabels = [
+                f"{name}\n{ms[0]:.3f}+-{ms[1]:.3f}" for name, ms in zip(score_names, mu_std)
+            ],
+            xticklabels = [
+                f"{ranked_jobs[i]}: {ranked_final_scores[i]:.2f} "for i in range(top_n)
+            ]
+            
+        )
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+        ax.set_xticklabels(ax.get_xticklabels(),rotation=45, ha='left',va='bottom')
+        ax.tick_params(labelbottom=False,labeltop=True, axis='both', length=0,labelsize=15)
+
+    return result_dict, ranked_jobs, fig
 
 
 def get_confusion_matrix(cn, style_cn, ax=None):
     """
     get donfusion matrix for a discrete descriptor, such as coordination number.
     """
+    result = {
+        "F1 score": None,
+        "CN45 Threshold": None,
+        "CN56 Threshold": None
+    }
     data_length = len(cn)
     thresh_grid = np.linspace(-3.5, 3.5, 700)
     cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
@@ -134,6 +200,10 @@ def get_confusion_matrix(cn, style_cn, ax=None):
     
     sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
 
+    result["F1 score"] = round(sep_threshold_f1_score.tolist(), 4)
+    result["CN45 Threshold"] = round(cn45_thresh.tolist(), 4)
+    result["CN56 Threshold"] = round(cn56_thresh.tolist(), 4)
+
     if ax is not None:
         sns.set_palette('bright', 2)
         ax[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
@@ -153,7 +223,7 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         cn_list = [4,5,6]
         colors = np.array(sns.color_palette("bright", len(cn_list)))
         test_colors = colors[cn_classes]
-        test_colors = np.array([colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
+        test_colors = np.array([mpl.colors.colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
 
         random_style = np.random.uniform(style_cn.min(),style_cn.max(),data_length)
         ax[2].scatter(style_cn, random_style, s=10.0, color=test_colors, alpha=0.8)
@@ -171,23 +241,39 @@ def get_confusion_matrix(cn, style_cn, ax=None):
         axins.set_xticks(list(range(n)))
         axins.set_xticklabels([f"CN{i+4}" for i in range(n)])
         axins.tick_params(bottom=False, labelsize=10)
-        axins.yaxis.set_major_locator(ticker.NullLocator())
+        axins.yaxis.set_major_locator(mpl.ticker.NullLocator())
 
-    return sep_threshold_f1_score
+    
+    return result
+    
+def get_max_inter_style_correlation(styles):
+    """
+    The maximum of inter-style correlation.
+    """
+    corr_list = [
+            math.fabs(spearmanr(*styles[:, pair].T).correlation) \
+                    for pair in itertools.combinations(range(styles.shape[1]), 2)
+    ]
+    return round(max(corr_list), 4)
     
 
-def get_descriptor_style_relation(
+def get_descriptor_style_correlation(
     style, 
     descriptor, 
     ax = None,
-    choice = ["R2", "Spearman"]
-    ):
-    
+    choice = ["R2", "Spearman"],
+    fit = True
+):
     """
     Calculate the relations between styles and descriptors including R^2, Spearman, Polynomial/Linear fitting etc.
     If axis is given, scatter plot of given descriptor and style is also plotted.
     """
     
+    # Make sure "Style-descriptor Corr" is sorted.
+    sorted_index = np.argsort(style)
+    style = style[sorted_index]
+    descriptor = descriptor[sorted_index]
+
     # Initialize accuracy dictionary.
     accuracy = {
         "Spearman": None,
@@ -196,70 +282,99 @@ def get_descriptor_style_relation(
             "intercept": None,
             "R2": None
         },
-        "Quadruple": {
+        "Quadratic": {
             "Parameters": [None, None, None],
-            "residue": None
+            "residue": None,
+            "R2": None
         }
     }
 
     # R^2 for the linear fitting
     if "R2" in choice:
         result = stats.linregress(style, descriptor)
-        accuracy["Linear"]["R2"] = round(float(result.rvalue**2))
-        accuracy["Linear"]["intercept"] = round(float(result.intercept))
-        accuracy["Linear"]["slope"] = round(float(result.slope))
-    
+        accuracy["Linear"]["R2"] = np.round(float(result.rvalue**2), 4).tolist()
+        accuracy["Linear"]["intercept"] = np.round(float(result.intercept), 4).tolist()
+        accuracy["Linear"]["slope"] = np.round(float(result.slope), 4).tolist()
+        fitted_value = result.intercept + style * result.slope
+
     # spearman coefficient
     if "Spearman" in choice:
         sm = spearmanr(style, descriptor).correlation
-        accuracy["Spearman"] = round(float(sm),4)
+        accuracy["Spearman"] = np.round(float(sm), 4).tolist()
     
-    if "Quadruple" in choice:
-        series, info = Polynomial.fit(style, descriptor, 2, full=True)
-        accuracy["Quadruple"]["Parameters"] = series.convert().coef
-        accuracy["Quadruple"]["residue"] = info[0]/len(style)
-    
+    if "Quadratic" in choice:
+        p, info = Polynomial.fit(style, descriptor, 2, full=True)
+        accuracy["Quadratic"]["Parameters"] = np.round(p.convert().coef, 4).tolist()
+        accuracy["Quadratic"]["residue"] = np.round(info[0]/len(style), 4).tolist()
+        fitted_value = p(style)
+        accuracy['Quadratic']["R2"] = \
+            np.round(stats.linregress(fitted_value, descriptor).rvalue**2, 4).tolist()
+
     if ax is not None:
         ax.scatter(style, descriptor, s=10.0, c='blue', edgecolors='none', alpha=0.8)
-    
+        if fit:
+            ax.plot(style, fitted_value, lw=2, c='black', alpha=0.5)
+
     return accuracy
 
-
-def model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True):
+    
+def evaluate_model(
+    test_ds, 
+    model, 
+    reconstruct = True, 
+    accuracy = True,
+    style = True
+):
     '''
     calculate reconstruction error for a given model, or accuracy.
     
     Returns:
     --------
     '''
+    descriptors = test_ds.aux
+    result = {
+        "Style-descriptor Corr": {},
+        "Input": None, 
+        "Output": None,
+        "Reconstruct Err": (None, None),
+        "Inter-style Corr": None  # Inter-style correlation
+    }
+    
     encoder = model['Encoder']
     decoder = model['Decoder']
-    
     encoder.eval()
+    
+    # Get styles via encoder
     spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
     styles = encoder(spec_in).clone().detach()
+    result["Input"] = spec_in
 
-    descriptors = test_ds.aux
-    accuracies = np.empty(descriptors.shape[1]); accuracies.fill(np.NaN)
-    reconstruct = [(None, None), (None, None)]
-
-    if return_reconstruct:
+    if reconstruct:
         spec_out = decoder(styles).clone().cpu().detach().numpy()
         mae_list = []
         for s1, s2 in zip(spec_in, spec_out):
             mae_list.append(mean_absolute_error(s1, s2))
-        reconstruct = [(np.mean(mae_list), np.std(mae_list)), (spec_in, spec_out)]
-    
-    if return_accuracy:
+        result["Reconstruct Err"] = [
+            round(np.mean(mae_list).tolist(),4),
+            round(np.std(mae_list).tolist(),4)
+        ]
+        result["Output"] = spec_out
+
+    if accuracy:
         styles = styles.numpy()
-        for i in range(len(accuracies)):
+        for i in range(descriptors.shape[1]):
             if i==1: # CN
-                accuracies[i] = get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
+                result["Style-descriptor Corr"][i] = \
+                    get_confusion_matrix(descriptors[:,i], styles[:,i], ax=None)
             else:
-                accuracy_dict = get_descriptor_style_relation(descriptors[:,i], styles[:,i], ax=None)
-                accuracies[i] = accuracy_dict["Spearman"]
-    
-    return reconstruct, accuracies
+                result["Style-descriptor Corr"][i] = \
+                    get_descriptor_style_correlation(descriptors[:,i], styles[:,i], ax=None,
+                                                  choice = ["R2", "Spearman", "Quadratic"])
+    if style:
+        result["Inter-style Corr"] = get_max_inter_style_correlation(styles)
+
+    return result
+
 
 def qqplot_normal(x, ax=None, grid=True):
     """

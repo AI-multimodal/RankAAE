@@ -7,6 +7,29 @@ import yaml
 import sc.utils.analysis as analysis
 from sc.clustering.dataloader import AuxSpectraDataset
 
+def sorting_algorithm(x):
+    """
+    columns of `x` respresents: 
+        "Inter-style Corr", # 0
+        "Reconstion Err", # 1
+        "Style-Descriptor Corr 1", # 2
+        "Style-Descriptor Corr 2", # 3
+        "Style-Descriptor Corr 3", # 4
+        "Style-Descriptor Corr 4", # 5
+        "Style-Descriptor Corr 5" # 6
+    """
+    xx = x.copy()
+    xx[:,0] = x[:,0] * (-5) # Inter-style Corr
+    xx[:,1] = x[:,1] ** (0) # Reconstion Err
+    xx[:,2] = x[:,2] * (1) # Style1 - CT Corr
+    xx[:,3] = x[:,3] * (1) # Style2 - CN Corr
+    xx[:,4] = x[:,4] * (1) # Style3 - OCN Corr
+    xx[:,5] = x[:,5] * (1) # Style4 - Rstd Corr
+    xx[:,6] = x[:,6] * (1) # Style5 - MOOD Corr
+
+    return (xx[:,0] + np.sum(xx[:,2:])) / xx[:,1]
+
+
 def plot_report(test_ds, model, n_aux=5, title='report'):
     if n_aux == 5:
         name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
@@ -15,7 +38,8 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    style_correlation = analysis.get_style_correlations(test_ds, encoder)
+    result = analysis.evaluate_model(test_ds, model)
+    style_correlation = result["Inter-style Corr"]
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
     test_grid = test_ds.grid
@@ -52,10 +76,25 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     for row in [4,5,6,7]:
         for col in [0,1,2,3]:
             ax = fig.add_subplot(gs[row,col])
-            accuracy = analysis.get_descriptor_style_relation(
+            
+            # only correlated style has fitted line plotted.
+            if col == row-4: 
+                plot_fit = True
+            else:
+                plot_fit = False
+
+            # for the first style (CT) use polynomial as fitting
+            if col == 0:
+                result_choice = ["R2", "Spearman", "Quadratic"]
+            else:
+                result_choice = ["R2", "Spearman"]
+            
+            accuracy = analysis.get_descriptor_style_correlation(
                 styles_no_s2[:,col], 
                 descriptors_no_cn[:,row-4], 
-                ax=ax
+                ax=ax,
+                choice = result_choice,
+                fit = plot_fit,
             )
          
             ax.set_title(
@@ -78,7 +117,40 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
     
     return fig
+    
 
+def save_evaluation_result(save_dir, file_name, model_results, save_spectra=False, top_n=5):
+    """
+    Input is a dictionary of result dictionaries of evaluate_model.
+    And file name to save the resul.
+    Information is saved to a txt file.
+    """
+    save_dict = {}
+    for job, result in model_results.items():
+        if result['Rank'] < top_n:
+            save_dict[job] = {
+                k: v for k, v in result.items() if k not in ["Input", "Output"]
+            }
+        if (result['Rank'] == 0) and save_spectra:
+            spec_in = result["Input"]
+            spec_out = result["Output"]
+
+    yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
+    np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
+    np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
+
+
+def save_report_plot(save_dir, file_name, fig):
+    fig.savefig(
+        os.path.join(save_dir, file_name+"_best_model.png"),
+        bbox_inches='tight'
+    )
+
+def save_model_selection_plot(save_dir, file_name, fig):
+    fig.savefig(
+        os.path.join(save_dir, file_name + "_model_selection.png"),
+        bbox_inches = 'tight'
+    )
 
 def main():
     #### Parse arguments ####
@@ -98,6 +170,7 @@ def main():
 
     args = parser.parse_args()
     work_dir = args.work_dir
+    jobs_dir = os.path.join(work_dir, "training")
     file_name = args.data_file
     
     #### Create test data set from file ####
@@ -107,42 +180,32 @@ def main():
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
     
-    #### Choose top n model based on inter style correlation ####
-    model_path = os.path.join(work_dir, "training")
-    top_models = analysis.find_top_models(model_path, test_ds, n=5)
-
-    #### Generate report and calculate accuracy, reconstruction err,
-    accuracy_n_model = {}
-    for i, model in enumerate(top_models):
-        if i == 0: # Generate Report for best model
-            fig = plot_report(test_ds, top_models[0],n_aux=5, title=args.output_name)
-        ((err, _),(spec_in, spec_out)), accuracies = \
-             analysis.model_evaluation(test_ds, model, return_reconstruct=True, return_accuracy=True)
-        accuracy_n_model[i] = {
-            'accuracy': accuracies.round(4).tolist(),
-            'reconstruct_err': round(err.tolist(),4)
-        }
-    average_accuracy = np.mean([v['accuracy'] for v in accuracy_n_model.values()],axis=0)
-    average_reconstruct_err = np.mean([v['reconstruct_err'] for v in accuracy_n_model.values()])
-    accuracy_n_model['average'] = {
-        'accuracy': average_accuracy.round(4).tolist(),
-        'reconstruct_err': average_reconstruct_err.round(4).tolist()
-    }
-
-    #### Save report ####
-    try:
-        fig_path = os.path.join(work_dir, f"{args.output_name:s}"+".png")
-        txt_path = os.path.join(work_dir, f"{args.output_name:s}"+".txt")
-        spec_out_path = os.path.join(work_dir, f"{args.output_name:s}"+".out")
-        spec_in_path = os.path.join(work_dir, f"{args.output_name:s}"+".in")
-        fig.savefig(fig_path, bbox_inches='tight')
-        yaml.dump(accuracy_n_model, open(txt_path, 'wt'))
-        np.savetxt(spec_out_path,spec_out)
-        np.savetxt(spec_in_path,spec_in)
-        print("Success: training report saved!")
-    except Exception as e:
-        print(f"Fail: Cannot save training report: {e:s}")
+    #### Choose the 20 top model based on evaluation criteria ####
+    model_results = analysis.evaluate_all_models(jobs_dir, test_ds) # models are not sorted
+    model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
+        model_results, 
+        plot_score = True, 
+        top_n = 20, 
+        sort_score = sorting_algorithm,
+        ascending = False # best model has the highest score
+    ) # models are sorted
     
+    # genearte model selection scores plot
+    if fig_model_selection is not None:
+        save_model_selection_plot(work_dir, args.output_name, fig_model_selection)
+
+    # generate report for top model
+    top_model = torch.load(
+            os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
+            map_location = torch.device('cpu')
+    )
+    fig_top_model = plot_report(test_ds, top_model, n_aux=5, title=args.output_name)
+    save_report_plot(work_dir, args.output_name, fig_top_model)
+
+    # save top 5 result 
+    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=5)
+    
+    print("Success: training report saved!")
 
 if __name__ == "__main__":
     main()
