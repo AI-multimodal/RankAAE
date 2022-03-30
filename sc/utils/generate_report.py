@@ -155,18 +155,20 @@ def save_model_selection_plot(save_dir, file_name, fig):
 def main():
     #### Parse arguments ####
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--n_aux', type=int, default=3,
-                        help="The number of auxiliary parameters")
-    parser.add_argument('-m', '--n_free', type=int, default=1,
-                        help="The number of free parameters")
-    parser.add_argument('-w', '--work_dir', type=str, default='.',
-                        help="The folder where the model and data are.")
-    parser.add_argument('-f', '--data_file', type=str, default=None,
-                        help="The name of the .csv data file.")
-    parser.add_argument('-o', "--output_name", type=str, default="report",
-                        help="The saved report figure.")
-    parser.add_argument('-t', "--type", type=str, default="all",
-                        help="The type of report: plot or accuracy file")
+    parser.add_argument('-n', '--n_aux', type = int, default = 3,
+                        help = "The number of auxiliary parameters")
+    parser.add_argument('-m', '--n_free', type = int, default = 1,
+                        help = "The number of free parameters")
+    parser.add_argument('-w', '--work_dir', type = str, default = '.',
+                        help = "The folder where the model and data are.")
+    parser.add_argument('-f', '--data_file', type = str, default = None,
+                        help = "The name of the .csv data file.")
+    parser.add_argument('-o', "--output_name", type = str, default = "report",
+                        help = "The saved report figure.")
+    parser.add_argument('-t', "--type", type = str, default = "all",
+                        help = "The type of report: plot or accuracy file")
+    parser.add_argument('-p', "--top_n", type = int, default = 20,
+                        help = "The number of top models to plot.")
 
     args = parser.parse_args()
     work_dir = args.work_dir
@@ -174,18 +176,18 @@ def main():
     file_name = args.data_file
     
     #### Create test data set from file ####
-    if file_name==None:  # if datafile name nor provided, search for it.
+    if file_name == None:  # if datafile name nor provided, search for it.
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
-    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion="test", n_aux=5)
+    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "test", n_aux = 5)
     
     #### Choose the 20 top model based on evaluation criteria ####
     model_results = analysis.evaluate_all_models(jobs_dir, test_ds) # models are not sorted
     model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
         model_results, 
         plot_score = True, 
-        top_n = 20, 
+        top_n = args.top_n, 
         sort_score = sorting_algorithm,
         ascending = False # best model has the highest score
     ) # models are sorted
