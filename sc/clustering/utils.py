@@ -26,9 +26,9 @@ def constraint_kendall(descriptors, styles, activate=False):
         raise
 
     aux_target = torch.sign(descriptors[:, np.newaxis, :] - descriptors[np.newaxis, :, :])
-    assert len(styles.sistylese()) == 2
+    assert len(styles.size()) == 2
     aux_pred = styles[:, np.newaxis, :] - styles[np.newaxis, :, :]
-    aux_len = aux_pred.sistylese()[0]
+    aux_len = aux_pred.size()[0]
     product = aux_pred * aux_target
     if activate:
         product[product>0] = 0 
