@@ -30,7 +30,8 @@ def sorting_algorithm(x):
     return (xx[:,0] + np.sum(xx[:,2:])) / xx[:,1]
 
 
-def plot_report(test_ds, model, n_aux=5, title='report'):
+def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
+
     if n_aux == 5:
         name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
     elif n_aux == 3:
@@ -38,10 +39,10 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    result = analysis.evaluate_model(test_ds, model)
+    result = analysis.evaluate_model(test_ds, model, device=device)
     style_correlation = result["Inter-style Corr"]
     
-    test_spec = torch.tensor(test_ds.spec, dtype=torch.float32)
+    test_spec = torch.tensor(test_ds.spec, dtype=torch.float32, device=device)
     test_grid = test_ds.grid
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
     descriptors = test_ds.aux
@@ -67,7 +68,17 @@ def plot_report(test_ds, model, n_aux=5, title='report'):
     # Plot out synthetic spectra variation
     axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
     for istyle, ax in enumerate(axs_spec):
-        analysis.plot_spectra_variation(decoder, istyle, x=test_grid, n_spec=50, n_sampling=1000, ax=ax, amplitude=2)
+        _ = analysis.plot_spectra_variation(
+            decoder, istyle, 
+            true_range = True,
+            styles = test_styles,
+            amplitude = 2,
+            n_spec = 50, 
+            n_sampling = 5000, 
+            device = device,
+            energy_grid = test_grid, 
+            ax = ax
+        )
 
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
@@ -197,11 +208,12 @@ def main():
         save_model_selection_plot(work_dir, args.output_name, fig_model_selection)
 
     # generate report for top model
+    device = torch.device("cuda:0")
     top_model = torch.load(
             os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
-            map_location = torch.device('cpu')
+            map_location = device
     )
-    fig_top_model = plot_report(test_ds, top_model, n_aux=5, title=args.output_name)
+    fig_top_model = plot_report(test_ds, top_model, n_aux=5, title=args.output_name, device=device)
     save_report_plot(work_dir, args.output_name, fig_top_model)
 
     # save top 5 result 

@@ -28,31 +28,68 @@ def create_plotly_colormap(n_colors):
     return target_rgb_strings
 
 
-def plot_spectra_variation(decoder, istyle, x=None, ax=None, n_spec=50, n_sampling=1000, amplitude=2):
+def plot_spectra_variation(
+    decoder, istyle,
+    n_spec = 50, 
+    n_sampling = 1000, 
+    true_range = True,
+    styles = None,
+    amplitude = 2,
+    device = torch.device("cpu"),
+    ax = None,
+    energy_grid = None
+):
     """
     Spectra variation plot by varying one of the styles.
+    Parameters
+    ----------
+    istyle : int
+        The column index of `styles` for which the variation is plotted.
+    true_range : bool
+        If True, sample from the 5th percentile to 95th percentile of a style, instead of 
+        [-amplitude, +amplitude].
+    amplitude : float
+        The range from which styles are sampled. Effective only if `true_range` is False.
+    style : array_like
+        2-D array of complete styles. Effective and can't be None if `true_range` evaluates.
+        True. The `istyle`th column 
     """
+
     decoder.eval()
-    if n_sampling == None:
+    
+    if n_sampling == None: 
         c = np.linspace(*[-amplitude, amplitude], n_spec)
         c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
         con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
         spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
-        colors = sns.color_palette("hsv", n_spec)
-    else:
-        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle])
-        style_variation = torch.linspace(-amplitude, amplitude, n_spec)
-        con_c[..., istyle] = style_variation[:,np.newaxis]
-        con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
-        spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256).mean(axis=1).cpu().detach().numpy()
-        colors = create_plotly_colormap(n_spec)
-    for spec, color in zip(spec_out, colors):
-        if x is None:
-            ax.plot(spec, lw=0.8, c=color)
-        else: 
-            ax.plot(x, spec, lw=0.8, c=color)
-    ax.set_title(f"Varying Style #{istyle+1}", y=1)
 
+    else:
+        # Create a 3-D array whose x,y,z dimensions correspond to: style variation, n_sampling, 
+        # and number of styles. 
+        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle], device = device)
+        if true_range: # sample from the true range of a style 
+            assert len(styles.shape) == 2 # styles must be a 2-D array
+            style_range = np.percentile(styles[:, istyle], [5, 95])
+            style_variation = torch.linspace(*style_range, n_spec, device = device)
+        else: # sample from the absolute range
+            style_variation = torch.linspace(-amplitude, amplitude, n_spec, device = device)
+        # Assign the "layer" to be duplicates of `style_variation`
+        con_c[..., istyle] = style_variation[:, np.newaxis]
+        con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
+        spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256)
+        # Average along the `n_sampling` dimsion.
+        spec_out = spec_out.mean(axis = 1).cpu().detach().numpy()
+    
+    if ax is not None:
+        colors = create_plotly_colormap(n_spec)
+        for spec, color in zip(spec_out, colors):
+            if energy_grid is None:
+                ax.plot(spec, lw=0.8, c=color)
+            else: 
+                ax.plot(energy_grid, spec, lw=0.8, c=color)
+        ax.set_title(f"Varying Style #{istyle+1}", y=1)
+
+    return spec_out
 
 def evaluate_all_models(model_path, test_ds):
     '''
@@ -323,7 +360,8 @@ def evaluate_model(
     model, 
     reconstruct = True, 
     accuracy = True,
-    style = True
+    style = True,
+    device = torch.device('cpu')
 ):
     '''
     calculate reconstruction error for a given model, or accuracy.
@@ -345,14 +383,14 @@ def evaluate_model(
     encoder.eval()
     
     # Get styles via encoder
-    spec_in = torch.tensor(test_ds.spec, dtype=torch.float32)
-    styles = encoder(spec_in).clone().detach()
-    result["Input"] = spec_in
+    spec_in = torch.tensor(test_ds.spec, dtype=torch.float32, device=device)
+    styles = encoder(spec_in)
+    result["Input"] = spec_in.cpu().numpy()
 
     if reconstruct:
-        spec_out = decoder(styles).clone().cpu().detach().numpy()
+        spec_out = decoder(styles).clone().detach().cpu().numpy()
         mae_list = []
-        for s1, s2 in zip(spec_in, spec_out):
+        for s1, s2 in zip(spec_in.cpu().numpy(), spec_out):
             mae_list.append(mean_absolute_error(s1, s2))
         result["Reconstruct Err"] = [
             round(np.mean(mae_list).tolist(),4),
@@ -361,7 +399,7 @@ def evaluate_model(
         result["Output"] = spec_out
 
     if accuracy:
-        styles = styles.numpy()
+        styles = styles.clone().detach().cpu().numpy()
         for i in range(descriptors.shape[1]):
             if i==1: # CN
                 result["Style-descriptor Corr"][i] = \
