@@ -4,7 +4,7 @@ with open("requirements.txt") as f_req:
     required_list = [line.rstrip() for line in f_req.readlines()]
 
 setup(
-    name='Semi Clustering',
+    name='rank-aae',
     version='0.1',
     packages=['sc'],
     url='https://www.bnl.gov/cfn/',
