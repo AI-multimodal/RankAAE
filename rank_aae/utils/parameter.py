@@ -54,21 +54,21 @@ class Parameters():
         """
         Override the get method in the original dictionary parameters.
         """
-        return self.__parameter_dict.get(key, value)
+        return self._parameter_dict.get(key, value)
     
 
     def update(self, parameter_dict):
         """
         The namespace can only be updated using this method.
         """
-        self.__parameter_dict.update(parameter_dict)
-        self.__dict__.update(self.__parameter_dict) # map keys to its name space
+        self._parameter_dict.update(parameter_dict)
+        self.__dict__.update(self._parameter_dict) # map keys to its name space
 
     def to_dict(self):
         """
         Return the dictionary form of parameters.
         """
-        return self.__parameter_dict 
+        return self._parameter_dict 
 
 
     @classmethod
