@@ -1,0 +1,57 @@
+INFO:root:Use GPU
+INFO:root:Training started at 2022-03-31 14:10:56.270703 on WNC-167339
+INFO:root:ATen/Parallel:
+	at::get_num_threads() : 1
+	at::get_num_interop_threads() : 1
+OpenMP 201511 (a.k.a. OpenMP 4.5)
+	omp_get_max_threads() : 1
+Intel(R) oneAPI Math Kernel Library Version 2021.3-Product Build 20210617 for Intel(R) 64 architecture applications
+	mkl_get_max_threads() : 1
+Intel(R) MKL-DNN v2.1.2 (Git Hash 98be7e8afa711dc9b66c8ff3504129cb82013cdb)
+std::thread::hardware_concurrency() : 128
+Environment variables:
+	OMP_NUM_THREADS : [not set]
+	MKL_NUM_THREADS : [not set]
+ATen parallel backend: OpenMP
+
+INFO:root:[0.9587528705596924, 0.5039214491844177, 1.9341262876987457, 0.8459276905381163, -0.0007746595074422657]
+INFO:root:training finished at 2022-03-31 14:10:58.053250
+INFO:root:Total 1.78s used in traing
+INFO:root:Use GPU
+INFO:root:Training started at 2022-03-31 14:11:20.602791 on WNC-167339
+INFO:root:ATen/Parallel:
+	at::get_num_threads() : 1
+	at::get_num_interop_threads() : 1
+OpenMP 201511 (a.k.a. OpenMP 4.5)
+	omp_get_max_threads() : 1
+Intel(R) oneAPI Math Kernel Library Version 2021.3-Product Build 20210617 for Intel(R) 64 architecture applications
+	mkl_get_max_threads() : 1
+Intel(R) MKL-DNN v2.1.2 (Git Hash 98be7e8afa711dc9b66c8ff3504129cb82013cdb)
+std::thread::hardware_concurrency() : 128
+Environment variables:
+	OMP_NUM_THREADS : [not set]
+	MKL_NUM_THREADS : [not set]
+ATen parallel backend: OpenMP
+
+INFO:root:[0.9559879302978516, 0.5134745240211487, 1.6265330910682678, 0.8071022917374074, -0.22272223234176636]
+INFO:root:training finished at 2022-03-31 14:11:24.654396
+INFO:root:Total 4.05s used in traing
+INFO:root:Use GPU
+INFO:root:Training started at 2022-03-31 14:11:53.657245 on WNC-167339
+INFO:root:ATen/Parallel:
+	at::get_num_threads() : 1
+	at::get_num_interop_threads() : 1
+OpenMP 201511 (a.k.a. OpenMP 4.5)
+	omp_get_max_threads() : 1
+Intel(R) oneAPI Math Kernel Library Version 2021.3-Product Build 20210617 for Intel(R) 64 architecture applications
+	mkl_get_max_threads() : 1
+Intel(R) MKL-DNN v2.1.2 (Git Hash 98be7e8afa711dc9b66c8ff3504129cb82013cdb)
+std::thread::hardware_concurrency() : 128
+Environment variables:
+	OMP_NUM_THREADS : [not set]
+	MKL_NUM_THREADS : [not set]
+ATen parallel backend: OpenMP
+
+INFO:root:[0.8622604608535767, 0.43088096380233765, 1.546273410320282, 0.9558747091105937, -0.1716713309288025]
+INFO:root:training finished at 2022-03-31 14:11:57.681013
+INFO:root:Total 4.02s used in traing

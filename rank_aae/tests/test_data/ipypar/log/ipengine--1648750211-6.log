@@ -1,0 +1,376 @@
+2022-03-31 14:10:12.422 [IPEngine] Using existing profile dir: '/home/zliang/Documents/semi_clustering/rank_aae/tests/test_data/ipypar'
+2022-03-31 14:10:12.423 [IPEngine] log level 10
+2022-03-31 14:10:12.423 [IPEngine] init
+2022-03-31 14:10:12.423 [IPEngine] Loading connection file '/home/zliang/Documents/semi_clustering/rank_aae/tests/test_data/ipypar/security/ipcontroller-engine.json'
+2022-03-31 14:10:12.423 [IPEngine] WARNING | Not using CurveZMQ security
+2022-03-31 14:10:12.423 [IPEngine] Config changed:
+2022-03-31 14:10:12.423 [IPEngine] {'ProfileDir': {'location': '/home/zliang/Documents/semi_clustering/rank_aae/tests/test_data/ipypar'}, 'IPEngine': {'cluster_id': '', 'log_level': 20}, 'Session': {'key': b'3dfe34eb-cb0af231fdc7550306738abb', 'signature_scheme': 'hmac-sha256', 'packer': 'json', 'unpacker': 'json'}}
+2022-03-31 14:10:12.424 [IPEngine] init engine
+2022-03-31 14:10:12.424 [IPEngine] Registering with controller at tcp://127.0.0.1:57187
+2022-03-31 14:10:12.425 [IPEngine] Shell_addrs: ['tcp://127.0.0.1:43567', 'tcp://127.0.0.1:41957', 'tcp://127.0.0.1:50393']
+2022-03-31 14:10:12.425 [IPEngine] Setting shell identity b'd3b0eea9-692ee4ad2a8b94659e2a2b39'
+2022-03-31 14:10:12.425 [IPEngine] Connecting shell to tcp://127.0.0.1:43567
+2022-03-31 14:10:12.425 [IPEngine] Connecting shell to tcp://127.0.0.1:41957
+2022-03-31 14:10:12.425 [IPEngine] Connecting shell to tcp://127.0.0.1:50393
+2022-03-31 14:10:12.425 [IPEngine] Starting nanny
+2022-03-31 14:10:12.633 [KernelNanny.6] Starting kernel nanny for engine 6, pid=603423, nanny pid=603480
+2022-03-31 14:10:12.633 [KernelNanny.6] Nanny watching parent pid 603423.
+2022-03-31 14:10:12.636 [IPEngine] Seeing logger to stderr, rerouting to raw filedescriptor.
+2022-03-31 14:10:12.658 [IPEngine] Config changed: {'ProfileDir': {'location': '/home/zliang/Documents/semi_clustering/rank_aae/tests/test_data/ipypar'}, 'IPEngine': {'cluster_id': '', 'log_level': 20}, 'Session': {'key': b'3dfe34eb-cb0af231fdc7550306738abb', 'signature_scheme': 'hmac-sha256', 'packer': 'json', 'unpacker': 'json'}, 'IPKernelApp': {'exec_lines': [], 'exec_files': []}, 'HistoryManager': {'hist_file': ':memory:'}}
+2022-03-31 14:10:12.659 [IPEngine] Using existing profile dir: '/home/zliang/Documents/semi_clustering/rank_aae/tests/test_data/ipypar'
+2022-03-31 14:10:12.660 [IPEngine] WARNING | debugpy_stream undefined, debugging will not be enabled
+2022-03-31 14:10:12.666 [IPEngine] Starting to monitor the heartbeat signal from the hub every 3500 ms.
+2022-03-31 14:10:12.666 [IPEngine] Completed registration with id 6
+2022-03-31 14:10:23.432 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:23.432 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:23.432 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_7
+2022-03-31 14:10:23.432 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_7', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.398733Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_7', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:24.621 [IPEngine] Importing canning map
+2022-03-31 14:10:24.621 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_7
+2022-03-31 14:10:24.622 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.623 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.623 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_15
+2022-03-31 14:10:24.623 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_15', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.407410Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_15', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30de188c40>, <memory at 0x7f30db378040>, <memory at 0x7f30db378100>]}
+2022-03-31 14:10:24.623 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_15
+2022-03-31 14:10:24.624 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.624 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.624 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_23
+2022-03-31 14:10:24.624 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_23', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.413080Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_23', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:24.633 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_23
+2022-03-31 14:10:24.634 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.634 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.634 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_31
+2022-03-31 14:10:24.634 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_31', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.419370Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_31', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:24.634 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_31
+2022-03-31 14:10:24.636 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.636 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.636 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_39
+2022-03-31 14:10:24.636 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_39', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.425996Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_39', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:24.636 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_39
+2022-03-31 14:10:24.637 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.637 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.637 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_47
+2022-03-31 14:10:24.637 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_47', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.432258Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_47', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:24.637 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_47
+2022-03-31 14:10:24.638 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.638 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.638 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_55
+2022-03-31 14:10:24.638 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_55', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.438707Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_55', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:24.639 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_55
+2022-03-31 14:10:24.639 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.639 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.639 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_63
+2022-03-31 14:10:24.639 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_63', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.447123Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_63', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:24.640 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_63
+2022-03-31 14:10:24.640 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.641 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.641 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_71
+2022-03-31 14:10:24.641 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_71', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:23.453310Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_71', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:24.641 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_71
+2022-03-31 14:10:24.650 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:24.650 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:24.650 [IPEngine] Handling apply_request: 5615dce8-4b89220a2095ae896460c642_603740_79
+2022-03-31 14:10:24.650 [IPEngine] apply_request: {'header': {'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_79', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '5615dce8-4b89220a2095ae896460c642', 'date': '2022-03-31T18:10:24.647719Z', 'version': '5.3'}, 'msg_id': '5615dce8-4b89220a2095ae896460c642_603740_79', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>]}
+2022-03-31 14:10:24.650 [IPEngine] Sending apply_reply: 5615dce8-4b89220a2095ae896460c642_603740_79
+2022-03-31 14:10:52.674 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.674 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.674 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_7
+2022-03-31 14:10:52.674 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_7', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.617445Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_7', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:52.675 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_7
+2022-03-31 14:10:52.686 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.687 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.687 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_15
+2022-03-31 14:10:52.687 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_15', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.625741Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_15', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:52.687 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_15
+2022-03-31 14:10:52.689 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.689 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.689 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_23
+2022-03-31 14:10:52.689 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_23', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.631678Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_23', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:52.689 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_23
+2022-03-31 14:10:52.691 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.691 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.691 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_31
+2022-03-31 14:10:52.691 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_31', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.637876Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_31', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:52.691 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_31
+2022-03-31 14:10:52.693 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.693 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.693 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_39
+2022-03-31 14:10:52.693 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_39', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.645191Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_39', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:52.693 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_39
+2022-03-31 14:10:52.695 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.695 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.695 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_47
+2022-03-31 14:10:52.695 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_47', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.651079Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_47', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:52.695 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_47
+2022-03-31 14:10:52.698 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.698 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.698 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_55
+2022-03-31 14:10:52.698 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_55', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.659170Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_55', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:52.699 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_55
+2022-03-31 14:10:52.702 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.702 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.702 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_63
+2022-03-31 14:10:52.702 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_63', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.664741Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_63', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:10:52.702 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_63
+2022-03-31 14:10:52.706 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.706 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.706 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_71
+2022-03-31 14:10:52.706 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_71', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.671552Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_71', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:10:52.706 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_71
+2022-03-31 14:10:52.725 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.725 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.725 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_79
+2022-03-31 14:10:52.725 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_79', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.721973Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_79', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f32400f8340>, <memory at 0x7f30db37cf40>, <memory at 0x7f30db2e2100>]}
+2022-03-31 14:10:52.726 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_79
+2022-03-31 14:10:52.744 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:10:52.744 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:10:52.744 [IPEngine] Handling apply_request: 925b0af8-500d7361c88b5ff99e20fd46_604363_82
+2022-03-31 14:10:52.744 [IPEngine] apply_request: {'header': {'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_82', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '925b0af8-500d7361c88b5ff99e20fd46', 'date': '2022-03-31T18:10:52.734002Z', 'version': '5.3'}, 'msg_id': '925b0af8-500d7361c88b5ff99e20fd46_604363_82', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {'after': [], 'follow': [], 'timeout': 0.0, 'targets': [], 'retries': 0}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e21c0>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>, <memory at 0x7f30db2e2580>]}
+2022-03-31 14:10:58.884 [IPEngine] Sending apply_reply: 925b0af8-500d7361c88b5ff99e20fd46_604363_82
+2022-03-31 14:11:19.014 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.014 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.015 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_7
+2022-03-31 14:11:19.015 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_7', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.958017Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_7', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30a0bac400>, <memory at 0x7f30a0bac1c0>]}
+2022-03-31 14:11:19.015 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_7
+2022-03-31 14:11:19.030 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.031 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.031 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_15
+2022-03-31 14:11:19.031 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_15', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.966537Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_15', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:19.031 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_15
+2022-03-31 14:11:19.038 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.038 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.038 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_23
+2022-03-31 14:11:19.038 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_23', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.973763Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_23', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>]}
+2022-03-31 14:11:19.039 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_23
+2022-03-31 14:11:19.047 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.048 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.048 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_31
+2022-03-31 14:11:19.048 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_31', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.979559Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_31', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:19.048 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_31
+2022-03-31 14:11:19.054 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.054 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.054 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_39
+2022-03-31 14:11:19.054 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_39', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.985286Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_39', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>]}
+2022-03-31 14:11:19.054 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_39
+2022-03-31 14:11:19.059 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.059 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.059 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_47
+2022-03-31 14:11:19.059 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_47', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.991835Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_47', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:19.059 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_47
+2022-03-31 14:11:19.063 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.063 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.063 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_55
+2022-03-31 14:11:19.063 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_55', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:18.997565Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_55', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>]}
+2022-03-31 14:11:19.064 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_55
+2022-03-31 14:11:19.069 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.069 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.069 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_63
+2022-03-31 14:11:19.069 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_63', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:19.005410Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_63', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:19.069 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_63
+2022-03-31 14:11:19.074 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.075 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.075 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_71
+2022-03-31 14:11:19.075 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_71', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:19.015593Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_71', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>]}
+2022-03-31 14:11:19.075 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_71
+2022-03-31 14:11:19.090 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.090 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.090 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_79
+2022-03-31 14:11:19.090 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_79', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:19.085919Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_79', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f8040>, <memory at 0x7f32400f8100>, <memory at 0x7f32400f81c0>]}
+2022-03-31 14:11:19.091 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_79
+2022-03-31 14:11:19.112 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:19.112 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:19.112 [IPEngine] Handling apply_request: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_82
+2022-03-31 14:11:19.112 [IPEngine] apply_request: {'header': {'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_82', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '1f8c44f1-0d3fe4e64b75c3483fe19930', 'date': '2022-03-31T18:11:19.098355Z', 'version': '5.3'}, 'msg_id': '1f8c44f1-0d3fe4e64b75c3483fe19930_605417_82', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {'after': [], 'follow': [], 'timeout': 0.0, 'targets': [], 'retries': 0}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e21c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>, <memory at 0x7f30db2e2580>, <memory at 0x7f30a0bac400>, <memory at 0x7f30a0bac1c0>]}
+2022-03-31 14:11:25.360 [IPEngine] Sending apply_reply: 1f8c44f1-0d3fe4e64b75c3483fe19930_605417_82
+2022-03-31 14:11:52.080 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.080 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.080 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_7
+2022-03-31 14:11:52.080 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_7', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.028121Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_7', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30a0bac880>, <memory at 0x7f30a0bacf40>]}
+2022-03-31 14:11:52.081 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_7
+2022-03-31 14:11:52.093 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.093 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.093 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_15
+2022-03-31 14:11:52.093 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_15', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.034148Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_15', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:52.094 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_15
+2022-03-31 14:11:52.104 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.104 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.104 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_23
+2022-03-31 14:11:52.104 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_23', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.043742Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_23', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>]}
+2022-03-31 14:11:52.105 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_23
+2022-03-31 14:11:52.110 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.110 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.110 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_31
+2022-03-31 14:11:52.110 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_31', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.050661Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_31', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:52.110 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_31
+2022-03-31 14:11:52.115 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.115 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.115 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_39
+2022-03-31 14:11:52.115 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_39', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.056423Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_39', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>]}
+2022-03-31 14:11:52.116 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_39
+2022-03-31 14:11:52.120 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.120 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.120 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_47
+2022-03-31 14:11:52.120 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_47', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.063328Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_47', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:52.121 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_47
+2022-03-31 14:11:52.125 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.125 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.125 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_55
+2022-03-31 14:11:52.125 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_55', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.070219Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_55', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>]}
+2022-03-31 14:11:52.126 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_55
+2022-03-31 14:11:52.130 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.131 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.131 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_63
+2022-03-31 14:11:52.131 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_63', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.082280Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_63', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e21c0>]}
+2022-03-31 14:11:52.131 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_63
+2022-03-31 14:11:52.135 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.135 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.135 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_71
+2022-03-31 14:11:52.135 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_71', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.088661Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_71', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f3242246280>, <memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>]}
+2022-03-31 14:11:52.135 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_71
+2022-03-31 14:11:52.149 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.150 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.150 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_79
+2022-03-31 14:11:52.150 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_79', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.145357Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_79', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2100>, <memory at 0x7f30db2e2280>, <memory at 0x7f30db2e2340>]}
+2022-03-31 14:11:52.150 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_79
+2022-03-31 14:11:52.164 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:52.164 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:52.164 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_81
+2022-03-31 14:11:52.164 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_81', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.156585Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_81', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {'after': [], 'follow': [], 'timeout': 0.0, 'targets': [], 'retries': 0}, 'content': {}, 'buffers': [<memory at 0x7f3242246f40>, <memory at 0x7f32400f81c0>, <memory at 0x7f30db2e2400>, <memory at 0x7f30db2e24c0>, <memory at 0x7f30db2e21c0>, <memory at 0x7f30db2e2580>, <memory at 0x7f30a0bac880>, <memory at 0x7f30a0bacf40>, <memory at 0x7f30a0bac400>, <memory at 0x7f30a0bac1c0>]}
+2022-03-31 14:11:57.848 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_81
+2022-03-31 14:11:57.850 [IPEngine] 
+*** MESSAGE TYPE:apply_request***
+2022-03-31 14:11:57.850 [IPEngine]    Content: {}
+   --->
+   
+2022-03-31 14:11:57.850 [IPEngine] Handling apply_request: 9502352d-2ab7c3a14af503026324971d_605697_89
+2022-03-31 14:11:57.850 [IPEngine] apply_request: {'header': {'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_89', 'msg_type': 'apply_request', 'username': 'zliang', 'session': '9502352d-2ab7c3a14af503026324971d', 'date': '2022-03-31T18:11:52.165470Z', 'version': '5.3'}, 'msg_id': '9502352d-2ab7c3a14af503026324971d_605697_89', 'msg_type': 'apply_request', 'parent_header': {}, 'metadata': {'after': [], 'follow': [], 'timeout': 0.0, 'targets': [], 'retries': 0}, 'content': {}, 'buffers': [<memory at 0x7f32400f8280>, <memory at 0x7f30db2e2340>, <memory at 0x7f30db2e2100>, <memory at 0x7f30d1f55040>, <memory at 0x7f30d1f55100>, <memory at 0x7f30d1f551c0>, <memory at 0x7f30d1f55280>, <memory at 0x7f30d1f55340>, <memory at 0x7f30d1f55400>, <memory at 0x7f30d1f554c0>]}
+2022-03-31 14:12:01.468 [IPEngine] Sending apply_reply: 9502352d-2ab7c3a14af503026324971d_605697_89

@@ -1,0 +1,21 @@
+{
+  "ssh": "",
+  "interface": "tcp://127.0.0.1",
+  "registration": 57187,
+  "control": 46439,
+  "mux": 43567,
+  "task": 41957,
+  "iopub": 41245,
+  "hb_ping": 36197,
+  "hb_pong": 58069,
+  "broadcast": [
+    50393,
+    48731
+  ],
+  "key": "3dfe34eb-cb0af231fdc7550306738abb",
+  "curve_serverkey": null,
+  "location": "WNC-167339",
+  "pack": "json",
+  "unpack": "json",
+  "signature_scheme": "hmac-sha256"
+}
