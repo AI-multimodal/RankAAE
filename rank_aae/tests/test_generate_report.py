@@ -18,8 +18,8 @@ class Test_GenerateReport():
         result = analysis.evaluate_model(self.ds, self.model)
         mae, std = result["Reconstruct Err"]
 
-        assert np.allclose(mae, 0.0287, atol=1e-4)
-        assert np.allclose(std, 0.0093, atol=1e-4)
+        assert np.allclose(mae, 0.5627, atol=1e-4)
+        assert np.allclose(std, 0.0129, atol=1e-4)
 
 if __name__ == "__main__":
     main()
