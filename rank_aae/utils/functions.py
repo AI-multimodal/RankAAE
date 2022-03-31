@@ -59,4 +59,34 @@ def loss_reconstruction(spec_in, spec_out, use_flex_spec_in=False, mse_loss=None
     return recon_loss
     
     
+def loss_adversarial(nll_loss, alpha, spec_in, styles, batch_size=100,  device=None, discriminator=None):
+        
+        nstyle = styles.size()[1]
+
+        z_real_gauss = torch.randn(
+                    batch_size, 
+                    nstyle, 
+                    requires_grad = True, 
+                    device = device
+                )
+        real_gauss_pred = discriminator(z_real_gauss, alpha)
+        real_gauss_label = torch.ones(
+                    batch_size, 
+                    dtype = torch.long, 
+                    requires_grad = False,
+                    device = device
+                )
+        
+        fake_gauss_pred = discriminator(styles, alpha)
+        fake_guass_lable = torch.zeros(
+                    spec_in.size()[0], 
+                    dtype = torch.long, 
+                    requires_grad = False,
+                    device = device
+                )
+                
+        adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
+                                 + nll_loss(fake_gauss_pred, fake_guass_lable)
+                         
+        return adversarial_loss
 

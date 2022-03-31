@@ -35,8 +35,10 @@ class Parameters():
     """
     def __init__(self, parameter_dict):
         
+        # "__setattr__" method is changed to immutable for this class.
+        super().__setattr__("parameter_dict", parameter_dict)
         self.update(parameter_dict)
-
+        
 
     def __setattr__(self, __name, __value):
         """
@@ -55,8 +57,12 @@ class Parameters():
         """
         The namespace can only be updated using this method.
         """
+        
+        self.parameter_dict.update(parameter_dict)
         self.__dict__.update(parameter_dict) # map keys to its name space. 
 
+    def to_dict(self):
+        assert isinstance(self.parameter_dict)
 
     @classmethod
     def from_yaml(cls, config_file_path):

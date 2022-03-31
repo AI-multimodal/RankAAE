@@ -105,20 +105,14 @@ def main():
                         help='Time limit per job in hours')
     args = parser.parse_args()
 
-    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
-    work_dir = os.path.abspath(work_dir)
-    
-    trainer_config = Parameters.from_yaml(
-        os.path.expandvars(os.path.expanduser(args.config))
-    )
-
-    if not os.path.exists(work_dir):
-        os.makedirs(work_dir, exist_ok=True)
+    work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
+    assert os.path.exists(work_dir)
+        
+    data_file = os.path.join(work_dir, args.data_file)
+    trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
 
     max_epoch = args.max_epoch
     verbose = args.verbose
-    data_file = os.path.abspath(os.path.expandvars(
-        os.path.expanduser(args.data_file)))
     trails = args.trials
 
     logging.basicConfig(

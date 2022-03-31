@@ -31,9 +31,9 @@ class Trainer:
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
-        max_epoch=300, verbose=True, work_dir='.',
+        max_epoch=300, verbose=True, work_dir='.', aux_weights = None,
         tb_logdir="runs", base_lr=0.0001,
-        config_parameters = Parameters()
+        config_parameters = Parameters({})
     ):
         # update name space with config_parameters dictionary
         self.__dict__.update(config_parameters.parameter_dict)
@@ -47,7 +47,6 @@ class Trainer:
         self.device = device
         self.train_loader = train_loader
         self.val_loader = val_loader
-
         self.noise_test_range = (-2, 2)
         self.ntest_per_spectra = 10
         gau_kernel_size = 17
@@ -158,7 +157,10 @@ class Trainer:
                         spec_in, requires_grad=False) * self.spec_noise
 
                 # Init gradients, adversarial loss
-                adversarial_loss = self.loss_adversarial(nll_loss, adversarial_solver, alpha, spec_in)
+                self.zerograd()
+                adversarial_loss = self.loss_adversarial(nll_loss, alpha, spec_in)
+                adversarial_loss.backward()
+                adversarial_solver.step()
 
                 # Kendall Correlation constraint
                 if aux_in is not None:
@@ -167,8 +169,7 @@ class Trainer:
                     aux_loss = functions.constraint_kendall(
                         aux_in, 
                         z_aux, 
-                        activate = self.kendall_activation,
-                        device = self.device
+                        activate = self.kendall_activation
                     )
                     aux_loss.backward()
                     corr_solver.step()
@@ -181,8 +182,7 @@ class Trainer:
                     spec_target,  # input spectra
                     self.decoder(self.encoder(spec_in)),  # reconstructed spectra
                     use_flex_spec_in = self.use_flex_spec_target, 
-                    mse_loss = mse_dis,
-                    device = self.device
+                    mse_loss = mse_dis
                 )
                 recon_loss.backward()
                 reconn_solver.step()
@@ -285,8 +285,9 @@ class Trainer:
                 spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
 
-            adversarial_loss = nll_loss(
-                real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
+            adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
+                             + nll_loss(fake_gauss_pred, fake_guass_lable)
+            
             loss_dict = {
                 'Adversarial': adversarial_loss.item()
             }
@@ -336,23 +337,36 @@ class Trainer:
 
         return metrics
 
-    def loss_adversarial(self, nll_loss, adversarial_solver, alpha, spec_in):
-        self.zerograd()
+    def loss_adversarial(self, nll_loss, alpha, spec_in):
         z_real_gauss = torch.randn(
-                    self.batch_size, self.nstyle, requires_grad=True, device=self.device)
-        z_fake_gauss = self.encoder(spec_in)
-        real_gauss_label = torch.ones(self.batch_size, dtype=torch.long, requires_grad=False,
-                                              device=self.device)
+                    self.batch_size, 
+                    self.nstyle, 
+                    requires_grad = True, 
+                    device = self.device
+                )
         real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-        fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
-                                               device=self.device)
+        real_gauss_label = torch.ones(
+                    self.batch_size, 
+                    dtype = torch.long, 
+                    requires_grad = False,
+                    device = self.device
+                )
+
+        z_fake_gauss = self.encoder(spec_in)
         fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-        adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) + \
-                    nll_loss(fake_gauss_pred, fake_guass_lable)
-        adversarial_loss.backward()
-        adversarial_solver.step()
-        
+        fake_guass_lable = torch.zeros(
+                    spec_in.size()[0], 
+                    dtype = torch.long, 
+                    requires_grad = False,
+                    device = self.device
+                )
+                
+        adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
+                                 + nll_loss(fake_gauss_pred, fake_guass_lable)
+                         
         return adversarial_loss
+
+    
 
 
     @classmethod
@@ -360,9 +374,9 @@ class Trainer:
         cls, csv_fn, 
         igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
         train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
-        p = None
+        config_parameters = None
     ):
-    
+        p = config_parameters
         assert p.ae_form in AE_CLS_DICT
 
         # load training and validation dataset
@@ -374,7 +388,7 @@ class Trainer:
         if torch.cuda.is_available():
             if verbose:
                 logging.info("Use GPU")
-            device = torch.device(f"cuda{igpu}")
+            device = torch.device(igpu)
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:

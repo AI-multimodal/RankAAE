@@ -8,6 +8,7 @@ alpha_limit: 1
 batch_size: 1024
 decoder_activation: Softplus
 dropout_rate: 0.02
+grad_rev_beta: 1.1
 grad_rev_dropout_rate: 0.05310439557626974
 grad_rev_noise: 0.5674717136118386
 lr: 0.001
