@@ -30,13 +30,16 @@ AE_CLS_DICT = {
 
 
 class Parameters():
+    
     """
     A parameter object that maps all dictionary keys into its name space.
+    The intention is to mimic the functions of a namedtuple.
     """
+   
     def __init__(self, parameter_dict):
         
         # "__setattr__" method is changed to immutable for this class.
-        super().__setattr__("parameter_dict", parameter_dict)
+        super().__setattr__("_parameter_dict", parameter_dict)
         self.update(parameter_dict)
         
 
@@ -51,18 +54,22 @@ class Parameters():
         """
         Override the get method in the original dictionary parameters.
         """
-        return self.__dict__.get(key, value)
+        return self.__parameter_dict.get(key, value)
     
+
     def update(self, parameter_dict):
         """
         The namespace can only be updated using this method.
         """
-        
-        self.parameter_dict.update(parameter_dict)
-        self.__dict__.update(parameter_dict) # map keys to its name space. 
+        self.__parameter_dict.update(parameter_dict)
+        self.__dict__.update(self.__parameter_dict) # map keys to its name space
 
     def to_dict(self):
-        assert isinstance(self.parameter_dict)
+        """
+        Return the dictionary form of parameters.
+        """
+        return self.__parameter_dict 
+
 
     @classmethod
     def from_yaml(cls, config_file_path):
@@ -70,7 +77,8 @@ class Parameters():
         Load parameter from a yaml file.
         """
         import yaml
+
         with open(config_file_path) as f:
             trainer_config = yaml.full_load(f)
-        
+
         return Parameters(trainer_config)
