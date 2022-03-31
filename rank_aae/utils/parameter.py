@@ -44,13 +44,13 @@ class Parameters():
         """
         raise TypeError('Parameters object cannot be modified after instantiation')
 
+
     def get(self, key, value):
         """
         Override the get method in the original dictionary parameters.
         """
         return self.__dict__.get(key, value)
     
-
     def update(self, parameter_dict):
         """
         The namespace can only be updated using this method.
