@@ -230,10 +230,10 @@ class GaussianSmoothing(nn.Module):
 class Encoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2):
+    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
-            EncodingBlock(in_channels=1, out_channels=4, in_len=256, out_len=128, kernel_size=11, stride=2,
+            EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=128, kernel_size=11, stride=2,
                           excitation=4, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=128, out_len=64, kernel_size=11, stride=2, excitation=4,
                           dropout_rate=dropout_rate),
@@ -262,10 +262,10 @@ class Encoder(nn.Module):
 class CompactEncoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2):
+    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
         super(CompactEncoder, self).__init__()
         self.main = nn.Sequential(
-            EncodingBlock(in_channels=1, out_channels=4, in_len=256, out_len=64, kernel_size=11, stride=2,
+            EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=64, kernel_size=11, stride=2,
                           excitation=4, dropout_rate=dropout_rate),
             EncodingBlock(in_channels=4, out_channels=4, in_len=64, out_len=16, kernel_size=7, stride=2, excitation=2,
                           dropout_rate=dropout_rate),
@@ -376,7 +376,7 @@ class FCEncoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=256):
         super(Decoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -425,7 +425,7 @@ class Decoder(nn.Module):
 
 class CompactDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=256):
         super(CompactDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -443,7 +443,7 @@ class CompactDecoder(nn.Module):
                           dropout_rate=dropout_rate),
             DecodingBlock(in_channels=4, out_channels=4, in_len=64,
                           excitation=4, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
+            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=dim_out, kernel_size=11, stride=1,
                           excitation=2, dropout_rate=dropout_rate),
             nn.BatchNorm1d(4, affine=False),
             nn.Conv1d(4, 1, kernel_size=1, stride=1),
