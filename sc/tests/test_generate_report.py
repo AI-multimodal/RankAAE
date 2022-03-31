@@ -7,7 +7,7 @@ import sc.report.analysis as analysis
 class Test_GenerateReport():
 
     def test_reconstrusction_err(self):
-        self.device = torch.device('cuda:0')
+        self.device = torch.device('cpu')
 
         data_dir = os.path.join(os.path.dirname(__file__), "data/")
         model_file = os.path.join(data_dir, 'training/job_1/final.pt')
@@ -23,7 +23,7 @@ class Test_GenerateReport():
         assert np.allclose(std, 0.0095, atol=1e-4)
     
     def test_plot_spectra_variation(self):
-        self.device = torch.device('cuda:0')
+        self.device = torch.device('cpu')
         data_dir = os.path.join(os.path.dirname(__file__), "data/")
         model_file = os.path.join(data_dir, 'training/job_1/final.pt')
         data_file = os.path.join(data_dir, 'feff_Fe_CT_CN_OCN_RSTD_MOOD_spec_202201171147_5000.csv')
