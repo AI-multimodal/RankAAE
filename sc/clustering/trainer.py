@@ -158,32 +158,52 @@ class Trainer:
 
                 # Init gradients, adversarial loss
                 self.zerograd()
-                adversarial_loss = self.loss_adversarial(nll_loss, alpha, spec_in)
+                z_real_gauss = torch.randn(
+                    self.batch_size, self.nstyle, requires_grad=True, device=self.device)
+                z_fake_gauss = self.encoder(spec_in)
+                real_gauss_label = torch.ones(self.batch_size, dtype=torch.long, requires_grad=False,
+                                              device=self.device)
+                real_gauss_pred = self.discriminator(z_real_gauss, alpha)
+                fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
+                                               device=self.device)
+                fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
+                adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) + \
+                    nll_loss(fake_gauss_pred, fake_guass_lable)
                 adversarial_loss.backward()
                 adversarial_solver.step()
 
-                # Kendall Correlation constraint
+                # Correlation constration
+                # Kendall Rank Correlation Coefficeint
+                # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
                 if aux_in is not None:
                     self.zerograd()
-                    z_aux = self.encoder(spec_in)[:,:n_aux]
-                    aux_loss = functions.constraint_kendall(
-                        aux_in, 
-                        z_aux, 
-                        activate = self.kendall_activation
-                    )
+                    z = self.encoder(spec_in)
+                    aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
+                    z_aux = z[:, :n_aux]
+                    assert len(z_aux.size()) == 2
+                    aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
+                    aux_len = aux_pred.size()[0]
+                    aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                     aux_loss.backward()
                     corr_solver.step()
                 else:
                     aux_loss = None
 
+
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                recon_loss = functions.loss_reconstruction(
-                    spec_target,  # input spectra
-                    self.decoder(self.encoder(spec_in)),  # reconstructed spectra
-                    use_flex_spec_in = self.use_flex_spec_target, 
-                    mse_loss = mse_dis
-                )
+                z = self.encoder(spec_in)
+                spec_re = self.decoder(z)
+                if not self.use_flex_spec_target:
+                    recon_loss = mse_dis(spec_re, spec_target)
+                else:
+                    spec_scale = torch.abs(spec_re.mean(
+                        dim=1)) / torch.abs(spec_target.mean(dim=1))
+                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.1
+                    spec_scale = spec_scale.detach()
+                    spec_scale = torch.clamp(spec_scale, min=0.7, max=1.3)
+                    recon_loss += mse_dis(spec_re,
+                                          (spec_target.T * spec_scale).T)
                 recon_loss.backward()
                 reconn_solver.step()
 
@@ -336,37 +356,6 @@ class Trainer:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
         return metrics
-
-    def loss_adversarial(self, nll_loss, alpha, spec_in):
-        z_real_gauss = torch.randn(
-                    self.batch_size, 
-                    self.nstyle, 
-                    requires_grad = True, 
-                    device = self.device
-                )
-        real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-        real_gauss_label = torch.ones(
-                    self.batch_size, 
-                    dtype = torch.long, 
-                    requires_grad = False,
-                    device = self.device
-                )
-
-        z_fake_gauss = self.encoder(spec_in)
-        fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-        fake_guass_lable = torch.zeros(
-                    spec_in.size()[0], 
-                    dtype = torch.long, 
-                    requires_grad = False,
-                    device = self.device
-                )
-                
-        adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                                 + nll_loss(fake_gauss_pred, fake_guass_lable)
-                         
-        return adversarial_loss
-
-    
 
 
     @classmethod
