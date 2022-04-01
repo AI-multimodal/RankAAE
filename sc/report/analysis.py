@@ -91,7 +91,7 @@ def plot_spectra_variation(
 
     return spec_out
 
-def evaluate_all_models(model_path, test_ds):
+def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
@@ -102,9 +102,9 @@ def evaluate_all_models(model_path, test_ds):
         if job.startswith("job_"):
             model = torch.load(
                 os.path.join(model_path, job, "final.pt"), 
-                map_location = torch.device('cpu')
+                map_location = device
             )
-            result[job] = evaluate_model(test_ds, model)
+            result[job] = evaluate_model(test_ds, model, device=device)
     
     return result
 

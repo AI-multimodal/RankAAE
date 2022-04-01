@@ -1,0 +1,3 @@
+INFO:root:Use GPU
+INFO:root:Use GPU
+INFO:root:Use GPU

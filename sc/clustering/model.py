@@ -369,6 +369,8 @@ class FCEncoder(nn.Module):
             ]
         )
 
+        self.main = nn.Sequential(*sequential_layers)
+
     def forward(self, spec):
         z_gauss = self.main(spec)
         return z_gauss

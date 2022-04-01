@@ -1,4 +1,4 @@
-ae_form: compact
+ae_form: FC
 dim_in: 256 
 dim_out: 256 # if ae_form==normal, dim_out is always set to 256
 use_cnn_discriminator: false
