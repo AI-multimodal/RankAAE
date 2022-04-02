@@ -5,9 +5,10 @@ import argparse
 import torch
 from sc.clustering.trainer import Trainer
 from sc.utils.parameter import Parameters
+from sc.utils.logger import create_logger
 import os
 import yaml
-import datetime
+import time
 import socket
 import ipyparallel as ipp
 import logging
@@ -43,17 +44,23 @@ def get_parallel_map_func(work_dir="."):
     return c.load_balanced_view().map_sync, len(c.ids)
 
 
-def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, timeout_hours=0):
+def run_training(
+    job_number, 
+    work_dir, 
+    trainer_config, 
+    max_epoch, 
+    verbose, 
+    data_file, 
+    timeout_hours=0,
+    logger = logging.getLogger("training")
+):
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
     if torch.get_num_interop_threads() > 2:
         torch.set_num_interop_threads(1)
         torch.set_num_threads(1)
-    logging.basicConfig(
-        filename=f'{work_dir}/messages.txt', level=logging.INFO)
+    
     ngpus_per_node = torch.cuda.device_count()
     if "SLURM_LOCALID" in os.environ:
         local_id = int(os.environ.get("SLURM_LOCALID", 0))
@@ -61,27 +68,28 @@ def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_
         local_id = 0
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
 
-    trainer = Trainer.from_data(data_file,
-                                igpu = igpu,
-                                max_epoch = max_epoch,
-                                verbose = verbose,
-                                work_dir = work_dir,
-                                config_parameters = trainer_config)
-    t1 = datetime.datetime.now()
-    logging.info(f"Training started at {t1} on {socket.gethostname()}")
+    trainer = Trainer.from_data(
+        data_file,
+        igpu = igpu,
+        max_epoch = max_epoch,
+        verbose = verbose,
+        work_dir = work_dir,
+        config_parameters = trainer_config,
+        logger = logger
+    )
+
+    start = time.time()
+    logger.info(f"Training started.")
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
     try:
         metrics = trainer.train()
-        logging.info(metrics)
-        t2 = datetime.datetime.now()
-        logging.info(f'training finished at {t2}')
-        logging.info(
-            f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
+        logger.info(metrics)
+        logger.info(f"Training finished. Took: {(time.time()-start):.2f}s")
         n_aux = trainer_config.get("n_aux", 0)
         trainer.test_models(data_file, n_aux=n_aux, work_dir=work_dir)
     except Exception as ex:
-        logging.warn(f"Error happened: {ex.args}")
+        logger.warn(f"Error happened: {ex.args}")
         metrics = ex.args
     signal.alarm(0)
     return metrics
@@ -115,15 +123,15 @@ def main():
     verbose = args.verbose
     trails = args.trials
 
-    logging.basicConfig(
-        filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
+    logger = create_logger("training", f'{work_dir}/main_process_message.txt')
+    logger.info("\nSTART\n\n")
 
     if trails > 1:
         par_map, nprocesses = get_parallel_map_func(work_dir)
     else:
         par_map, nprocesses = map, 1
-    logging.info("running with {} processes".format(nprocesses))
-
+    
+    logger.info("New job running with {} process(es).".format(nprocesses))
     result = par_map(
         run_training,
         list(range(trails)),
@@ -135,7 +143,7 @@ def main():
         [args.timeout] * trails
     )
     list(result)
-
+    logger.info("\n\nEND")
 
 if __name__ == '__main__':
     main()
