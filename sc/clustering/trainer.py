@@ -33,8 +33,10 @@ class Trainer:
         encoder, decoder, discriminator, device, train_loader, val_loader,
         max_epoch=300, verbose=True, work_dir='.', aux_weights = None,
         tb_logdir="runs", base_lr=0.0001,
-        config_parameters = Parameters({})
+        config_parameters = Parameters({}),
+        logger = logging.getLogger("training")
     ):
+        self.logger = logger
         # update name space with config_parameters dictionary
         self.__dict__.update(config_parameters.to_dict())
 
@@ -90,7 +92,7 @@ class Trainer:
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
-            logging.info(para_info)
+            self.logger.info(para_info)
 
         opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
                         "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
@@ -363,8 +365,10 @@ class Trainer:
         cls, csv_fn, 
         igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
         train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
-        config_parameters = None
+        config_parameters = None,
+        logger = logging.getLogger("from_data")
     ):
+
         p = config_parameters
         assert p.ae_form in AE_CLS_DICT
 
@@ -376,13 +380,13 @@ class Trainer:
         # Use GPU if possible
         if torch.cuda.is_available():
             if verbose:
-                logging.info("Use GPU")
+                logger.info("Use GPU")
             device = torch.device(f"cuda:{igpu}")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:
             if verbose:
-                logging.warn("Use Slow CPU!")
+                logger.warn("Use Slow CPU!")
             device = torch.device("cpu")
 
         # Load encoder, decoder and discriminator
@@ -410,7 +414,7 @@ class Trainer:
         trainer = Trainer(
             encoder, decoder, discriminator, device, dl_train, dl_val,
             max_epoch=max_epoch, verbose=verbose, work_dir=work_dir,
-            config_parameters = p
+            config_parameters = p, logger = logger
         )
         return trainer
 

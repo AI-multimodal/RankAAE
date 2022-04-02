@@ -372,13 +372,16 @@ class FCEncoder(nn.Module):
         self.main = nn.Sequential(*sequential_layers)
 
     def forward(self, spec):
+        
         z_gauss = self.main(spec)
+        # need to call spec.unsqueeze to accomondate the channel sizes.
+
         return z_gauss
 
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=256):
+    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
         super(Decoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
