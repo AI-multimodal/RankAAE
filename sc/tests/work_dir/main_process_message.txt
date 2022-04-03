@@ -37,3 +37,39 @@
 04-02 19:35 INFO:  END
 
 
+04-02 22:38 INFO:  START
+04-02 22:38 INFO:  Engine IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+04-02 22:38 INFO:  Running with 8 process(es).
+04-02 22:38 INFO:  Time used for each trial: 8.43 +/- 0.20s.
+8.55s 8.14s 8.56s 8.59s 8.58s 8.57s 8.04s 8.45s
+04-02 22:38 INFO:  Total time used: 8.75s for 8 trails (1.09 each on average).
+04-02 22:38 INFO:  END
+
+
+04-02 22:40 INFO:  START
+04-02 22:40 INFO:  Engine IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+04-02 22:40 INFO:  Running with 8 process(es).
+04-02 22:40 INFO:  Time used for each trial: 6.10 +/- 0.21s.
+6.22s 6.22s 6.02s 6.17s 6.19s 5.58s 6.21s 6.20s
+04-02 22:40 INFO:  Total time used: 6.24s for 8 trails (0.78 each on average).
+04-02 22:40 INFO:  END
+
+
+04-02 22:41 INFO:  START
+04-02 22:41 INFO:  Engine IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+04-02 22:41 INFO:  Running with 8 process(es).
+04-02 22:41 INFO:  Time used for each trial: 8.43 +/- 0.30s.
+8.58s 8.33s 8.46s 8.60s 7.66s 8.60s 8.60s 8.61s
+04-02 22:41 INFO:  Total time used: 8.78s for 8 trails (1.10 each on average).
+04-02 22:41 INFO:  END
+
+
+04-02 22:43 INFO:  START
+04-02 22:43 INFO:  Engine IDs: [0, 1, 2, 3, 4, 5, 6, 7]
+04-02 22:43 INFO:  Running with 8 process(es).
+04-02 22:44 INFO:  Time used for each trial: 8.76 +/- 0.14s.
+8.76s 8.83s 8.81s 8.81s 8.81s 8.81s 8.81s 8.40s
+04-02 22:44 INFO:  Total time used: 9.01s for 8 trails (1.13 each on average).
+04-02 22:44 INFO:  END
+
+
