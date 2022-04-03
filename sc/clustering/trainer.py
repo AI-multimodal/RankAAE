@@ -27,48 +27,50 @@ from sc.utils.parameter import AE_CLS_DICT, Parameters
 class Trainer:
     
     metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
-    
+    gau_kernel_size = 17
+
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
         max_epoch=300, verbose=True, work_dir='.', aux_weights = None,
         tb_logdir="runs", base_lr=0.0001,
-        config_parameters = Parameters({}),
+        config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training")
     ):
-        self.logger = logger
+        
         # update name space with config_parameters dictionary
         self.__dict__.update(config_parameters.to_dict())
-
-        self.encoder = encoder.to(device)
-        self.decoder = decoder.to(device)
-        self.discriminator = discriminator.to(device)
-        
+        self.logger = logger
+        self.device = device
+        self.encoder = encoder.to(self.device)
+        self.decoder = decoder.to(self.device)
+        self.discriminator = discriminator.to(self.device)
         self.max_epoch = max_epoch
         self.base_lr = base_lr
-        self.device = device
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.noise_test_range = (-2, 2)
-        self.ntest_per_spectra = 10
-        gau_kernel_size = 17
-        self.gaussian_smoothing = GaussianSmoothing(channels=1, kernel_size=gau_kernel_size, sigma=3.0, dim=1,
-                                                    device=device).to(device)
-        self.padding4smooth = nn.ReplicationPad1d(
-            padding=(gau_kernel_size - 1) // 2).to(device)
+        self.verbose = verbose
+        self.work_dir = work_dir
+        self.tb_logdir = tb_logdir
 
-        if verbose:
+        self.gaussian_smoothing = GaussianSmoothing(
+            channels=1, 
+            kernel_size=self.gau_kernel_size, 
+            sigma=3.0, dim=1,
+            device = self.device).to(device)
+
+        self.padding4smooth = nn.ReplicationPad1d(
+            padding=(self.gau_kernel_size - 1) // 2).to(device)
+
+        if self.verbose:
             self.tb_writer = SummaryWriter(
-                log_dir=os.path.join(work_dir, tb_logdir))
-            example_spec = iter(train_loader).next()[0]
+                log_dir=os.path.join(self.work_dir, self.tb_logdir))
+            example_spec = iter(self.train_loader).next()[0]
             self.tb_writer.add_graph(DummyDualAAE(
                 self.use_cnn_discriminator, self.encoder.__class__, self.decoder.__class__), example_spec)
 
         
-        self.verbose = verbose
-        self.work_dir = work_dir
-    
-        train_ds: AuxSpectraDataset = train_loader.dataset
+        train_ds: AuxSpectraDataset = self.train_loader.dataset
         n_aux = train_ds.aux.shape[1]
         if aux_weights is None:
             aux_weights = [1.0] * n_aux
@@ -88,6 +90,7 @@ class Trainer:
             sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
                          ax=ax, element="step")
         return fig
+
 
     def train(self, callback=None):
         if self.verbose:
@@ -186,13 +189,10 @@ class Trainer:
                     aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                     aux_len = aux_pred.size()[0]
                     aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
-                    # aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
-
                     aux_loss.backward()
                     corr_solver.step()
                 else:
                     aux_loss = None
-
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
@@ -272,7 +272,6 @@ class Trainer:
             z = self.encoder(spec_in)
             spec_re = self.decoder(z)
             recon_loss = mse_dis(spec_re, spec_in)
-            
             loss_dict = {
                 'Recon': recon_loss.item()
             }
@@ -285,8 +284,7 @@ class Trainer:
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_len = aux_pred.size()[0]
-                aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / (
-                    (aux_len**2 - aux_len) * n_aux)
+                aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 if self.verbose:
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
@@ -309,9 +307,8 @@ class Trainer:
                 spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
 
-            adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                             + nll_loss(fake_gauss_pred, fake_guass_lable)
-            
+            adversarial_loss = nll_loss(
+                real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
             loss_dict = {
                 'Adversarial': adversarial_loss.item()
             }
@@ -360,7 +357,6 @@ class Trainer:
             shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
 
         return metrics
-
 
     @classmethod
     def from_data(
