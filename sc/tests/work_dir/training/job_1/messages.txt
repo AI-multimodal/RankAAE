@@ -1,12 +1,6 @@
-04-02 19:35 INFO:  
-
-Training started for trial 1.
-04-02 19:35 INFO:  
-
-Training started for trial 1.
-04-02 19:35 INFO:  Use GPU
-04-02 19:35 INFO:  Use GPU
-04-02 19:35 INFO:  ATen/Parallel:
+04-02 22:43 INFO:  Training started for trial 1.
+04-02 22:43 INFO:  Use GPU
+04-02 22:43 INFO:  ATen/Parallel:
 	at::get_num_threads() : 1
 	at::get_num_interop_threads() : 1
 OpenMP 201511 (a.k.a. OpenMP 4.5)
@@ -20,27 +14,7 @@ Environment variables:
 	MKL_NUM_THREADS : [not set]
 ATen parallel backend: OpenMP
 
-04-02 19:35 INFO:  ATen/Parallel:
-	at::get_num_threads() : 1
-	at::get_num_interop_threads() : 1
-OpenMP 201511 (a.k.a. OpenMP 4.5)
-	omp_get_max_threads() : 1
-Intel(R) oneAPI Math Kernel Library Version 2021.3-Product Build 20210617 for Intel(R) 64 architecture applications
-	mkl_get_max_threads() : 1
-Intel(R) MKL-DNN v2.1.2 (Git Hash 98be7e8afa711dc9b66c8ff3504129cb82013cdb)
-std::thread::hardware_concurrency() : 128
-Environment variables:
-	OMP_NUM_THREADS : [not set]
-	MKL_NUM_THREADS : [not set]
-ATen parallel backend: OpenMP
+04-02 22:44 INFO:  [0.9199817180633545, 0.491665780544281, 1.8332415223121643, 0.810756669789635, -0.3215883672237396]
+04-02 22:44 INFO:  Training finished. Time used: 8.76s.
 
-04-02 19:35 INFO:  [0.8868027329444885, 0.2656216323375702, 1.8185350596904755, 0.95937682378102, -0.19739176332950592]
-04-02 19:35 INFO:  [0.8868027329444885, 0.2656216323375702, 1.8185350596904755, 0.95937682378102, -0.19739176332950592]
-04-02 19:35 INFO:  
 
-Time used: 6.20s.
-Training finished.
-04-02 19:35 INFO:  
-
-Time used: 6.20s.
-Training finished.

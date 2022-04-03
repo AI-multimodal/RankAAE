@@ -18,7 +18,6 @@ import numpy as np
 
 engine_id = -1
 
-
 def timeout_handler(signum, frame):
     raise Exception("Training Overtime!")
 
@@ -56,15 +55,13 @@ def run_training(
     timeout_hours=0,
     logger = logging.getLogger("training")
 ):
-    work_dir = f'{work_dir}/training/job_{job_number+1}'
-    
-    logger = create_logger(
-        f"subtraining_{job_number+1}",
-        os.path.join(work_dir, "messages.txt")
-    )
 
+    work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
+
+    logger = create_logger(f"subtraining_{job_number+1}", os.path.join(work_dir, "messages.txt"))
+
     if torch.get_num_interop_threads() > 2:
         torch.set_num_interop_threads(1)
         torch.set_num_threads(1)
@@ -76,8 +73,9 @@ def run_training(
         local_id = 0
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
     
-    logger.info(f"\n\nTraining started for trial {job_number+1}.")
     start = time.time()
+    logger.info(f"Training started for trial {job_number+1}.")
+
     trainer = Trainer.from_data(
         data_file,
         igpu = igpu,
@@ -87,24 +85,27 @@ def run_training(
         config_parameters = trainer_config,
         logger = logger
     )
-
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
+
     try:
         metrics = trainer.train()
         logger.info(metrics)
         n_aux = trainer_config.get("n_aux", 0)
         trainer.test_models(data_file, n_aux=n_aux, work_dir=work_dir)
-    except Exception as ex:
-        logger.warn(f"Error happened: {ex.args}")
-        metrics = ex.args
+    except Exception as e:
+        logger.warn(f"Error happened: {e.args}")
+        metrics = e.args
     signal.alarm(0)
+    
     time_used = time.time() - start
-    logger.info(f"\n\nTime used: {time_used:.2f}s.\nTraining finished.")
+    logger.info(f"Training finished. Time used: {time_used:.2f}s.\n\n")
+    
     return metrics, time_used
 
 
 def main():
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data_file', type=str, required=True,
                         help='File name of the dataset in CSV format')
@@ -121,25 +122,22 @@ def main():
     parser.add_argument('--timeout', type=int, default=5,
                         help='Time limit per job in hours')
     args = parser.parse_args()
-
-    work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
-    assert os.path.exists(work_dir)
-        
-    data_file = os.path.join(work_dir, args.data_file)
-    trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
-
     max_epoch = args.max_epoch
     verbose = args.verbose
     trials = args.trials
+    work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
+    assert os.path.exists(work_dir)
+    data_file = os.path.join(work_dir, args.data_file)
+    trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
 
+    # Start Logger
     logger = create_logger("Main training:", f'{work_dir}/main_process_message.txt', append=True)
     logger.info("START")
-    
+
     if trials > 1:
         par_map, nprocesses = get_parallel_map_func(work_dir, logger=logger)
     else:
         par_map, nprocesses = map, 1
-    
     logger.info("Running with {} process(es).".format(nprocesses))
     
     start = time.time()
