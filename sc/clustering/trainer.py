@@ -32,26 +32,24 @@ class Trainer:
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
-        max_epoch=300, verbose=True, work_dir='.',
-        tb_logdir="runs", base_lr=0.0001,
+        max_epoch=300, verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training")
     ):
-        
-        # update name space with config_parameters dictionary
-        self.__dict__.update(config_parameters.to_dict())
         self.logger = logger
         self.device = device
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
         self.max_epoch = max_epoch
-        self.base_lr = base_lr
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
         self.work_dir = work_dir
         self.tb_logdir = tb_logdir
+
+        # update name space with config_parameters dictionary
+        self.__dict__.update(config_parameters.to_dict())
 
         self.gaussian_smoothing = GaussianSmoothing(
             channels=1, 
@@ -98,17 +96,17 @@ class Trainer:
         nll_loss = nn.NLLLoss().to(self.device)
 
         reconn_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                lr=self.lr_ratio_Reconn * self.base_lr,
+                                lr=self.lr_ratio_Reconn * self.lr_base,
                                 weight_decay=self.weight_decay)
         mutual_info_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                     lr=self.lr_ratio_Mutual * self.base_lr)
-        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr,
+                                     lr=self.lr_ratio_Mutual * self.lr_base)
+        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.lr_base,
                                 weight_decay=self.weight_decay)
-        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.base_lr,
+        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.lr_base,
                               weight_decay=self.weight_decay)
         adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
                                       {'params': self.encoder.parameters()}],
-                                     lr=self.lr_ratio_Style * self.base_lr,
+                                     lr=self.lr_ratio_Style * self.lr_base,
                                      betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
         sol_list = [reconn_solver, mutual_info_solver, smooth_solver,
