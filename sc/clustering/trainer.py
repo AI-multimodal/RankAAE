@@ -32,7 +32,7 @@ class Trainer:
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
-        max_epoch=300, verbose=True, work_dir='.', aux_weights = None,
+        max_epoch=300, verbose=True, work_dir='.',
         tb_logdir="runs", base_lr=0.0001,
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training")
@@ -68,14 +68,6 @@ class Trainer:
             example_spec = iter(self.train_loader).next()[0]
             self.tb_writer.add_graph(DummyDualAAE(
                 self.use_cnn_discriminator, self.encoder.__class__, self.decoder.__class__), example_spec)
-
-        
-        train_ds: AuxSpectraDataset = self.train_loader.dataset
-        n_aux = train_ds.aux.shape[1]
-        if aux_weights is None:
-            aux_weights = [1.0] * n_aux
-        assert len(aux_weights) == n_aux
-        self.aux_weights = torch.tensor(aux_weights, device=self.device)
 
     def zerograd(self):
         self.encoder.zero_grad()
@@ -363,7 +355,7 @@ class Trainer:
         cls, csv_fn, 
         igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
         train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
-        config_parameters = None,
+        config_parameters = Parameters({}),
         logger = logging.getLogger("from_data")
     ):
 
