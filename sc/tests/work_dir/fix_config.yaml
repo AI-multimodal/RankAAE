@@ -11,7 +11,7 @@ dropout_rate: 0.02
 grad_rev_beta: 1.1
 grad_rev_dropout_rate: 0.05310439557626974
 grad_rev_noise: 0.5674717136118386
-lr: 0.001
+lr_base: 0.001
 lr_ratio_Corr: 10
 lr_ratio_Mutual: 1
 lr_ratio_Reconn: 10
