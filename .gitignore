@@ -8,3 +8,5 @@ nosetests.xml
 sc/utils/.ipynb_checkpoints/
 tests/test_data/*.png
 tests/test_data/*.yml
+ipypar/
+training/
