@@ -1,100 +1,71 @@
-import itertools
-
-import torch
-from torch import nn
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import torch.optim as optim
-import torch_optimizer as ex_optim
 import shutil
 import os
 import logging
+import itertools
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import shapiro, spearmanr
+
+import torch
+from torch import nn, optim
+import torch_optimizer as ex_optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
+from torchvision import transforms
 from sc.clustering.model import (
-    CompactDecoder, 
-    CompactEncoder, 
-    Encoder, 
-    Decoder, 
-    QvecDecoder, 
-    QvecEncoder, 
-    FCDecoder,
-    FCEncoder,
     GaussianSmoothing, 
     DummyDualAAE, 
     DiscriminatorCNN, 
     DiscriminatorFC
 )
-from sc.clustering.dataloader import get_dataloaders
-from torchvision import transforms
-from sc.clustering.dataloader import AuxSpectraDataset, ToTensor
-from scipy.stats import shapiro, spearmanr
+from sc.clustering.dataloader import get_dataloaders, AuxSpectraDataset, ToTensor
+from sc.utils import functions
+from sc.utils.parameter import AE_CLS_DICT, Parameters
 
 
 class Trainer:
     
     metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
-    
-    def __init__(self, encoder, decoder, discriminator, device, train_loader, val_loader,
-                 base_lr=0.0001, nstyle=2,
-                 batch_size=111, max_epoch=300,
-                 tb_logdir="runs", use_cnn_dis=False,
-                 grad_rev_beta=1.1, alpha_flat_step=100, alpha_limit=2.0,
-                 sch_factor=0.25, sch_patience=300, spec_noise=0.01, weight_decay=1e-2,
-                 lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                 lr_ratio_Corr=0.5, lr_ratio_Style=0.5, optimizer_name="AdamW",
-                 aux_weights=None,
-                 verbose=True, work_dir='.', use_flex_spec_target=False):
+    gau_kernel_size = 17
 
-        self.encoder = encoder.to(device)
-        self.decoder = decoder.to(device)
-        self.discriminator = discriminator.to(device)
-        self.nstyle = nstyle
-        self.batch_size = batch_size
-        self.max_epoch = max_epoch
-        self.base_lr = base_lr
+    def __init__(
+        self, 
+        encoder, decoder, discriminator, device, train_loader, val_loader,
+        max_epoch=300, verbose=True, work_dir='.', tb_logdir="runs", 
+        config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
+        logger = logging.getLogger("training")
+    ):
+        self.logger = logger
         self.device = device
+        self.encoder = encoder.to(self.device)
+        self.decoder = decoder.to(self.device)
+        self.discriminator = discriminator.to(self.device)
+        self.max_epoch = max_epoch
         self.train_loader = train_loader
         self.val_loader = val_loader
-
-        self.noise_test_range = (-2, 2)
-        self.ntest_per_spectra = 10
-        gau_kernel_size = 17
-        self.gaussian_smoothing = GaussianSmoothing(channels=1, kernel_size=gau_kernel_size, sigma=3.0, dim=1,
-                                                    device=device).to(device)
-        self.padding4smooth = nn.ReplicationPad1d(
-            padding=(gau_kernel_size - 1) // 2).to(device)
-
-        if verbose:
-            self.tb_writer = SummaryWriter(
-                log_dir=os.path.join(work_dir, tb_logdir))
-            example_spec = iter(train_loader).next()[0]
-            self.tb_writer.add_graph(DummyDualAAE(
-                use_cnn_dis, self.encoder.__class__, self.decoder.__class__), example_spec)
-
-        self.grad_rev_beta = grad_rev_beta
-        self.alpha_flat_step = alpha_flat_step
-        self.alpha_limit = alpha_limit
-        self.sch_factor = sch_factor
-        self.sch_patience = sch_patience
-        self.spec_noise = spec_noise
-        self.lr_ratio_Reconn = lr_ratio_Reconn
-        self.lr_ratio_Mutual = lr_ratio_Mutual
-        self.lr_ratio_Smooth = lr_ratio_Smooth
-        self.lr_ratio_Corr = lr_ratio_Corr
-        self.lr_ratio_Style = lr_ratio_Style
         self.verbose = verbose
         self.work_dir = work_dir
-        self.use_flex_spec_target = use_flex_spec_target
-        self.optimizer_name = optimizer_name
-        self.weight_decay = weight_decay
-        train_ds: AuxSpectraDataset = train_loader.dataset
-        n_aux = train_ds.aux.shape[1]
-        if aux_weights is None:
-            aux_weights = [1.0] * n_aux
-        assert len(aux_weights) == n_aux
-        self.aux_weights = torch.tensor(aux_weights, device=self.device)
+        self.tb_logdir = tb_logdir
+
+        # update name space with config_parameters dictionary
+        self.__dict__.update(config_parameters.to_dict())
+
+        self.gaussian_smoothing = GaussianSmoothing(
+            channels=1, 
+            kernel_size=self.gau_kernel_size, 
+            sigma=3.0, dim=1,
+            device = self.device).to(device)
+
+        self.padding4smooth = nn.ReplicationPad1d(
+            padding=(self.gau_kernel_size - 1) // 2).to(device)
+
+        if self.verbose:
+            self.tb_writer = SummaryWriter(
+                log_dir=os.path.join(self.work_dir, self.tb_logdir))
+            example_spec = iter(self.train_loader).next()[0]
+            self.tb_writer.add_graph(DummyDualAAE(
+                self.use_cnn_discriminator, self.encoder.__class__, self.decoder.__class__), example_spec)
 
     def zerograd(self):
         self.encoder.zero_grad()
@@ -110,10 +81,11 @@ class Trainer:
                          ax=ax, element="step")
         return fig
 
+
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
-            logging.info(para_info)
+            self.logger.info(para_info)
 
         opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
                         "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
@@ -124,17 +96,17 @@ class Trainer:
         nll_loss = nn.NLLLoss().to(self.device)
 
         reconn_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                lr=self.lr_ratio_Reconn * self.base_lr,
+                                lr=self.lr_ratio_Reconn * self.lr_base,
                                 weight_decay=self.weight_decay)
         mutual_info_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                     lr=self.lr_ratio_Mutual * self.base_lr)
-        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.base_lr,
+                                     lr=self.lr_ratio_Mutual * self.lr_base)
+        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.lr_base,
                                 weight_decay=self.weight_decay)
-        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.base_lr,
+        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.lr_base,
                               weight_decay=self.weight_decay)
         adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
                                       {'params': self.encoder.parameters()}],
-                                     lr=self.lr_ratio_Style * self.base_lr,
+                                     lr=self.lr_ratio_Style * self.lr_base,
                                      betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
 
         sol_list = [reconn_solver, mutual_info_solver, smooth_solver,
@@ -206,7 +178,7 @@ class Trainer:
                     assert len(z_aux.size()) == 2
                     aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                     aux_len = aux_pred.size()[0]
-                    aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                    aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                     aux_loss.backward()
                     corr_solver.step()
                 else:
@@ -302,8 +274,7 @@ class Trainer:
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_len = aux_pred.size()[0]
-                aux_loss = - (self.aux_weights[np.newaxis, np.newaxis, :] * aux_pred * aux_target).sum() / (
-                    (aux_len**2 - aux_len) * n_aux)
+                aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                 loss_dict = {"Aux": aux_loss.item()}
                 if self.verbose:
                     self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
@@ -378,69 +349,63 @@ class Trainer:
         return metrics
 
     @classmethod
-    def from_data(cls, csv_fn, igpu=0, batch_size=512, lr=0.01, max_epoch=2000, nstyle=2,
-                  dropout_rate=0.5, grad_rev_dropout_rate=0.5, grad_rev_noise=0.1, grad_rev_beta=1.1,
-                  use_cnn_dis=False, alpha_flat_step=100, alpha_limit=2.0,
-                  sch_factor=0.25, sch_patience=300, spec_noise=0.01,
-                  lr_ratio_Reconn=2.0, lr_ratio_Mutual=3.0, lr_ratio_Smooth=0.1,
-                  lr_ratio_Style=0.5, lr_ratio_Corr=0.5, weight_decay=1e-2,
-                  train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, fc_dim=256,
-                  use_flex_spec_target=False, optimizer_name="AdamW",
-                  aux_weights=None,
-                  decoder_activation='Softplus', ae_form='compact', n_aux=0, discriminator_layers=3,
-                  verbose=True, work_dir='.'):
-        ae_cls_dict = {"normal": {"encoder": Encoder, "decoder": Decoder},
-                       "compact": {"encoder": CompactEncoder, "decoder": CompactDecoder},
-                       "qved": {"encoder": QvecEncoder, "decoder": QvecDecoder},
-                       "FC": {"encoder": FCEncoder, "decoder": FCDecoder}}
-        assert ae_form in ae_cls_dict
-        dl_train, dl_val, dl_test = get_dataloaders(
-            csv_fn, batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=n_aux)
+    def from_data(
+        cls, csv_fn, 
+        igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
+        train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
+        config_parameters = Parameters({}),
+        logger = logging.getLogger("from_data")
+    ):
 
-        use_cuda = torch.cuda.is_available()
-        if use_cuda:
+        p = config_parameters
+        assert p.ae_form in AE_CLS_DICT
+
+        # load training and validation dataset
+        dl_train, dl_val, _ = get_dataloaders(
+            csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
+
+
+        # Use GPU if possible
+        if torch.cuda.is_available():
             if verbose:
-                logging.info("Use GPU")
+                logger.info("Use GPU")
+            device = torch.device(f"cuda:{igpu}")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False
         else:
             if verbose:
-                logging.warn("Use Slow CPU!")
+                logger.warn("Use Slow CPU!")
+            device = torch.device("cpu")
 
-        device = torch.device(f"cuda:{igpu}" if use_cuda else "cpu")
-
-        enc_ex_kwargs = {}
-        dec_ex_kwargs = {}
-        if ae_form == "FC":
-            enc_ex_kwargs["dim_in"] = fc_dim
-            dec_ex_kwargs["dim_out"] = fc_dim
-        encoder = ae_cls_dict[ae_form]["encoder"](
-            nstyle=nstyle, dropout_rate=dropout_rate, **enc_ex_kwargs)
-        decoder = ae_cls_dict[ae_form]["decoder"](
-            nstyle=nstyle, dropout_rate=dropout_rate, 
-            last_layer_activation=decoder_activation, **dec_ex_kwargs)
-        if use_cnn_dis:
+        # Load encoder, decoder and discriminator
+        encoder = AE_CLS_DICT[p.ae_form]["encoder"](
+            nstyle=p.nstyle, dropout_rate=p.dropout_rate, dim_in=p.dim_in
+        )
+        decoder = AE_CLS_DICT[p.ae_form]["decoder"](
+            nstyle=p.nstyle, dropout_rate=p.dropout_rate, 
+            last_layer_activation=p.decoder_activation, dim_out=p.dim_out
+        )
+        if p.use_cnn_discriminator:
             discriminator = DiscriminatorCNN(
-                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise)
+                nstyle=p.nstyle, dropout_rate=p.grad_rev_dropout_rate, noise=p.grad_rev_noise
+            )
         else:
             discriminator = DiscriminatorFC(
-                nstyle=nstyle, dropout_rate=grad_rev_dropout_rate, noise=grad_rev_noise,
-                layers = discriminator_layers)
+                nstyle=p.nstyle, dropout_rate=p.grad_rev_dropout_rate, noise=p.grad_rev_noise,
+                layers = p.FC_discriminator_layers
+            )
 
-        for i in [encoder, decoder, discriminator]:
-            i.to(device)
+        for net in [encoder, decoder, discriminator]:
+            net.to(device)
 
-        trainer = Trainer(encoder, decoder, discriminator, device, dl_train, dl_val,
-                          nstyle=nstyle, weight_decay=weight_decay,
-                          max_epoch=max_epoch, base_lr=lr, use_cnn_dis=use_cnn_dis,
-                          grad_rev_beta=grad_rev_beta, alpha_flat_step=alpha_flat_step, alpha_limit=alpha_limit,
-                          sch_factor=sch_factor, sch_patience=sch_patience, spec_noise=spec_noise,
-                          lr_ratio_Reconn=lr_ratio_Reconn, lr_ratio_Mutual=lr_ratio_Mutual,
-                          lr_ratio_Smooth=lr_ratio_Smooth, lr_ratio_Corr=lr_ratio_Corr,
-                          lr_ratio_Style=lr_ratio_Style, optimizer_name=optimizer_name, batch_size=batch_size,
-                          use_flex_spec_target=use_flex_spec_target, aux_weights=aux_weights,
-                          verbose=verbose, work_dir=work_dir)
+        # Load trainer
+        trainer = Trainer(
+            encoder, decoder, discriminator, device, dl_train, dl_val,
+            max_epoch=max_epoch, verbose=verbose, work_dir=work_dir,
+            config_parameters = p, logger = logger
+        )
         return trainer
+
 
     @staticmethod
     def test_models(csv_fn, n_aux=0,

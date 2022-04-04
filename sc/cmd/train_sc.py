@@ -4,88 +4,108 @@ import argparse
 
 import torch
 from sc.clustering.trainer import Trainer
-from sc.utils.generate_report import plot_report
+from sc.utils.parameter import Parameters
+from sc.utils.logger import create_logger
 import os
 import yaml
-import datetime
 import socket
 import ipyparallel as ipp
 import logging
 import signal
+import time
+import numpy as np
 
 
 engine_id = -1
-
 
 def timeout_handler(signum, frame):
     raise Exception("Training Overtime!")
 
 
-def get_parallel_map_func(work_dir="."):
+def get_parallel_map_func(work_dir=".", logger=logging.getLogger("Parallel")):
+    
     c = ipp.Client(
-        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json")
+        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json"
+    )
+
     with c[:].sync_imports():
-        from sc.clustering.trainer import Trainer
-        import os
-        import yaml
-        import datetime
-        import socket
         import torch
-        import sys
+        from sc.clustering.trainer import Trainer
+        from sc.utils.parameter import Parameters
+        from sc.utils.logger import create_logger
+        import os
+        import socket
         import logging
         import signal
-    logging.info(f"Engine IDs: {c.ids}")
+        import time
+    logger.info(f"Engine IDs: {c.ids}")
     c[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
               block=True)
 
     return c.load_balanced_view().map_sync, len(c.ids)
 
 
-def run_training(job_number, work_dir, trainer_config, max_epoch, verbose, data_file, timeout_hours=0):
+def run_training(
+    job_number, 
+    work_dir, 
+    trainer_config, 
+    max_epoch, 
+    verbose, 
+    data_file, 
+    timeout_hours=0,
+    logger = logging.getLogger("training")
+):
+
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
+
+    logger = create_logger(f"subtraining_{job_number+1}", os.path.join(work_dir, "messages.txt"))
+
     if torch.get_num_interop_threads() > 2:
         torch.set_num_interop_threads(1)
         torch.set_num_threads(1)
-    logging.basicConfig(
-        filename=f'{work_dir}/messages.txt', level=logging.INFO)
+    
     ngpus_per_node = torch.cuda.device_count()
     if "SLURM_LOCALID" in os.environ:
         local_id = int(os.environ.get("SLURM_LOCALID", 0))
     else:
         local_id = 0
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
+    
+    start = time.time()
+    logger.info(f"Training started for trial {job_number+1}.")
 
-    trainer = Trainer.from_data(data_file,
-                                igpu=igpu,
-                                max_epoch=max_epoch,
-                                verbose=verbose,
-                                work_dir=work_dir,
-                                **trainer_config)
-    t1 = datetime.datetime.now()
-    logging.info(f"Training started at {t1} on {socket.gethostname()}")
+    trainer = Trainer.from_data(
+        data_file,
+        igpu = igpu,
+        max_epoch = max_epoch,
+        verbose = verbose,
+        work_dir = work_dir,
+        config_parameters = trainer_config,
+        logger = logger
+    )
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
+
     try:
         metrics = trainer.train()
-        logging.info(metrics)
-        t2 = datetime.datetime.now()
-        logging.info(f'training finished at {t2}')
-        logging.info(
-            f"Total {(t2 - t1).seconds + (t2 - t1).microseconds * 1.0E-6 :.2f}s used in traing")
+        logger.info(metrics)
         n_aux = trainer_config.get("n_aux", 0)
         trainer.test_models(data_file, n_aux=n_aux, work_dir=work_dir)
-    except Exception as ex:
-        logging.warn(f"Error happened: {ex.args}")
-        metrics = ex.args
+    except Exception as e:
+        logger.warn(f"Error happened: {e.args}")
+        metrics = e.args
     signal.alarm(0)
-    return metrics
+    
+    time_used = time.time() - start
+    logger.info(f"Training finished. Time used: {time_used:.2f}s.\n\n")
+    
+    return metrics, time_used
 
 
 def main():
+    
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--data_file', type=str, required=True,
                         help='File name of the dataset in CSV format')
@@ -102,40 +122,49 @@ def main():
     parser.add_argument('--timeout', type=int, default=5,
                         help='Time limit per job in hours')
     args = parser.parse_args()
-
-    work_dir = os.path.expandvars(os.path.expanduser(args.work_dir))
-    work_dir = os.path.abspath(work_dir)
-    with open(os.path.expandvars(os.path.expanduser(args.config))) as f:
-        trainer_config = yaml.full_load(f)
-
-    if not os.path.exists(work_dir):
-        os.makedirs(work_dir, exist_ok=True)
-
     max_epoch = args.max_epoch
     verbose = args.verbose
-    data_file = os.path.abspath(os.path.expandvars(
-        os.path.expanduser(args.data_file)))
-    trails = args.trials
+    trials = args.trials
+    work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
+    assert os.path.exists(work_dir)
+    data_file = os.path.join(work_dir, args.data_file)
+    trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
 
-    logging.basicConfig(
-        filename=f'{work_dir}/main_process_message.txt', level=logging.INFO)
+    # Start Logger
+    logger = create_logger("Main training:", f'{work_dir}/main_process_message.txt', append=True)
+    logger.info("START")
 
-    if trails > 1:
-        par_map, nprocesses = get_parallel_map_func(work_dir)
+    if trials > 1:
+        par_map, nprocesses = get_parallel_map_func(work_dir, logger=logger)
     else:
         par_map, nprocesses = map, 1
-    logging.info("running with {} processes".format(nprocesses))
+    logger.info("Running with {} process(es).".format(nprocesses))
+    
+    start = time.time()
+    result = par_map(
+        run_training,
+        list(range(trials)),
+        [work_dir] * trials,
+        [trainer_config] * trials,
+        [max_epoch] * trials,
+        [verbose] * trials,
+        [data_file] * trials,
+        [args.timeout] * trials,
+        [logger] * trials
+    )
 
-    result = par_map(run_training,
-                     list(range(trails)),
-                     [work_dir]*trails,
-                     [trainer_config]*trails,
-                     [max_epoch]*trails,
-                     [verbose]*trails,
-                     [data_file]*trails,
-                     [args.timeout]*trails)
-    list(result)
-
+    time_trials = np.array([r[1] for r in list(result)])
+    logger.info(
+        f"Time used for each trial: {time_trials.mean():.2f} +/- {time_trials.std():.2f}s.\n" + 
+        ' '.join([f"{t:.2f}s" for t in time_trials])
+    )
+    
+    end = time.time()
+    logger.info(
+        f"Total time used: {end-start:.2f}s for {trials} trails " +
+        f"({(end-start)/trials:.2f} each on average)."
+    )
+    logger.info("END\n\n")
 
 if __name__ == '__main__':
     main()
