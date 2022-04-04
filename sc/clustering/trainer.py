@@ -22,7 +22,7 @@ from sc.clustering.model import (
 from sc.clustering.dataloader import get_dataloaders, AuxSpectraDataset, ToTensor
 from sc.utils import functions
 from sc.utils.parameter import AE_CLS_DICT, Parameters
-
+import time
 
 class Trainer:
     
@@ -123,7 +123,10 @@ class Trainer:
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chk = None
         metrics = None
+        
+        time_elapsed = 0
         for epoch in range(self.max_epoch):
+            start = time.time()
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
@@ -336,7 +339,11 @@ class Trainer:
                         z.clone().cpu().detach().numpy())
                     self.tb_writer.add_figure(
                         "Style Value Distribution", fig, global_step=epoch)
-
+            
+            time_elapsed += (time.time()-start)
+            if (epoch+1) % 10 == 0:
+                self.logger.info(f"Epoch {epoch+1} takes {time_elapsed:.2f}s.")
+                time_elapsed = 0 # reset to zero every 10 epochs
         # save model
         model_dict = {"Encoder": self.encoder,
                       "Decoder": self.decoder,
