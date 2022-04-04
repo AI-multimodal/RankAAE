@@ -70,7 +70,8 @@ def plot_spectra_variation(
         if true_range: # sample from the true range of a style 
             assert len(styles.shape) == 2 # styles must be a 2-D array
             style_range = np.percentile(styles[:, istyle], [5, 95])
-            style_variation = torch.linspace(*style_range, n_spec, device = device)
+            left, right = style_range
+            style_variation = torch.linspace(left, right, n_spec, device = device)
         else: # sample from the absolute range
             style_variation = torch.linspace(-amplitude, amplitude, n_spec, device = device)
         # Assign the "layer" to be duplicates of `style_variation`
@@ -87,7 +88,7 @@ def plot_spectra_variation(
                 ax.plot(spec, lw=0.8, c=color)
             else: 
                 ax.plot(energy_grid, spec, lw=0.8, c=color)
-        ax.set_title(f"Varying Style #{istyle+1}", y=1)
+        ax.set_title(f"Style {istyle+1} varying from {left:.2f} to {right:.2f}", y=1)
 
     return spec_out
 
