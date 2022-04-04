@@ -90,7 +90,7 @@ def plot_spectra_variation(
                 ax.plot(energy_grid, spec, lw=0.8, c=color)
         ax.set_title(f"Style {istyle+1} varying from {left:.2f} to {right:.2f}", y=1)
 
-    return spec_out
+    return style_variation, spec_out
 
 def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
     '''
