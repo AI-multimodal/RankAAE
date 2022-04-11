@@ -328,7 +328,7 @@ class FCEncoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=2, 
+        nstyle=5, 
         dim_in=256, 
         last_layer_activation='Softplus',
         n_layers=3,
@@ -360,12 +360,12 @@ class FCEncoder(nn.Module):
             )
         sequential_layers.extend(
             [
-                nn.Linear(64, 16),
+                nn.Linear(hidden_size, 16),
                 ll_act,
                 nn.BatchNorm1d(16, affine=False),
                 nn.Dropout(dropout_rate),
                 nn.Linear(16, nstyle),
-                nn.BatchNorm1d(16, affine=False)
+                nn.BatchNorm1d(nstyle, affine=False)
             ]
         )
 
@@ -513,7 +513,7 @@ class FCDecoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=2, 
+        nstyle=5, 
         debug=False, 
         dim_out=256, 
         last_layer_activation='ReLu', 
@@ -632,7 +632,7 @@ class DiscriminatorCNN(nn.Module):
 
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1, layers=3):
+    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=5, noise=0.1, layers=3):
         super(DiscriminatorFC, self).__init__()
         
         sequential_layers = [

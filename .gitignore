@@ -1,12 +1,12 @@
 semi_clustering.egg-info/
+Semi_Clustering.egg-info
 sc.egg-info/
 .vscode
 *.pyc
 .noseids
-Semi_Clustering.egg-info
 nosetests.xml
 sc/utils/.ipynb_checkpoints/
 report_*.*
-work_dir/
+sc/tests/work_dir/
 ipypar/
 main_process_message.txt
