@@ -193,7 +193,7 @@ def main():
                         help = "The type of report: plot or accuracy file")
     parser.add_argument('-p', "--top_n", type = int, default = 20,
                         help = "The number of top models to plot.")
-    parser.add_argument('-g', '--gpu', type = bool, default = False,
+    parser.add_argument('-g', '--gpu', action="store_true",
                         help = "Use GPU.")
 
     args = parser.parse_args()
@@ -201,10 +201,12 @@ def main():
     jobs_dir = os.path.join(work_dir, "training")
     file_name = args.data_file
     
-    if args.gpu:
-        device = torch.device("cuda:0")
-    else:
-        device = torch.device("cpu")
+    device = torch.device("cpu") # device is cpu by default
+    if args.gpu: 
+        try:
+            device = torch.device("cuda:0")
+        except:
+            device = torch.device("cpu")
 
     #### Create test data set from file ####
     if file_name == None:  # if datafile name nor provided, search for it.
