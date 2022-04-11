@@ -230,7 +230,7 @@ class GaussianSmoothing(nn.Module):
 class Encoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
+    def __init__(self, dropout_rate=0.2, nstyle=5, dim_in=256):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=128, kernel_size=11, stride=2,
@@ -328,7 +328,7 @@ class FCEncoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=5, 
+        nstyle=2, 
         dim_in=256, 
         last_layer_activation='Softplus',
         n_layers=3,
@@ -381,7 +381,7 @@ class FCEncoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=5, debug=False, last_layer_activation='ReLu'):
         super(Decoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -513,7 +513,7 @@ class FCDecoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=5, 
+        nstyle=2, 
         debug=False, 
         dim_out=256, 
         last_layer_activation='ReLu', 
@@ -632,7 +632,7 @@ class DiscriminatorCNN(nn.Module):
 
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=5, noise=0.1, layers=3):
+    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1, layers=3):
         super(DiscriminatorFC, self).__init__()
         
         sequential_layers = [
