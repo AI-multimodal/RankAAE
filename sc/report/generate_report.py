@@ -237,7 +237,7 @@ def main():
     fig_top_model = plot_report(
         test_ds, 
         top_model, 
-        n_aux = 5, 
+        n_aux = args.n_aux, 
         title = '-'.join([args.output_name, sorted_jobs[0]]), 
         device = device
     )

@@ -61,11 +61,15 @@ class Trainer:
             padding=(self.gau_kernel_size - 1) // 2).to(device)
 
         if self.verbose:
-            self.tb_writer = SummaryWriter(
-                log_dir=os.path.join(self.work_dir, self.tb_logdir))
-            example_spec = iter(self.train_loader).next()[0]
-            self.tb_writer.add_graph(DummyDualAAE(
-                self.use_cnn_discriminator, self.encoder.__class__, self.decoder.__class__), example_spec)
+            self.tb_writer = SummaryWriter(log_dir=os.path.join(self.work_dir, self.tb_logdir))
+            self.tb_writer.add_graph(
+                DummyDualAAE(
+                    self.use_cnn_discriminator, 
+                    self.encoder.__class__, 
+                    self.decoder.__class__
+                ), 
+                iter(self.train_loader).next()[0] # example spec
+            )
 
     def zerograd(self):
         self.encoder.zero_grad()
@@ -117,11 +121,11 @@ class Trainer:
             for sol in sol_list]
 
         # train network
-        last_best = 10.0
+        best_combined_metric = 10.0 # Initialize a guess for best combined metric.
         chkpt_dir = f"{self.work_dir}/checkpoints"
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
-        best_chk = None
+        best_chpt_file = None
         metrics = None
         for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
@@ -162,9 +166,9 @@ class Trainer:
                 fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
                                                device=self.device)
                 fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-                adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) + \
+                adversarial_loss_train = nll_loss(real_gauss_pred, real_gauss_label) + \
                     nll_loss(fake_gauss_pred, fake_guass_lable)
-                adversarial_loss.backward()
+                adversarial_loss_train.backward()
                 adversarial_solver.step()
 
                 # Correlation constration
@@ -178,27 +182,24 @@ class Trainer:
                     assert len(z_aux.size()) == 2
                     aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                     aux_len = aux_pred.size()[0]
-                    aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
-                    aux_loss.backward()
+                    aux_loss_train = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                    aux_loss_train.backward()
                     corr_solver.step()
                 else:
-                    aux_loss = None
+                    aux_loss_train = None
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                z = self.encoder(spec_in)
-                spec_re = self.decoder(z)
+                spec_re = self.decoder(self.encoder(spec_in))
                 if not self.use_flex_spec_target:
-                    recon_loss = mse_dis(spec_re, spec_target)
+                    recon_loss_train = mse_dis(spec_re, spec_target)
                 else:
                     spec_scale = torch.abs(spec_re.mean(
                         dim=1)) / torch.abs(spec_target.mean(dim=1))
-                    recon_loss = ((spec_scale - 1.0) ** 2).mean() * 0.1
-                    spec_scale = spec_scale.detach()
-                    spec_scale = torch.clamp(spec_scale, min=0.7, max=1.3)
-                    recon_loss += mse_dis(spec_re,
-                                          (spec_target.T * spec_scale).T)
-                recon_loss.backward()
+                    recon_loss_train = ((spec_scale - 1.0) ** 2).mean() * 0.1
+                    spec_scale = torch.clamp(spec_scale.detach(), min=0.7, max=1.3)
+                    recon_loss_train += mse_dis(spec_re, (spec_target.T * spec_scale).T)
+                recon_loss_train.backward()
                 reconn_solver.step()
 
                 # Init gradients, mutual information loss
@@ -207,10 +208,10 @@ class Trainer:
                                 requires_grad=False, device=self.device)
                 x_sample = self.decoder(z)
                 z_recon = self.encoder(x_sample)
-                mutual_info_loss = mse_dis(z_recon, z)
-                mutual_info_loss.backward()
+                mutual_info_loss_train = mse_dis(z_recon, z)
+                mutual_info_loss_train.backward()
                 mutual_info_solver.step()
-                avg_mutual_info += mutual_info_loss.item()
+                avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
                 self.zerograd()
@@ -219,34 +220,18 @@ class Trainer:
                     x_sample.unsqueeze(dim=1))
                 spec_smoothed = self.gaussian_smoothing(
                     x_sample_padded).squeeze(dim=1)
-                Smooth_loss = mse_dis(x_sample, spec_smoothed)
-                Smooth_loss.backward()
+                smooth_loss_train = mse_dis(x_sample, spec_smoothed)
+                smooth_loss_train.backward()
                 smooth_solver.step()
 
                 # Init gradients
                 self.zerograd()
 
-                if self.verbose:
-                    # record losses
-                    loss_dict = {
-                        'Recon': recon_loss.item(),
-                        'Mutual Info': mutual_info_loss.item(),
-                        'Smooth': Smooth_loss.item()
-                    }
 
-                    self.tb_writer.add_scalars(
-                        "Recon/train", loss_dict, global_step=epoch)
-                    if self.train_loader.dataset.aux is not None:
-                        loss_dict = {"Aux": aux_loss.item()}
-                        self.tb_writer.add_scalars(
-                            "Aux/train", loss_dict, global_step=epoch)
-                    loss_dict = {
-                        'Adversarial': adversarial_loss.item()
-                    }
-                    self.tb_writer.add_scalars(
-                        "Adversarial/train", loss_dict, global_step=epoch)
+            ### Validation ###
 
             avg_mutual_info /= n_batch
+            
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
@@ -261,25 +246,18 @@ class Trainer:
             spec_in = spec_in.to(self.device)
             z = self.encoder(spec_in)
             spec_re = self.decoder(z)
-            recon_loss = mse_dis(spec_re, spec_in)
-            loss_dict = {
-                'Recon': recon_loss.item()
-            }
-            if self.verbose:
-                self.tb_writer.add_scalars(
-                    "Recon/val", loss_dict, global_step=epoch)
+            recon_loss_val = mse_dis(spec_re, spec_in)
+
+                
             if self.train_loader.dataset.aux is not None:
                 aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
                 z_aux = z[:, :n_aux]
                 assert len(z_aux.size()) == 2
                 aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
                 aux_len = aux_pred.size()[0]
-                aux_loss = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
-                loss_dict = {"Aux": aux_loss.item()}
-                if self.verbose:
-                    self.tb_writer.add_scalars("Aux/val", loss_dict, global_step=epoch)
+                aux_loss_val = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
             else:
-                aux_loss = None
+                aux_loss_val = None
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
@@ -297,28 +275,71 @@ class Trainer:
                 spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
             fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
 
-            adversarial_loss = nll_loss(
+            adversarial_loss_val = nll_loss(
                 real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
-            loss_dict = {
-                'Adversarial': adversarial_loss.item()
-            }
+
+            x_sample = self.decoder(z)
+            x_sample_padded = self.padding4smooth(
+                x_sample.unsqueeze(dim=1))
+            spec_smoothed = self.gaussian_smoothing(
+                x_sample_padded).squeeze(dim=1)
+            smooth_loss_val = mse_dis(x_sample, spec_smoothed)
+
+            z = torch.randn(self.batch_size, self.nstyle,
+                            requires_grad=False, device=self.device)
+            x_sample = self.decoder(z)
+            z_recon = self.encoder(x_sample)
+            mutual_info_loss_val = mse_dis(z_recon, z)
+
+
             if self.verbose:
-                self.tb_writer.add_scalars(
-                    "Adversarial/val", loss_dict, global_step=epoch)
+                self.tb_writer.add_scalars("Adversarial", 
+                    {
+                        'Train': adversarial_loss_train.item(),
+                        'Validation': adversarial_loss_val.item()
+                    },
+                    global_step = epoch
+                )
+                self.tb_writer.add_scalars("Aux", 
+                    {
+                        'Train': aux_loss_train.item(),
+                        'Validation': aux_loss_val.item()
+                    },
+                    global_step = epoch
+                )
+                self.tb_writer.add_scalars("Recon", 
+                    {
+                        'Train': recon_loss_train.item(),
+                        'Validation': recon_loss_val.item()
+                    },
+                    global_step = epoch
+                )
+                self.tb_writer.add_scalars("Smooth", 
+                    {
+                        'Train': smooth_loss_train.item(),
+                        'Validation': smooth_loss_val.item()
+                    },
+                    global_step = epoch
+                )
+                self.tb_writer.add_scalars("Mutual Info", 
+                    {
+                        'Train': mutual_info_loss_train.item(),
+                        'Validation': mutual_info_loss_val.item()
+                    },
+                    global_step = epoch
+                )
 
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
-
-            metrics = [min(style_shapiro), recon_loss.item(), avg_mutual_info, style_coupling,
-                       aux_loss.item() if aux_in is not None else 0]
+            metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
+                       aux_loss_val.item() if aux_in is not None else 0]
             
             combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
-            if combined_metric > last_best:
-                chk_fn = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
-                torch.save(model_dict, chk_fn)
-                best_chk = chk_fn
-                last_best = combined_metric
+            if combined_metric > best_combined_metric:
+                best_combined_metric = combined_metric
+                best_chpt_file = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
+                torch.save(model_dict, best_chpt_file)
 
             for sch in schedulers:
                 sch.step(combined_metric)
@@ -332,19 +353,16 @@ class Trainer:
                 spec_in = spec_in.to(self.device)
                 z = self.encoder(spec_in)
                 if self.verbose:
-                    fig = self.get_style_distribution_plot(
-                        z.clone().cpu().detach().numpy())
-                    self.tb_writer.add_figure(
-                        "Style Value Distribution", fig, global_step=epoch)
+                    self.tb_writer.add_figure("Style Value Distribution", 
+                        self.get_style_distribution_plot(z.clone().cpu().detach().numpy()),
+                        global_step = epoch
+                    )
 
-        # save model
-        model_dict = {"Encoder": self.encoder,
-                      "Decoder": self.decoder,
-                      "Style Discriminator": self.discriminator}
-        torch.save(model_dict,
-                   f'{self.work_dir}/final.pt')
-        if best_chk is not None:
-            shutil.copy2(best_chk, f'{self.work_dir}/best.pt')
+        # save the final model
+        torch.save(model_dict, f'{self.work_dir}/final.pt')
+
+        if best_chpt_file is not None:
+            shutil.copy2(best_chpt_file, f'{self.work_dir}/best.pt')
 
         return metrics
 
