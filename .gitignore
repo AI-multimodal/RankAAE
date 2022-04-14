@@ -1,12 +1,7 @@
-semi_clustering.egg-info/
-Semi_Clustering.egg-info
-sc.egg-info/
+*.egg-info/
+*.egg-info
 .vscode
 *.pyc
-.noseids
-nosetests.xml
-sc/utils/.ipynb_checkpoints/
-report_*.*
-sc/tests/work_dir/
-ipypar/
-main_process_message.txt
+.ipynb_checkpoints/
+work_dir/
+__pycache__
