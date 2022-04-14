@@ -116,7 +116,7 @@ def sort_all_models(
     plot_score = False,
     ascending = True,
     top_n = None, 
-    true_value = False # whether annotate tru value or z score
+    true_value = True # whether annotate tru value or z score
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.
