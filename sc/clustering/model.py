@@ -531,7 +531,7 @@ class FCDecoder(nn.Module):
         debug=False, 
         dim_out=256, 
         last_layer_activation='ReLu', 
-        layers=3,
+        n_layers=3,
         hidden_size=64):
         super(FCDecoder, self).__init__()
 
@@ -558,7 +558,7 @@ class FCDecoder(nn.Module):
                 nn.Dropout(p=dropout_rate)
             ]
         )
-        for _ in range(layers-3):
+        for _ in range(n_layers-3):
             sequential_layers.extend( # the n layers in the middle
                 [
                     nn.Linear(hidden_size, hidden_size),
