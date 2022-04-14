@@ -397,11 +397,17 @@ class Trainer:
 
         # Load encoder, decoder and discriminator
         encoder = AE_CLS_DICT[p.ae_form]["encoder"](
-            nstyle=p.nstyle, dropout_rate=p.dropout_rate, dim_in=p.dim_in
+            nstyle = p.nstyle, 
+            dropout_rate = p.dropout_rate, 
+            dim_in = p.dim_in, 
+            n_layers = p.nlayers
         )
         decoder = AE_CLS_DICT[p.ae_form]["decoder"](
-            nstyle=p.nstyle, dropout_rate=p.dropout_rate, 
-            last_layer_activation=p.decoder_activation, dim_out=p.dim_out
+            nstyle = p.nstyle, 
+            dropout_rate = p.dropout_rate, 
+            last_layer_activation = p.decoder_activation, 
+            dim_out = p.dim_out,
+            n_layers = p.nlayers
         )
         if p.use_cnn_discriminator:
             discriminator = DiscriminatorCNN(

@@ -1,17 +1,25 @@
-ae_form: compact
-dim_in: 256 
+# Network Structure
+ae_form: FC
+dim_in: 256
 dim_out: 256 # if ae_form==normal, dim_out is always set to 256
-use_cnn_discriminator: false
+nlayers: 3 # FC model only
 FC_discriminator_layers: 3 # used only if use_cnn_discriminator==false
+use_cnn_discriminator: false
+#
+# Training parameters
+batch_size: 1024
+dropout_rate: 0.02
+sch_factor: 0.07796888280447459
+sch_patience: 107
+#
+#
 alpha_flat_step: 496
 alpha_limit: 1
-batch_size: 1024
 decoder_activation: Softplus
-dropout_rate: 0.02
 grad_rev_beta: 1.1
 grad_rev_dropout_rate: 0.05310439557626974
 grad_rev_noise: 0.5674717136118386
-lr: 0.001
+lr_base: 0.001
 lr_ratio_Corr: 10
 lr_ratio_Mutual: 1
 lr_ratio_Reconn: 10
@@ -20,9 +28,7 @@ lr_ratio_Style: 10
 n_aux: 5
 nstyle: 6
 optimizer_name: AdamW
-sch_factor: 0.07796888280447459
-sch_patience: 107
 spec_noise: 0.02
 use_flex_spec_target: true
 weight_decay: 0.011354650673910454
-kendall_activation: true
+kendall_activation: false

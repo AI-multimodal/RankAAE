@@ -262,7 +262,13 @@ class Encoder(nn.Module):
 class CompactEncoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
+    def __init__(
+        self, 
+        dropout_rate = 0.2, 
+        nstyle = 2, 
+        dim_in = 256,
+        n_layers = 3 # A place holder here for now . Only effective for FC model.
+    ):
         super(CompactEncoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=64, kernel_size=11, stride=2,
@@ -430,7 +436,15 @@ class Decoder(nn.Module):
 
 class CompactDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=256):
+    def __init__(
+        self, 
+        dropout_rate = 0.2, 
+        nstyle = 2, 
+        debug = False, 
+        last_layer_activation = 'ReLu', 
+        dim_out = 256,
+        n_layers = 3 # A place holder here for now . Only effective for FC model.
+    ):
         super(CompactDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
