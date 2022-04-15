@@ -8,6 +8,8 @@ from sc.clustering.model import (
     FCDecoder,
     FCEncoder,
 )
+import torch_optimizer as ex_optim
+from torch import optim
 
 AE_CLS_DICT = {
     "normal": {
@@ -26,6 +28,14 @@ AE_CLS_DICT = {
         "encoder": FCEncoder, 
         "decoder": FCDecoder
     }
+}
+
+
+OPTIM_DICT = {
+    "Adam": optim.Adam, 
+    "AdamW": optim.AdamW,
+    "AdaBound": ex_optim.AdaBound, 
+    "RAdam": ex_optim.RAdam
 }
 
 

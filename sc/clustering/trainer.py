@@ -8,8 +8,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import shapiro, spearmanr
 
 import torch
-from torch import nn, optim
-import torch_optimizer as ex_optim
+from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
@@ -20,8 +19,7 @@ from sc.clustering.model import (
     DiscriminatorFC
 )
 from sc.clustering.dataloader import get_dataloaders, AuxSpectraDataset, ToTensor
-from sc.utils import functions
-from sc.utils.parameter import AE_CLS_DICT, Parameters
+from sc.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
 
 
 class Trainer:
@@ -85,40 +83,66 @@ class Trainer:
                          ax=ax, element="step")
         return fig
 
-
     def train(self, callback=None):
         if self.verbose:
             para_info = torch.__config__.parallel_info()
             self.logger.info(para_info)
 
-        opt_cls_dict = {"Adam": optim.Adam, "AdamW": optim.AdamW,
-                        "AdaBound": ex_optim.AdaBound, "RAdam": ex_optim.RAdam}
-        opt_cls = opt_cls_dict[self.optimizer_name]
-
-        # loss function
+        # loss functions
         mse_dis = nn.MSELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
+        
+        # optimizers
+        opt_cls = OPTIM_DICT[self.optimizer_name]
+        reconn_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Reconn * self.lr_base,
+            weight_decay = self.weight_decay    
+        )
+        mutual_info_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Mutual * self.lr_base
+        )
+        smooth_optimizer = opt_cls(
+            [
+                {'params': self.decoder.parameters()}
+            ], 
+            lr = self.lr_ratio_Smooth * self.lr_base,
+            weight_decay = self.weight_decay
+        )
+        corr_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}
+            ],
+            lr = self.lr_ratio_Corr * self.lr_base,
+            weight_decay = self.weight_decay
+        )
+        adversarial_optimizer = opt_cls(
+            [
+                {'params': self.discriminator.parameters()},
+                {'params': self.encoder.parameters()}
+            ],
+            lr = self.lr_ratio_Style * self.lr_base,
+            betas = (self.grad_rev_beta * 0.9, 
+            self.grad_rev_beta * 0.009 + 0.99)
+        )
 
-        reconn_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                lr=self.lr_ratio_Reconn * self.lr_base,
-                                weight_decay=self.weight_decay)
-        mutual_info_solver = opt_cls([{'params': self.encoder.parameters()}, {'params': self.decoder.parameters()}],
-                                     lr=self.lr_ratio_Mutual * self.lr_base)
-        smooth_solver = opt_cls([{'params': self.decoder.parameters()}], lr=self.lr_ratio_Smooth * self.lr_base,
-                                weight_decay=self.weight_decay)
-        corr_solver = opt_cls([{'params': self.encoder.parameters()}], lr=self.lr_ratio_Corr * self.lr_base,
-                              weight_decay=self.weight_decay)
-        adversarial_solver = opt_cls([{'params': self.discriminator.parameters()},
-                                      {'params': self.encoder.parameters()}],
-                                     lr=self.lr_ratio_Style * self.lr_base,
-                                     betas=(self.grad_rev_beta * 0.9, self.grad_rev_beta * 0.009 + 0.99))
-
-        sol_list = [reconn_solver, mutual_info_solver, smooth_solver,
-                     corr_solver, adversarial_solver]
         schedulers = [
-            ReduceLROnPlateau(sol, mode="min", factor=self.sch_factor, patience=self.sch_patience, cooldown=0, threshold=0.01,
-                              verbose=self.verbose)
-            for sol in sol_list]
+            ReduceLROnPlateau(
+                optimizer, mode="min", factor=self.sch_factor, patience=self.sch_patience, 
+                cooldown=0, threshold=0.01,verbose=self.verbose
+            ) 
+            for optimizer in [
+                reconn_optimizer, mutual_info_optimizer, smooth_optimizer, corr_optimizer, 
+                adversarial_optimizer
+            ]
+        ]
 
         # train network
         best_combined_metric = 10.0 # Initialize a guess for best combined metric.
@@ -169,7 +193,7 @@ class Trainer:
                 adversarial_loss_train = nll_loss(real_gauss_pred, real_gauss_label) + \
                     nll_loss(fake_gauss_pred, fake_guass_lable)
                 adversarial_loss_train.backward()
-                adversarial_solver.step()
+                adversarial_optimizer.step()
 
                 # Correlation constration
                 # Kendall Rank Correlation Coefficeint
@@ -184,7 +208,7 @@ class Trainer:
                     aux_len = aux_pred.size()[0]
                     aux_loss_train = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
                     aux_loss_train.backward()
-                    corr_solver.step()
+                    corr_optimizer.step()
                 else:
                     aux_loss_train = None
 
@@ -200,7 +224,7 @@ class Trainer:
                     spec_scale = torch.clamp(spec_scale.detach(), min=0.7, max=1.3)
                     recon_loss_train += mse_dis(spec_re, (spec_target.T * spec_scale).T)
                 recon_loss_train.backward()
-                reconn_solver.step()
+                reconn_optimizer.step()
 
                 # Init gradients, mutual information loss
                 self.zerograd()
@@ -210,7 +234,7 @@ class Trainer:
                 z_recon = self.encoder(x_sample)
                 mutual_info_loss_train = mse_dis(z_recon, z)
                 mutual_info_loss_train.backward()
-                mutual_info_solver.step()
+                mutual_info_optimizer.step()
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
@@ -222,14 +246,13 @@ class Trainer:
                     x_sample_padded).squeeze(dim=1)
                 smooth_loss_train = mse_dis(x_sample, spec_smoothed)
                 smooth_loss_train.backward()
-                smooth_solver.step()
+                smooth_optimizer.step()
 
                 # Init gradients
                 self.zerograd()
 
 
             ### Validation ###
-
             avg_mutual_info /= n_batch
             
             self.encoder.eval()
@@ -291,7 +314,7 @@ class Trainer:
             z_recon = self.encoder(x_sample)
             mutual_info_loss_val = mse_dis(z_recon, z)
 
-
+            # write losses to tensorboard
             if self.verbose:
                 self.tb_writer.add_scalars("Adversarial", 
                     {
@@ -346,6 +369,7 @@ class Trainer:
 
             if callback is not None:
                 callback(epoch, metrics)
+            
             # plot images
             if epoch % 25 == 0:
                 spec_in = [torch.cat(x, dim=0)

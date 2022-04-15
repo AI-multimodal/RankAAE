@@ -355,7 +355,7 @@ class FCEncoder(nn.Module):
             nn.BatchNorm1d(hidden_size, affine=False),
             nn.Dropout(dropout_rate)
         ]
-        for _ in range(n_layers):
+        for _ in range(n_layers-3):
             sequential_layers.extend(
                 [
                     nn.Linear(hidden_size, hidden_size),
@@ -364,7 +364,7 @@ class FCEncoder(nn.Module):
                     nn.Dropout(dropout_rate)
                 ]
             )
-        sequential_layers.extend(
+        sequential_layers.extend( # last two layers
             [
                 nn.Linear(hidden_size, 16),
                 ll_act,
@@ -558,7 +558,7 @@ class FCDecoder(nn.Module):
                 nn.Dropout(p=dropout_rate)
             ]
         )
-        for _ in range(n_layers-3):
+        for _ in range(n_layers-4):
             sequential_layers.extend( # the n layers in the middle
                 [
                     nn.Linear(hidden_size, hidden_size),
