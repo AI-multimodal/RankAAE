@@ -20,6 +20,13 @@ from sc.clustering.model import (
 )
 from sc.clustering.dataloader import get_dataloaders, AuxSpectraDataset, ToTensor
 from sc.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
+from sc.utils.functions import (
+    kendall_constraint, 
+    recon_loss, 
+    mutual_info_loss, 
+    smoothness_loss, 
+    adversarial_loss
+)
 
 
 class Trainer:
@@ -53,10 +60,11 @@ class Trainer:
             channels=1, 
             kernel_size=self.gau_kernel_size, 
             sigma=3.0, dim=1,
-            device = self.device).to(device)
-
+            device = self.device
+        ).to(device)
         self.padding4smooth = nn.ReplicationPad1d(
-            padding=(self.gau_kernel_size - 1) // 2).to(device)
+            padding=(self.gau_kernel_size - 1) // 2
+        ).to(device)
 
         if self.verbose:
             self.tb_writer = SummaryWriter(log_dir=os.path.join(self.work_dir, self.tb_logdir))
@@ -68,20 +76,10 @@ class Trainer:
                 ), 
                 iter(self.train_loader).next()[0] # example spec
             )
+        
+        self.load_optimizers()
+        self.load_schedulers()
 
-    def zerograd(self):
-        self.encoder.zero_grad()
-        self.decoder.zero_grad()
-        self.discriminator.zero_grad()
-
-    def get_style_distribution_plot(self, z):
-        # noinspection PyTypeChecker
-        fig, ax_list = plt.subplots(
-            self.nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
-        for istyle, ax in zip(range(self.nstyle), ax_list):
-            sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
-                         ax=ax, element="step")
-        return fig
 
     def train(self, callback=None):
         if self.verbose:
@@ -92,58 +90,6 @@ class Trainer:
         mse_dis = nn.MSELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
         
-        # optimizers
-        opt_cls = OPTIM_DICT[self.optimizer_name]
-        reconn_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
-            lr = self.lr_ratio_Reconn * self.lr_base,
-            weight_decay = self.weight_decay    
-        )
-        mutual_info_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
-            lr = self.lr_ratio_Mutual * self.lr_base
-        )
-        smooth_optimizer = opt_cls(
-            [
-                {'params': self.decoder.parameters()}
-            ], 
-            lr = self.lr_ratio_Smooth * self.lr_base,
-            weight_decay = self.weight_decay
-        )
-        corr_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}
-            ],
-            lr = self.lr_ratio_Corr * self.lr_base,
-            weight_decay = self.weight_decay
-        )
-        adversarial_optimizer = opt_cls(
-            [
-                {'params': self.discriminator.parameters()},
-                {'params': self.encoder.parameters()}
-            ],
-            lr = self.lr_ratio_Style * self.lr_base,
-            betas = (self.grad_rev_beta * 0.9, 
-            self.grad_rev_beta * 0.009 + 0.99)
-        )
-
-        schedulers = [
-            ReduceLROnPlateau(
-                optimizer, mode="min", factor=self.sch_factor, patience=self.sch_patience, 
-                cooldown=0, threshold=0.01,verbose=self.verbose
-            ) 
-            for optimizer in [
-                reconn_optimizer, mutual_info_optimizer, smooth_optimizer, corr_optimizer, 
-                adversarial_optimizer
-            ]
-        ]
-
         # train network
         best_combined_metric = 10.0 # Initialize a guess for best combined metric.
         chkpt_dir = f"{self.work_dir}/checkpoints"
@@ -167,124 +113,107 @@ class Trainer:
             n_batch = len(self.train_loader)
             avg_mutual_info = 0.0
             for spec_in, aux_in in self.train_loader:
+                spec_in = spec_in.to(self.device)
                 if self.train_loader.dataset.aux is None:
                     aux_in = None
                 else:
                     assert len(aux_in.size()) == 2
                     n_aux = aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
-                spec_in = spec_in.to(self.device)
-                spec_target = spec_in.clone()
-                spec_in = spec_in + \
-                    torch.randn_like(
-                        spec_in, requires_grad=False) * self.spec_noise
+                
+                spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
+                styles = self.encoder(spec_in) # exclude the free style
+                spec_out = self.decoder(styles) # reconstructed spectra
 
                 # Init gradients, adversarial loss
                 self.zerograd()
-                z_real_gauss = torch.randn(
-                    self.batch_size, self.nstyle, requires_grad=True, device=self.device)
-                z_fake_gauss = self.encoder(spec_in)
-                real_gauss_label = torch.ones(self.batch_size, dtype=torch.long, requires_grad=False,
-                                              device=self.device)
-                real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-                fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,
-                                               device=self.device)
-                fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-                adversarial_loss_train = nll_loss(real_gauss_pred, real_gauss_label) + \
-                    nll_loss(fake_gauss_pred, fake_guass_lable)
+                adversarial_loss_train = adversarial_loss(
+                    spec_in, styles, self.discriminator, alpha, 
+                    batch_size=self.batch_size, 
+                    nll_loss=nll_loss, 
+                    device=self.device
+                )
                 adversarial_loss_train.backward()
-                adversarial_optimizer.step()
+                self.optimizers["adversarial"].step()
 
-                # Correlation constration
-                # Kendall Rank Correlation Coefficeint
-                # https://en.wikipedia.org/wiki/Kendall_rank_correlation_coefficient
+                # Kendell constration
                 if aux_in is not None:
                     self.zerograd()
-                    z = self.encoder(spec_in)
-                    aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
-                    z_aux = z[:, :n_aux]
-                    assert len(z_aux.size()) == 2
-                    aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
-                    aux_len = aux_pred.size()[0]
-                    aux_loss_train = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                    aux_loss_train = kendall_constraint(
+                        aux_in, styles[:,:n_aux], 
+                        activate=self.kendall_activation
+                    )
                     aux_loss_train.backward()
-                    corr_optimizer.step()
+                    self.optimizers["correlation"].step()
                 else:
                     aux_loss_train = None
 
                 # Init gradients, reconstruction loss
-                self.zerograd()
-                spec_re = self.decoder(self.encoder(spec_in))
-                if not self.use_flex_spec_target:
-                    recon_loss_train = mse_dis(spec_re, spec_target)
-                else:
-                    spec_scale = torch.abs(spec_re.mean(
-                        dim=1)) / torch.abs(spec_target.mean(dim=1))
-                    recon_loss_train = ((spec_scale - 1.0) ** 2).mean() * 0.1
-                    spec_scale = torch.clamp(spec_scale.detach(), min=0.7, max=1.3)
-                    recon_loss_train += mse_dis(spec_re, (spec_target.T * spec_scale).T)
+                self.zerograd()   
+                recon_loss_train = recon_loss(
+                    spec_in, spec_out, 
+                    scale=self.use_flex_spec_target
+                )
                 recon_loss_train.backward()
-                reconn_optimizer.step()
+                self.optimizers["reconstruction"].step()
 
                 # Init gradients, mutual information loss
                 self.zerograd()
-                z = torch.randn(self.batch_size, self.nstyle,
-                                requires_grad=False, device=self.device)
-                x_sample = self.decoder(z)
-                z_recon = self.encoder(x_sample)
-                mutual_info_loss_train = mse_dis(z_recon, z)
+                mutual_info_loss_train = mutual_info_loss(
+                    spec_in, styles[:, :n_aux],
+                    encoder=self.encoder, 
+                    decoder=self.decoder, 
+                    mse_loss=mse_dis, 
+                    device=self.device
+                )
                 mutual_info_loss_train.backward()
-                mutual_info_optimizer.step()
+                self.optmizer["mutual_info"].step()
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
                 self.zerograd()
-                x_sample = self.decoder(z)
-                x_sample_padded = self.padding4smooth(
-                    x_sample.unsqueeze(dim=1))
-                spec_smoothed = self.gaussian_smoothing(
-                    x_sample_padded).squeeze(dim=1)
-                smooth_loss_train = mse_dis(x_sample, spec_smoothed)
+                smooth_loss_train = smoothness_loss(
+                    spec_out, 
+                    gs_kernel_size=self.gau_kernel_size,
+                    device=self.device
+                )
                 smooth_loss_train.backward()
-                smooth_optimizer.step()
+                self.optimizers["smoothness"].step()
 
                 # Init gradients
                 self.zerograd()
 
-
             ### Validation ###
-            avg_mutual_info /= n_batch
-            
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
-            spec_in, aux_in = [torch.cat(x, dim=0)
-                               for x in zip(*list(self.val_loader))]
+            
+            avg_mutual_info /= n_batch
+            spec_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+            spec_in = spec_in.to(self.device)
+            z = self.encoder(spec_in)
+            spec_re = self.decoder(z)
+
             if self.train_loader.dataset.aux is None:
                 aux_in = None
             else:
                 assert len(aux_in.size()) == 2
                 n_aux = aux_in.size()[-1]
                 aux_in = aux_in.to(self.device)
-            spec_in = spec_in.to(self.device)
-            z = self.encoder(spec_in)
-            spec_re = self.decoder(z)
-            recon_loss_val = mse_dis(spec_re, spec_in)
+            
+            recon_loss_val = recon_loss(spec_in, spec_re, mse_loss=mse_dis, device=self.device)
 
-                
+
             if self.train_loader.dataset.aux is not None:
-                aux_target = torch.sign(aux_in[:, np.newaxis, :] - aux_in[np.newaxis, :, :])
-                z_aux = z[:, :n_aux]
-                assert len(z_aux.size()) == 2
-                aux_pred = z_aux[:, np.newaxis, :] - z_aux[np.newaxis, :, :]
-                aux_len = aux_pred.size()[0]
-                aux_loss_val = - (aux_pred * aux_target).sum() / ((aux_len**2 - aux_len) * n_aux)
+                    aux_loss_train = kendall_constraint(
+                        aux_in, z[:,:n_aux], 
+                        activate=self.kendall_activation
+                    )
             else:
                 aux_loss_val = None
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
-
             style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
                                              for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)]))
 
@@ -355,6 +284,7 @@ class Trainer:
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
+            
             metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
                        aux_loss_val.item() if aux_in is not None else 0]
             
@@ -364,7 +294,7 @@ class Trainer:
                 best_chpt_file = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
                 torch.save(model_dict, best_chpt_file)
 
-            for sch in schedulers:
+            for _, sch in self.schedulers.items():
                 sch.step(combined_metric)
 
             if callback is not None:
@@ -389,6 +319,84 @@ class Trainer:
             shutil.copy2(best_chpt_file, f'{self.work_dir}/best.pt')
 
         return metrics
+
+
+    def zerograd(self):
+        self.encoder.zero_grad()
+        self.decoder.zero_grad()
+        self.discriminator.zero_grad()
+
+
+    def get_style_distribution_plot(self, z):
+        # noinspection PyTypeChecker
+        fig, ax_list = plt.subplots(
+            self.nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
+        for istyle, ax in zip(range(self.nstyle), ax_list):
+            sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
+                         ax=ax, element="step")
+        return fig
+
+
+    def load_optimizers(self):
+        opt_cls = OPTIM_DICT[self.optimizer_name]
+        recon_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Reconn * self.lr_base,
+            weight_decay = self.weight_decay    
+        )
+        mutual_info_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Mutual * self.lr_base
+        )
+        smooth_optimizer = opt_cls(
+            [
+                {'params': self.decoder.parameters()}
+            ], 
+            lr = self.lr_ratio_Smooth * self.lr_base,
+            weight_decay = self.weight_decay
+        )
+        corr_optimizer = opt_cls(
+            [
+                {'params': self.encoder.parameters()}
+            ],
+            lr = self.lr_ratio_Corr * self.lr_base,
+            weight_decay = self.weight_decay
+        )
+        adversarial_optimizer = opt_cls(
+            [
+                {'params': self.discriminator.parameters()},
+                {'params': self.encoder.parameters()}
+            ],
+            lr = self.lr_ratio_Style * self.lr_base,
+            betas = (self.grad_rev_beta * 0.9, 
+            self.grad_rev_beta * 0.009 + 0.99)
+        )
+
+        self.optimizers = {
+            "reconstruction": recon_optimizer,
+            "mutual_info": mutual_info_optimizer,
+            "smoothness": smooth_optimizer,
+            "correlation": corr_optimizer,
+            "adversarial": adversarial_optimizer
+        }
+
+
+    def load_schedulers(self):
+        
+        self.schedulers = {name:
+            ReduceLROnPlateau(
+                optimizer, mode="min", factor=self.sch_factor, patience=self.sch_patience, 
+                cooldown=0, threshold=0.01,verbose=self.verbose
+            ) 
+            for name, optimizer in self.optimizers.items()
+        }
+
 
     @classmethod
     def from_data(
@@ -493,3 +501,5 @@ class Trainer:
 
         plot_style_distributions(final_spuncat["Encoder"], dataset_test,
                                  title_base="Style Distribution on FEFF Test Set")
+
+ 

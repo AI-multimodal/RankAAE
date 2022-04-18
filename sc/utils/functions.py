@@ -1,7 +1,9 @@
 import torch
+from torch import nn
 import numpy as np
+from sc.clustering.model import GaussianSmoothing
 
-def constraint_kendall(descriptors, styles, activate=False):
+def kendall_constraint(descriptors, styles, activate=False):
     """
     Implement kendall_constraint. It runs on GPU.
     Kendall Rank Correlation Coefficeint:
@@ -36,8 +38,7 @@ def constraint_kendall(descriptors, styles, activate=False):
 
     return aux_loss
 
-
-def loss_reconstruction(spec_in, spec_out, use_flex_spec_in=False, mse_loss=None):
+def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     """
     Reconstruction loss.
 
@@ -45,10 +46,17 @@ def loss_reconstruction(spec_in, spec_out, use_flex_spec_in=False, mse_loss=None
     ----------
     spec_in : array_like
         A 2-D array of a minibatch of spectra as the input to the encoder.
-    spec_out : array_like
+    spec_re : array_like
         A 2-D array of spectra as the output of decoder.
     """
-    if not use_flex_spec_in:
+    if device is None:
+        device = torch.device('cpu')
+    if mse_loss is None:
+        mse_loss = nn.MSELoss().to(device)
+
+    spec_in = spec_in.clone()
+
+    if not scale:
         recon_loss = mse_loss(spec_out, spec_in)
     else:
         spec_scale = torch.abs(spec_out.mean(dim=1)) / torch.abs(spec_in.mean(dim=1))
@@ -57,36 +65,64 @@ def loss_reconstruction(spec_in, spec_out, use_flex_spec_in=False, mse_loss=None
         recon_loss += mse_loss(spec_out,(spec_in.T * spec_scale).T)
     
     return recon_loss
-    
-    
-def loss_adversarial(nll_loss, alpha, spec_in, styles, batch_size=100,  device=None, discriminator=None):
+
+def adversarial_loss(spec_in, styles, discriminator, alpha, batch_size=100,  nll_loss=None, device=None):
         
+        if device is None:
+            device = torch.device('cpu')
+        if mse_loss is None:
+            mse_loss = nn.NLLLoss().to(device)
+
         nstyle = styles.size()[1]
 
-        z_real_gauss = torch.randn(
-                    batch_size, 
-                    nstyle, 
-                    requires_grad = True, 
-                    device = device
-                )
+        z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
         real_gauss_pred = discriminator(z_real_gauss, alpha)
-        real_gauss_label = torch.ones(
-                    batch_size, 
-                    dtype = torch.long, 
-                    requires_grad = False,
-                    device = device
-                )
+        real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
         
         fake_gauss_pred = discriminator(styles, alpha)
-        fake_guass_lable = torch.zeros(
-                    spec_in.size()[0], 
-                    dtype = torch.long, 
-                    requires_grad = False,
-                    device = device
-                )
+        fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
                 
         adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                                 + nll_loss(fake_gauss_pred, fake_guass_lable)
-                         
+                         + nll_loss(fake_gauss_pred, fake_guass_lable)
+
         return adversarial_loss
 
+def mutual_info_loss(spec_in, styles, encoder, decoder, mse_loss=None, device=None):
+    """
+    Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
+    Return the loss between the sampled and reconstructed latent spacc.
+    """
+
+    if device is None:
+        device = torch.device('cpu')
+    if mse_loss is None:
+        mse_loss = nn.MSELoss().to(device)
+
+    batch_size = spec_in.size()[0]
+    nstyle = styles.size()[1]
+    z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
+    
+    z_recon = encoder(decoder(z_sample))
+    mutual_info_loss = mse_loss(z_recon, z_sample)
+    
+    return mutual_info_loss
+
+def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
+    """
+    Return the smoothness loss.
+    """
+    if device is None:
+        device = torch.device('cpu')
+    if mse_loss is None:
+        mse_loss = nn.MSELoss().to(device)
+
+    gaussian_smoothing = GaussianSmoothing(
+        channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
+        device = device
+    )
+    padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
+    spec_out_padded = padding4smooth(spec_out.unsqueeze(dim=1))
+    spec_smoothed = gaussian_smoothing(spec_out_padded).squeeze(dim=1)
+    smooth_loss_train = mse_loss(spec_out, spec_smoothed)
+
+    return smooth_loss_train
