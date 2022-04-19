@@ -437,14 +437,14 @@ class Trainer:
             nstyle = p.nstyle, 
             dropout_rate = p.dropout_rate, 
             dim_in = p.dim_in, 
-            n_layers = p.nlayers
+            n_layers = p.n_layers
         )
         decoder = AE_CLS_DICT[p.ae_form]["decoder"](
             nstyle = p.nstyle, 
             dropout_rate = p.dropout_rate, 
             last_layer_activation = p.decoder_activation, 
             dim_out = p.dim_out,
-            n_layers = p.nlayers
+            n_layers = p.n_layers
         )
         if p.use_cnn_discriminator:
             discriminator = DiscriminatorCNN(

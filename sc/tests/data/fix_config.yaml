@@ -2,7 +2,7 @@
 ae_form: FC
 dim_in: 256
 dim_out: 256 # if ae_form==normal, dim_out is always set to 256
-nlayers: 3 # FC model only
+n_layers: 3 # FC model only
 FC_discriminator_layers: 3 # used only if use_cnn_discriminator==false
 use_cnn_discriminator: false
 #
