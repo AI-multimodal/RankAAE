@@ -349,29 +349,33 @@ class FCEncoder(nn.Module):
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
         
-        sequential_layers = [
+        sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Dropout(dropout_rate)
+            
         ]
+
         for _ in range(n_layers-3):
             sequential_layers.extend(
-                [
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
+                [   nn.ReLU(),
                     nn.BatchNorm1d(hidden_size, affine=False),
-                    nn.Dropout(dropout_rate)
+                    nn.Dropout(dropout_rate),
+                    nn.Linear(hidden_size, hidden_size),
                 ]
             )
-        sequential_layers.extend( # last two layers
-            [
+        sequential_layers.extend( # second last layer
+            [   
+                nn.ReLU(),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(dropout_rate),
                 nn.Linear(hidden_size, 16),
+            ]
+        )
+        sequential_layers.extend( # last layer
+            [
                 ll_act,
                 nn.BatchNorm1d(16, affine=False),
                 nn.Dropout(dropout_rate),
                 nn.Linear(16, nstyle),
-                nn.BatchNorm1d(nstyle, affine=False)
             ]
         )
 
@@ -542,34 +546,26 @@ class FCDecoder(nn.Module):
         else:
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-    
-        sequential_layers = [ # first layer
-            nn.Linear(nstyle, 16),
-            nn.PReLU(num_parameters=16, init=0.01),
-            nn.BatchNorm1d(16, affine=False),
-            nn.Dropout(p=dropout_rate)
+
+        sequential_layers = [ # first two layers.
+                nn.Linear(nstyle, 16),
+                nn.PReLU(num_parameters=16, init=0.01),
+                nn.BatchNorm1d(16, affine=False),
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(16, hidden_size),
         ]
 
-        sequential_layers.extend( # 2nd layer
-            [
-                nn.Linear(16, hidden_size),
-                nn.PReLU(num_parameters=hidden_size, init=0.01),
-                nn.BatchNorm1d(hidden_size, affine=False),
-                nn.Dropout(p=dropout_rate)
-            ]
-        )
-        for _ in range(n_layers-4):
+        for _ in range(n_layers-3):
             sequential_layers.extend( # the n layers in the middle
                 [
-                    nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
+                    nn.Linear(hidden_size, hidden_size),
                 ]
             )
-        sequential_layers.extend( # the last 2 layers
+        sequential_layers.extend( # the last layer
             [
-                nn.Linear(hidden_size, hidden_size),
                 ll_act,
                 nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(dropout_rate),
