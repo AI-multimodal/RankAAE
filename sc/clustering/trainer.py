@@ -87,7 +87,7 @@ class Trainer:
             self.logger.info(para_info)
 
         # loss functions
-        mse_dis = nn.MSELoss().to(self.device)
+        mse_loss = nn.MSELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
         
         # train network
@@ -139,9 +139,11 @@ class Trainer:
                 # Kendell constration
                 if aux_in is not None:
                     self.zerograd()
+                    styles = self.encoder(spec_in)
                     aux_loss_train = kendall_constraint(
                         aux_in, styles[:,:n_aux], 
-                        activate=self.kendall_activation
+                        activate=self.kendall_activation,
+                        device=self.device
                     )
                     aux_loss_train.backward()
                     self.optimizers["correlation"].step()
@@ -149,7 +151,8 @@ class Trainer:
                     aux_loss_train = None
 
                 # Init gradients, reconstruction loss
-                self.zerograd()   
+                self.zerograd()
+                spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                 recon_loss_train = recon_loss(
                     spec_in, spec_out, 
                     scale=self.use_flex_spec_target
@@ -159,19 +162,21 @@ class Trainer:
 
                 # Init gradients, mutual information loss
                 self.zerograd()
+                styles = self.encoder(spec_in)
                 mutual_info_loss_train = mutual_info_loss(
-                    spec_in, styles[:, :n_aux],
+                    spec_in, styles,
                     encoder=self.encoder, 
                     decoder=self.decoder, 
-                    mse_loss=mse_dis, 
+                    mse_loss=mse_loss, 
                     device=self.device
                 )
                 mutual_info_loss_train.backward()
-                self.optmizer["mutual_info"].step()
+                self.optimizers["mutual_info"].step()
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
                 self.zerograd()
+                spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                 smooth_loss_train = smoothness_loss(
                     spec_out, 
                     gs_kernel_size=self.gau_kernel_size,
@@ -201,11 +206,11 @@ class Trainer:
                 n_aux = aux_in.size()[-1]
                 aux_in = aux_in.to(self.device)
             
-            recon_loss_val = recon_loss(spec_in, spec_re, mse_loss=mse_dis, device=self.device)
+            recon_loss_val = recon_loss(spec_in, spec_re, mse_loss=mse_loss, device=self.device)
 
 
             if self.train_loader.dataset.aux is not None:
-                    aux_loss_train = kendall_constraint(
+                aux_loss_val = kendall_constraint(
                         aux_in, z[:,:n_aux], 
                         activate=self.kendall_activation
                     )
@@ -235,13 +240,13 @@ class Trainer:
                 x_sample.unsqueeze(dim=1))
             spec_smoothed = self.gaussian_smoothing(
                 x_sample_padded).squeeze(dim=1)
-            smooth_loss_val = mse_dis(x_sample, spec_smoothed)
+            smooth_loss_val = mse_loss(x_sample, spec_smoothed)
 
             z = torch.randn(self.batch_size, self.nstyle,
                             requires_grad=False, device=self.device)
             x_sample = self.decoder(z)
             z_recon = self.encoder(x_sample)
-            mutual_info_loss_val = mse_dis(z_recon, z)
+            mutual_info_loss_val = mse_loss(z_recon, z)
 
             # write losses to tensorboard
             if self.verbose:

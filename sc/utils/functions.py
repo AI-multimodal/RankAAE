@@ -3,7 +3,7 @@ from torch import nn
 import numpy as np
 from sc.clustering.model import GaussianSmoothing
 
-def kendall_constraint(descriptors, styles, activate=False):
+def kendall_constraint(descriptors, styles, activate=False, device=None):
     """
     Implement kendall_constraint. It runs on GPU.
     Kendall Rank Correlation Coefficeint:
@@ -21,7 +21,9 @@ def kendall_constraint(descriptors, styles, activate=False):
     aux_target[i,j,k] = descriptors[i,k]-descriptors[j,k]
     
     """
-
+    if device is None:
+        device = torch.device('cpu')
+    
     try:
         n_aux = styles.shape[1]
     except:
@@ -70,8 +72,8 @@ def adversarial_loss(spec_in, styles, discriminator, alpha, batch_size=100,  nll
         
         if device is None:
             device = torch.device('cpu')
-        if mse_loss is None:
-            mse_loss = nn.NLLLoss().to(device)
+        if nll_loss is None:
+            nll_loss = nn.NLLLoss().to(device)
 
         nstyle = styles.size()[1]
 
