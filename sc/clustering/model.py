@@ -376,6 +376,8 @@ class FCEncoder(nn.Module):
                 nn.BatchNorm1d(16, affine=False),
                 nn.Dropout(dropout_rate),
                 nn.Linear(16, nstyle),
+                nn.BatchNorm1d(nstyle, affine=False) 
+                # add this batchnorm layer to make sure the output is standardized.
             ]
         )
 
