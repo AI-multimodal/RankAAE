@@ -244,7 +244,7 @@ def main():
     save_report_plot(work_dir, args.output_name, fig_top_model)
 
     # save top 5 result 
-    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=5)
+    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
     
     print("Success: training report saved!")
 

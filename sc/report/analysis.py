@@ -2,6 +2,7 @@ import math
 import os
 import itertools
 import torch
+import pickle
 import numpy as np
 from numpy.polynomial import Polynomial
 from scipy import stats
@@ -13,6 +14,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+
 
 
 def create_plotly_colormap(n_colors):
@@ -92,7 +94,11 @@ def plot_spectra_variation(
 
     return style_variation, spec_out
 
-def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
+def evaluate_all_models(
+    model_path, test_ds, 
+    device=torch.device('cpu'), 
+    export_to_path=None
+):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
@@ -106,9 +112,16 @@ def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
                 map_location = device
             )
             result[job] = evaluate_model(test_ds, model, device=device)
+    if export_to_path is not None:
+        with open(export_to_path, 'wb') as f:
+            pickle.dump(result, f)
     
     return result
 
+def load_evaluations(evaluation_path="./report_model_evaluations.pkl"):
+    with open(evaluation_path, 'rb') as f:
+        result = pickle.load(f)
+    return result
 
 def sort_all_models(
     result_dict, 

@@ -36,7 +36,11 @@ class Reporter:
     def __init__(self):
         pass
     
-    def collect_results(self):
+    def evaluate_all_models(self, training_path='./training'):
+        """
+        Evaluate all the models saved in the training_path (which is './training' by default)
+        """
+    def load_evaluations(self):
         """
         Evaluate results from the models, if the results exist alrady, collect them.
         """

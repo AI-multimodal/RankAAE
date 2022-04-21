@@ -3,6 +3,36 @@ from torch import nn
 import numpy as np
 from sc.clustering.model import GaussianSmoothing
 
+
+class TrainingLossGeneral():
+
+    def __init__(
+        self, 
+        input = None, 
+        max_epoch = None, 
+        device=torch.device('cpu')
+    ):
+        self.max_epoch = max_epoch # the maximum epoch the loss function is calculated
+        self.device = device
+        self.input = input
+    
+    def __call__(self, *args, **kwargs):
+        """
+        Parameters
+        ----------
+        epoch : The current epoch.
+        """
+        
+        raise NotImplementedError
+
+class KendallConstraint(TrainingLossGeneral):
+    def __init__(self, max_epoch=None, device=torch.device('cpu')):
+        super.__init_(max_epoch=max_epoch, device=device)
+    
+    def __call__(self, epoch, input=None, model=None):
+        pass
+      
+    
 def kendall_constraint(descriptors, styles, activate=False, device=None):
     """
     Implement kendall_constraint. It runs on GPU.

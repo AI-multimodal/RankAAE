@@ -175,16 +175,19 @@ class Trainer:
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
-                self.zerograd()
-                spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
-                smooth_loss_train = smoothness_loss(
-                    spec_out, 
-                    gs_kernel_size=self.gau_kernel_size,
-                    device=self.device
-                )
-                smooth_loss_train.backward()
-                self.optimizers["smoothness"].step()
-
+                if epoch < 500: # turn off smooth loss after 500
+                    self.zerograd()
+                    spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                    smooth_loss_train = smoothness_loss(
+                        spec_out, 
+                        gs_kernel_size=self.gau_kernel_size,
+                        device=self.device
+                    )
+                    smooth_loss_train.backward()
+                    self.optimizers["smoothness"].step()
+                else:
+                    smooth_loss_train = torch.tensor(0) 
+                
                 # Init gradients
                 self.zerograd()
 
