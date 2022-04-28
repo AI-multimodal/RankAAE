@@ -53,6 +53,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.action != "kill":
-        ipcluster(args.action, n=8, ipypar_path=args.profile_dir)
+        ipcluster(args.action, n=args.num_engine, ipypar_path=args.profile_dir)
     else:
         kill_ipypar_pcocesses(user='zliang')

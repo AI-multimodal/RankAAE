@@ -2,6 +2,7 @@ import math
 import os
 import itertools
 import torch
+import pickle
 import numpy as np
 from numpy.polynomial import Polynomial
 from scipy import stats
@@ -13,6 +14,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+
 
 
 def create_plotly_colormap(n_colors):
@@ -70,7 +72,8 @@ def plot_spectra_variation(
         if true_range: # sample from the true range of a style 
             assert len(styles.shape) == 2 # styles must be a 2-D array
             style_range = np.percentile(styles[:, istyle], [5, 95])
-            style_variation = torch.linspace(*style_range, n_spec, device = device)
+            left, right = style_range
+            style_variation = torch.linspace(left, right, n_spec, device = device)
         else: # sample from the absolute range
             style_variation = torch.linspace(-amplitude, amplitude, n_spec, device = device)
         # Assign the "layer" to be duplicates of `style_variation`
@@ -87,11 +90,14 @@ def plot_spectra_variation(
                 ax.plot(spec, lw=0.8, c=color)
             else: 
                 ax.plot(energy_grid, spec, lw=0.8, c=color)
-        ax.set_title(f"Varying Style #{istyle+1}", y=1)
+        ax.set_title(f"Style {istyle+1} varying from {left:.2f} to {right:.2f}", y=1)
 
-    return spec_out
+    return style_variation, spec_out
 
-def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
+def evaluate_all_models(
+    model_path, test_ds, 
+    device=torch.device('cpu')
+):
     '''
     Sort models according to multi metrics, in descending order of goodness.
     '''
@@ -108,6 +114,10 @@ def evaluate_all_models(model_path, test_ds, device=torch.device('cpu')):
     
     return result
 
+def load_evaluations(evaluation_path="./report_model_evaluations.pkl"):
+    with open(evaluation_path, 'rb') as f:
+        result = pickle.load(f)
+    return result
 
 def sort_all_models(
     result_dict, 
@@ -115,7 +125,7 @@ def sort_all_models(
     plot_score = False,
     ascending = True,
     top_n = None, 
-    true_value = False # whether annotate tru value or z score
+    true_value = True # whether annotate tru value or z score
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.

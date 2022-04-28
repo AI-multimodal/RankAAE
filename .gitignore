@@ -1,11 +1,8 @@
-semi_clustering.egg-info/
-sc.egg-info/
+*.egg-info/
+*.egg-info
 .vscode
 *.pyc
-.noseids
-Semi_Clustering.egg-info
-nosetests.xml
-sc/utils/.ipynb_checkpoints/
-data/
-ipypar/
-training/
+.ipynb_checkpoints/
+work_dir/
+work_dir*/
+__pycache__

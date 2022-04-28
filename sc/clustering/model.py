@@ -230,7 +230,7 @@ class GaussianSmoothing(nn.Module):
 class Encoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
+    def __init__(self, dropout_rate=0.2, nstyle=5, dim_in=256):
         super(Encoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=128, kernel_size=11, stride=2,
@@ -262,7 +262,13 @@ class Encoder(nn.Module):
 class CompactEncoder(nn.Module):
     """ front end part of discriminator and Q"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=256):
+    def __init__(
+        self, 
+        dropout_rate = 0.2, 
+        nstyle = 2, 
+        dim_in = 256,
+        n_layers = 3 # A place holder here for now . Only effective for FC model.
+    ):
         super(CompactEncoder, self).__init__()
         self.main = nn.Sequential(
             EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=64, kernel_size=11, stride=2,
@@ -343,29 +349,35 @@ class FCEncoder(nn.Module):
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
         
-        sequential_layers = [
+        sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
-            nn.ReLU(),
-            nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Dropout(dropout_rate)
+            
         ]
-        for _ in range(n_layers):
+
+        for _ in range(n_layers-3):
             sequential_layers.extend(
-                [
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
+                [   nn.ReLU(),
                     nn.BatchNorm1d(hidden_size, affine=False),
-                    nn.Dropout(dropout_rate)
+                    nn.Dropout(dropout_rate),
+                    nn.Linear(hidden_size, hidden_size),
                 ]
             )
-        sequential_layers.extend(
+        sequential_layers.extend( # second last layer
+            [   
+                nn.ReLU(),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(dropout_rate),
+                nn.Linear(hidden_size, 16),
+            ]
+        )
+        sequential_layers.extend( # last layer
             [
-                nn.Linear(64, 16),
                 ll_act,
                 nn.BatchNorm1d(16, affine=False),
                 nn.Dropout(dropout_rate),
                 nn.Linear(16, nstyle),
-                nn.BatchNorm1d(16, affine=False)
+                nn.BatchNorm1d(nstyle, affine=False) 
+                # add this batchnorm layer to make sure the output is standardized.
             ]
         )
 
@@ -381,7 +393,7 @@ class FCEncoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu'):
+    def __init__(self, dropout_rate=0.2, nstyle=5, debug=False, last_layer_activation='ReLu'):
         super(Decoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -430,7 +442,15 @@ class Decoder(nn.Module):
 
 class CompactDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=256):
+    def __init__(
+        self, 
+        dropout_rate = 0.2, 
+        nstyle = 2, 
+        debug = False, 
+        last_layer_activation = 'ReLu', 
+        dim_out = 256,
+        n_layers = 3 # A place holder here for now . Only effective for FC model.
+    ):
         super(CompactDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -517,7 +537,7 @@ class FCDecoder(nn.Module):
         debug=False, 
         dim_out=256, 
         last_layer_activation='ReLu', 
-        layers=3,
+        n_layers=3,
         hidden_size=64):
         super(FCDecoder, self).__init__()
 
@@ -528,34 +548,26 @@ class FCDecoder(nn.Module):
         else:
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-    
-        sequential_layers = [ # first layer
-            nn.Linear(nstyle, 16),
-            nn.PReLU(num_parameters=16, init=0.01),
-            nn.BatchNorm1d(16, affine=False),
-            nn.Dropout(p=dropout_rate)
+
+        sequential_layers = [ # first two layers.
+                nn.Linear(nstyle, 16),
+                nn.PReLU(num_parameters=16, init=0.01),
+                nn.BatchNorm1d(16, affine=False),
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(16, hidden_size),
         ]
 
-        sequential_layers.extend( # 2nd layer
-            [
-                nn.Linear(16, hidden_size),
-                nn.PReLU(num_parameters=hidden_size, init=0.01),
-                nn.BatchNorm1d(hidden_size, affine=False),
-                nn.Dropout(p=dropout_rate)
-            ]
-        )
-        for _ in range(layers-3):
+        for _ in range(n_layers-3):
             sequential_layers.extend( # the n layers in the middle
                 [
-                    nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
+                    nn.Linear(hidden_size, hidden_size),
                 ]
             )
-        sequential_layers.extend( # the last 2 layers
+        sequential_layers.extend( # the last layer
             [
-                nn.Linear(hidden_size, hidden_size),
                 ll_act,
                 nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(dropout_rate),

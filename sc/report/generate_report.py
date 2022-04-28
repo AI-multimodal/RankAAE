@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import pickle
+from collections import OrderedDict
 from matplotlib import pyplot as plt
 import os
 import argparse
@@ -18,16 +20,24 @@ def sorting_algorithm(x):
         "Style-Descriptor Corr 4", # 5
         "Style-Descriptor Corr 5" # 6
     """
-    xx = x.copy()
-    xx[:,0] = x[:,0] * (-5) # Inter-style Corr
-    xx[:,1] = x[:,1] ** (0) # Reconstion Err
-    xx[:,2] = x[:,2] * (1) # Style1 - CT Corr
-    xx[:,3] = x[:,3] * (1) # Style2 - CN Corr
-    xx[:,4] = x[:,4] * (1) # Style3 - OCN Corr
-    xx[:,5] = x[:,5] * (1) # Style4 - Rstd Corr
-    xx[:,6] = x[:,6] * (1) # Style5 - MOOD Corr
 
-    return (xx[:,0] + np.sum(xx[:,2:])) / xx[:,1]
+    weight = [-1, 0, 0, 0, 0, 0, 0]
+
+    # if only weight[1] is non zero, turn on offset so the final score is non zero.
+    off_set = 0 
+    if np.sum(weight) == weight[1]:
+        off_set = 1
+    xx = x.copy()
+    xx[:,0] = x[:,0] *  weight[0] # Inter-style Corr
+    xx[:,1] = x[:,1] ** weight[1] # Reconstion Err
+    xx[:,2] = x[:,2] *  weight[2] # Style1 - CT Corr
+    xx[:,3] = x[:,3] *  weight[3] # Style2 - CN Corr
+    xx[:,4] = x[:,4] *  weight[4] # Style3 - OCN Corr
+    xx[:,5] = x[:,5] *  weight[5] # Style4 - Rstd Corr
+    xx[:,6] = x[:,6] *  weight[6] # Style5 - MOOD Corr
+    
+    
+    return (off_set + xx[:,0] + np.sum(xx[:,2:], axis=1)) / xx[:,1]
 
 
 def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
@@ -136,12 +146,16 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
     And file name to save the resul.
     Information is saved to a txt file.
     """
-    save_dict = {}
+    save_dict = OrderedDict()
+    sorted_top_n_jobs = list(range(top_n))
     for job, result in model_results.items():
-        if result['Rank'] < top_n:
-            save_dict[job] = {
-                k: v for k, v in result.items() if k not in ["Input", "Output"]
-            }
+        if result['Rank'] in sorted_top_n_jobs:
+            sorted_top_n_jobs[result['Rank']] = job
+    for job in sorted_top_n_jobs:
+        result = model_results[job]
+        save_dict[job] = {
+            k: v for k, v in result.items() if k not in ["Input", "Output"]
+        }
         if (result['Rank'] == 0) and save_spectra:
             spec_in = result["Input"]
             spec_out = result["Output"]
@@ -151,17 +165,24 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
 
 
+def save_model_evaluations(save_dir, file_name, result):
+    with open(os.path.join(save_dir, file_name+"_model_evaluation.pkl"), "wb") as f:
+        pickle.dump(result, f)
+
+
 def save_report_plot(save_dir, file_name, fig):
     fig.savefig(
         os.path.join(save_dir, file_name+"_best_model.png"),
         bbox_inches='tight'
     )
 
+
 def save_model_selection_plot(save_dir, file_name, fig):
     fig.savefig(
         os.path.join(save_dir, file_name + "_model_selection.png"),
         bbox_inches = 'tight'
     )
+
 
 def main():
     #### Parse arguments ####
@@ -180,44 +201,60 @@ def main():
                         help = "The type of report: plot or accuracy file")
     parser.add_argument('-p', "--top_n", type = int, default = 20,
                         help = "The number of top models to plot.")
+    parser.add_argument('-g', '--gpu', action="store_true",
+                        help = "Use GPU.")
 
     args = parser.parse_args()
     work_dir = args.work_dir
     jobs_dir = os.path.join(work_dir, "training")
     file_name = args.data_file
     
+    device = torch.device("cpu") # device is cpu by default
+    if args.gpu: 
+        try:
+            device = torch.device("cuda:0")
+        except:
+            device = torch.device("cpu")
+
     #### Create test data set from file ####
     if file_name == None:  # if datafile name nor provided, search for it.
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
-    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "test", n_aux = 5)
+    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = 5)
     
     #### Choose the 20 top model based on evaluation criteria ####
-    model_results = analysis.evaluate_all_models(jobs_dir, test_ds) # models are not sorted
+    model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+
     model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
         model_results, 
         plot_score = True, 
         top_n = args.top_n, 
         sort_score = sorting_algorithm,
-        ascending = False # best model has the highest score
+        ascending = False, # best model has the highest score
     ) # models are sorted
+    save_model_evaluations(work_dir, args.output_name, model_results)
     
     # genearte model selection scores plot
     if fig_model_selection is not None:
         save_model_selection_plot(work_dir, args.output_name, fig_model_selection)
 
     # generate report for top model
-    device = torch.device("cuda:0")
     top_model = torch.load(
             os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
             map_location = device
     )
-    fig_top_model = plot_report(test_ds, top_model, n_aux=5, title=args.output_name, device=device)
+    fig_top_model = plot_report(
+        test_ds, 
+        top_model, 
+        n_aux = args.n_aux, 
+        title = '-'.join([args.output_name, sorted_jobs[0]]), 
+        device = device
+    )
     save_report_plot(work_dir, args.output_name, fig_top_model)
 
     # save top 5 result 
-    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=5)
+    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
     
     print("Success: training report saved!")
 
