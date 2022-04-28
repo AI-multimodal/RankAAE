@@ -4,4 +4,5 @@
 *.pyc
 .ipynb_checkpoints/
 work_dir/
+work_dir*/
 __pycache__

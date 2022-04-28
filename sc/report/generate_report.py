@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import pickle
 from collections import OrderedDict
 from matplotlib import pyplot as plt
 import os
@@ -20,7 +21,7 @@ def sorting_algorithm(x):
         "Style-Descriptor Corr 5" # 6
     """
 
-    weight = [-5, 0, 1, 1, 1, 1, 1]
+    weight = [-1, 0, 0, 0, 0, 0, 0]
 
     # if only weight[1] is non zero, turn on offset so the final score is non zero.
     off_set = 0 
@@ -164,17 +165,24 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
 
 
+def save_model_evaluations(save_dir, file_name, result):
+    with open(os.path.join(save_dir, file_name+"_model_evaluation.pkl"), "wb") as f:
+        pickle.dump(result, f)
+
+
 def save_report_plot(save_dir, file_name, fig):
     fig.savefig(
         os.path.join(save_dir, file_name+"_best_model.png"),
         bbox_inches='tight'
     )
 
+
 def save_model_selection_plot(save_dir, file_name, fig):
     fig.savefig(
         os.path.join(save_dir, file_name + "_model_selection.png"),
         bbox_inches = 'tight'
     )
+
 
 def main():
     #### Parse arguments ####
@@ -216,14 +224,16 @@ def main():
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = 5)
     
     #### Choose the 20 top model based on evaluation criteria ####
-    model_results = analysis.evaluate_all_models(jobs_dir, test_ds) # models are not sorted
+    model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+
     model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
         model_results, 
         plot_score = True, 
         top_n = args.top_n, 
         sort_score = sorting_algorithm,
-        ascending = False # best model has the highest score
+        ascending = False, # best model has the highest score
     ) # models are sorted
+    save_model_evaluations(work_dir, args.output_name, model_results)
     
     # genearte model selection scores plot
     if fig_model_selection is not None:

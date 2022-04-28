@@ -96,8 +96,7 @@ def plot_spectra_variation(
 
 def evaluate_all_models(
     model_path, test_ds, 
-    device=torch.device('cpu'), 
-    export_to_path=None
+    device=torch.device('cpu')
 ):
     '''
     Sort models according to multi metrics, in descending order of goodness.
@@ -112,9 +111,6 @@ def evaluate_all_models(
                 map_location = device
             )
             result[job] = evaluate_model(test_ds, model, device=device)
-    if export_to_path is not None:
-        with open(export_to_path, 'wb') as f:
-            pickle.dump(result, f)
     
     return result
 
