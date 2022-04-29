@@ -155,7 +155,7 @@ class Trainer:
                     aux_loss_train.backward()
                     self.optimizers["correlation"].step()
                 else:
-                    aux_loss_train = None
+                    aux_loss_train = torch.tensor(1.0)
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
