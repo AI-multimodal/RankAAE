@@ -140,9 +140,13 @@ class Trainer:
                 if aux_in is not None:
                     self.zerograd()
                     styles = self.encoder(spec_in)
+                    if isinstance(self.kendall_activation, int):
+                        shutdown_repulsive_force = epoch > self.kendall_activation
+                    else:
+                        shutdown_repulsive_force = self.kendall_activation
                     aux_loss_train = kendall_constraint(
                         aux_in, styles[:,:n_aux], 
-                        activate=self.kendall_activation,
+                        activate=shutdown_repulsive_force,
                         device=self.device
                     )
                     aux_loss_train.backward()
