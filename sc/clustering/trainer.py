@@ -105,7 +105,7 @@ class Trainer:
 
             # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
-                                       epoch / self.max_epoch)) - 1) * self.alpha_limit
+                                       (epoch - self.start_adversarial) / self.max_epoch)) - 1) * self.alpha_limit
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -125,19 +125,20 @@ class Trainer:
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
 
-                # Init gradients, adversarial loss
-                self.zerograd()
-                adversarial_loss_train = adversarial_loss(
-                    spec_in, styles, self.discriminator, alpha, 
-                    batch_size=self.batch_size, 
-                    nll_loss=nll_loss, 
-                    device=self.device
-                )
-                adversarial_loss_train.backward()
-                self.optimizers["adversarial"].step()
+                if epoch > self.start_adversarial:
+                    # Init gradients, adversarial loss
+                    self.zerograd()
+                    adversarial_loss_train = adversarial_loss(
+                        spec_in, styles, self.discriminator, alpha, 
+                        batch_size=self.batch_size, 
+                        nll_loss=nll_loss, 
+                        device=self.device
+                    )
+                    adversarial_loss_train.backward()
+                    self.optimizers["adversarial"].step()
 
                 # Kendell constration
-                if aux_in is not None:
+                if aux_in is not None and epoch > self.start_guide:
                     self.zerograd()
                     styles = self.encoder(spec_in)
                     if isinstance(self.kendall_activation, int):
