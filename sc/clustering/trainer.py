@@ -136,6 +136,8 @@ class Trainer:
                     )
                     adversarial_loss_train.backward()
                     self.optimizers["adversarial"].step()
+                else:
+                    adversarial_loss_train = torch.tensor(0.0)
 
                 # Kendell constration
                 if aux_in is not None and epoch > self.start_guide:
