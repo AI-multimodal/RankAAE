@@ -18,7 +18,8 @@ setup(
         "console_scripts": [
             "train_sc = sc.cmd.train_sc:main",
             "sc_generate_report = sc.report.generate_report:main",
-            "wait_ipp_engines = sc.utils.wait_ipp_engines:main",
+            "stop_ipcontroller = sc.cmd.stop_ipcontroller:main",
+            "wait_ipp_engines = sc.cmd.wait_ipp_engines:main",
             "train_lat2apdf = sc.cmd.train_lat2apdf:main",
             "train_lat2prdf = sc.cmd.train_lat2prdf:main",
             "test_model = sc.cmd.test_model:main",
