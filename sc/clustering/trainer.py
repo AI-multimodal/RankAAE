@@ -127,6 +127,7 @@ class Trainer:
 
                 if epoch > self.start_adversarial:
                     # Init gradients, adversarial loss
+                    # self.start_adversarial: the step number to start adversarial training
                     self.zerograd()
                     adversarial_loss_train = adversarial_loss(
                         spec_in, styles, self.discriminator, alpha, 
@@ -139,11 +140,13 @@ class Trainer:
                 else:
                     adversarial_loss_train = torch.tensor(0.0)
 
-                # Kendell constration
+                # Kendall constraint
                 if aux_in is not None and epoch > self.start_guide:
+                    # self.start_guide: the step number to start use Kendall constraint
                     self.zerograd()
                     styles = self.encoder(spec_in)
                     if isinstance(self.kendall_activation, int):
+                        # self.kendall_activation: the step number to start scale repulsive force
                         shutdown_repulsive_force = epoch > self.kendall_activation
                     else:
                         shutdown_repulsive_force = self.kendall_activation
