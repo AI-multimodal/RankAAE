@@ -1,3 +1,4 @@
+from typing import no_type_check_decorator
 import torch
 from torch import nn
 import numpy as np
@@ -65,7 +66,9 @@ def kendall_constraint(descriptors, styles, activate=False, device=None):
     aux_len = aux_pred.size()[0]
     product = aux_pred * aux_target
     if activate:
-        product[product>0] = 0 
+        n_same = max(torch.numel(product[product>0]), 1)
+        n_opp = max(torch.numel(product[product<0]), 1)
+        product[product>0] *= n_opp / max(n_same, n_opp)
     aux_loss = - product.sum() / ((aux_len**2 - aux_len) * n_aux)
 
     return aux_loss
