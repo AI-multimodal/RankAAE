@@ -105,7 +105,7 @@ class Trainer:
 
             # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
-                                       (epoch - self.start_adversarial) / self.max_epoch)) - 1) * self.alpha_limit
+                                       epoch / self.max_epoch)) - 1) * self.alpha_limit
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -125,40 +125,27 @@ class Trainer:
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
 
-                if epoch > self.start_adversarial:
-                    # Init gradients, adversarial loss
-                    # self.start_adversarial: the step number to start adversarial training
-                    self.zerograd()
-                    adversarial_loss_train = adversarial_loss(
-                        spec_in, styles, self.discriminator, alpha, 
-                        batch_size=self.batch_size, 
-                        nll_loss=nll_loss, 
-                        device=self.device
-                    )
-                    adversarial_loss_train.backward()
-                    self.optimizers["adversarial"].step()
-                else:
-                    adversarial_loss_train = torch.tensor(0.0)
+                # Init gradients, adversarial loss
+                self.zerograd()
+                adversarial_loss_train = adversarial_loss(
+                    spec_in, styles, self.discriminator, alpha, 
+                    batch_size=self.batch_size, 
+                    nll_loss=nll_loss, 
+                    device=self.device
+                )
+                adversarial_loss_train.backward()
+                self.optimizers["adversarial"].step()
 
                 # Kendall constraint
-                if aux_in is not None and epoch > self.start_guide:
-                    # self.start_guide: the step number to start use Kendall constraint
-                    self.zerograd()
-                    styles = self.encoder(spec_in)
-                    if isinstance(self.kendall_activation, int):
-                        # self.kendall_activation: the step number to start scale repulsive force
-                        shutdown_repulsive_force = epoch > self.kendall_activation
-                    else:
-                        shutdown_repulsive_force = self.kendall_activation
-                    aux_loss_train = kendall_constraint(
-                        aux_in, styles[:,:n_aux], 
-                        activate=shutdown_repulsive_force,
-                        device=self.device
-                    )
-                    aux_loss_train.backward()
-                    self.optimizers["correlation"].step()
-                else:
-                    aux_loss_train = torch.tensor(1.0)
+                self.zerograd()
+                styles = self.encoder(spec_in)
+                aux_loss_train = kendall_constraint(
+                    aux_in, styles[:,:n_aux], 
+                    activate=self.kendall_activation,
+                    device=self.device
+                )
+                aux_loss_train.backward()
+                self.optimizers["correlation"].step()
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
