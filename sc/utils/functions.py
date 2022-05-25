@@ -68,10 +68,12 @@ def kendall_constraint(descriptors, styles, activate=False, device=None):
     if activate:
         full_same_sel = product > 0
         full_opp_sel = product < 0
+        aux_indices = torch.arange(n_aux, device=device)
         for i in range(n_aux):
-            n_same = max(torch.numel(product[full_same_sel[..., i], i]), 1)
-            n_opp = max(torch.numel(product[full_opp_sel[..., i], i]), 1)
-            product[full_same_sel[..., i], i] *= n_opp / max(n_same, n_opp)
+            aux_sel = aux_indices == i
+            n_same = max(torch.numel(product[full_same_sel & aux_sel]), 1)
+            n_opp = max(torch.numel(product[full_opp_sel & aux_sel]), 1)
+            product[full_same_sel & aux_sel] *= n_opp / max(n_same, n_opp)
     aux_loss = - product.sum() / ((aux_len**2 - aux_len) * n_aux)
 
     return aux_loss
