@@ -382,8 +382,8 @@ class Trainer:
                 {'params': self.encoder.parameters()}
             ],
             lr = self.lr_ratio_Style * self.lr_base,
-            betas = (self.grad_rev_beta * 0.9, 
-            self.grad_rev_beta * 0.009 + 0.99)
+            betas = (self.dis_beta * 0.9, 
+            self.dis_beta * 0.009 + 0.99)
         )
 
         self.optimizers = {
@@ -451,11 +451,11 @@ class Trainer:
         )
         if p.use_cnn_discriminator:
             discriminator = DiscriminatorCNN(
-                nstyle=p.nstyle, dropout_rate=p.grad_rev_dropout_rate, noise=p.grad_rev_noise
+                nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise
             )
         else:
             discriminator = DiscriminatorFC(
-                nstyle=p.nstyle, dropout_rate=p.grad_rev_dropout_rate, noise=p.grad_rev_noise,
+                nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
                 layers = p.FC_discriminator_layers
             )
 
