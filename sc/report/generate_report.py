@@ -5,7 +5,7 @@ from collections import OrderedDict
 from matplotlib import pyplot as plt
 import os
 import argparse
-import yaml
+import json
 import sc.report.analysis as analysis
 from sc.clustering.dataloader import AuxSpectraDataset
 
@@ -159,8 +159,8 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
         if (result['Rank'] == 0) and save_spectra:
             spec_in = result["Input"]
             spec_out = result["Output"]
-
-    yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
+    with open(os.path.join(save_dir, file_name+'.json'), 'wt') as f:
+        f.write(json.dumps(save_dict))
     np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
 
