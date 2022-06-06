@@ -136,19 +136,16 @@ class Trainer:
                 adversarial_loss_train.backward()
                 self.optimizers["adversarial"].step()
 
-                # Kendell constration
-                if aux_in is not None:
-                    self.zerograd()
-                    styles = self.encoder(spec_in)
-                    aux_loss_train = kendall_constraint(
-                        aux_in, styles[:,:n_aux], 
-                        activate=self.kendall_activation,
-                        device=self.device
-                    )
-                    aux_loss_train.backward()
-                    self.optimizers["correlation"].step()
-                else:
-                    aux_loss_train = None
+                # Kendall constraint
+                self.zerograd()
+                styles = self.encoder(spec_in)
+                aux_loss_train = kendall_constraint(
+                    aux_in, styles[:,:n_aux], 
+                    activate=self.kendall_activation,
+                    device=self.device
+                )
+                aux_loss_train.backward()
+                self.optimizers["correlation"].step()
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
