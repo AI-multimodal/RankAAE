@@ -12,24 +12,31 @@ ulimit -u 524288
 ulimit -n 100000
 ulimit -a
 
-total_jobs=8
+total_engines=16
+total_jobs=100
+
+element=$1
+work_dir="../tests/work_dir_$1"
+cd ${work_dir}
+data_file=$(ls feff_$1_*)
+echo ${data_file}
 
 ipython profile create --profile-dir=ipypar
 ipcontroller --ip="*" --profile-dir=ipypar &
 sleep 10
 
-for i in `seq 1 $total_jobs`
+for i in `seq 1 $total_engines`
 do
 export SLURM_LOCALID=$i
 ipengine --profile-dir=ipypar --log-to-file &
 done
 
-wait_ipp_engines -e $total_jobs
+wait_ipp_engines -e $total_engines
 echo "Engines seems to have started"
 
 echo `date` "Start training"
 train_sc \
-    -d feff_Fe_CT_CN_OCN_RSTD_MOOD_spec_202201171147_5000.csv \
+    -d ${data_file} \
     --trials ${total_jobs} \
     -c fix_config.yaml \
     -e 1500 \
@@ -43,7 +50,7 @@ parent_folder=$(basename $(dirname `pwd`))
 sc_generate_report \
     -o report_${parent_folder}_${current_folder} \
     -n 5 \
-    -p ${total_jobs} \
+    -p 5 \
     -g 
 echo `date` "Report Generated"
 

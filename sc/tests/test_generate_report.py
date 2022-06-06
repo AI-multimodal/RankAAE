@@ -1,13 +1,14 @@
-import sys
+import os
+import numpy as np
 import torch
 from sc.clustering.dataloader import AuxSpectraDataset
-from sc.report.generate_report import *
 import sc.report.analysis as analysis
+import sc.report.analysis_new as analysis_new
 
 class Test_GenerateReport():
 
     device = torch.device('cpu')
-    data_dir = os.path.join(os.path.dirname(__file__), "data/")
+    data_dir = os.path.join(os.path.dirname(__file__), "work_dir_Fe/")
     data_file = os.path.join(data_dir, 'feff_Fe_CT_CN_OCN_RSTD_MOOD_spec_202201171147_5000.csv')
     model_file = os.path.join(data_dir, 'training/job_1/final.pt')
     model = torch.load(model_file, map_location = device)
@@ -33,6 +34,10 @@ class Test_GenerateReport():
             ax = None,
             energy_grid = None
         )
+    def test_reconstruct_evatuator_works(self):
+        recon_evaluator = analysis_new.Reconstruct(name="recon")
+        recon_evaluator.evaluate(self.val_ds, self.model, path_to_save=self.data_dir)
+        pass
 
 if __name__ == "__main__":
-    main()
+    Test_GenerateReport().test_reconstruct_evatuator_works()

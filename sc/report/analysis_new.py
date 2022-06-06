@@ -1,20 +1,15 @@
-import math
 import os
-import itertools
 import torch
+from datetime import datetime
+from uuid import uuid4
 import numpy as np
-from numpy.polynomial import Polynomial
-from scipy import stats
-from scipy.stats import spearmanr
-from scipy.interpolate import interp1d
-from sklearn.metrics import f1_score, confusion_matrix, mean_absolute_error
+from monty.json import MSONable
 
-import matplotlib as mpl
+from scipy.interpolate import interp1d
+
 import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 
-from abc import ABC, abstractmethod
 
 def create_plotly_colormap(n_colors):
     '''
@@ -36,6 +31,10 @@ class Reporter:
     def __init__(self):
         pass
     
+    def add_evaluations(self,evaluation_list):
+        for evaluation in evaluation_list:
+            pass
+        
     def evaluate_all_models(self, training_path='./training'):
         """
         Evaluate all the models saved in the training_path (which is './training' by default)
@@ -52,29 +51,81 @@ class Reporter:
         pass
 
 
-class Evaluator(ABC):
+
+class Evaluator(MSONable):
     """
     A base class for evluating a specific property/score of a model.
     """
-    def __init__(self, device=torch.device('cpu')):
+    def __init__(self, device=torch.device('cpu'), name=None):
         
-        self.result = None
+        self.result = {}
+        self.metadata = {}
         self.device = device
-    
-    @abstractmethod
+        self.name = name # the key that will be shown in the final Result dictionary.
+
+
     def evaluate(self, *args, **kwargs):
         """
-        Evaluate the model.
+        Evaluate the model. Returns a dictionary of evaluated metrics.
         """
-        pass
+        raise NotImplementedError
+    
+    def _process_metadata(self, data_path=None, model_path=None):
+        """Create metadata for the evaluation.
+        """
+        dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        self.metadata.update(
+            {
+                "name": self.name,
+                "datetime": f"{dt} UTC",
+                "data": data_path,
+                "model": model_path
+            }
+        )
+        
 
-    @abstractmethod
     def plot(self, ax=None):
+        """Plot out the evaluated result.
         """
-        Plot out the result.
-        """
-        pass
+        raise NotImplementedError
 
+
+class Reconstruct(Evaluator):
+    def __init__(self, device=torch.device('cpu'), name="reconstructed"):
+        super(Reconstruct, self).__init__(device=device, name=name)
+        
+    def evaluate(self, test_ds, model, path_to_save=None):
+        """
+        Parameters
+        ----------
+        eval_ds : dataset used for evaluation (either validation or test dataset)
+        model : the NN model to be evaluated.
+        """
+        self._process_metadata(test_ds.metadata["path"], model_path=None)
+        encoder = model['Encoder']
+        decoder = model['Decoder']
+        encoder.eval()
+        decoder.eval()
+
+        spec_in = torch.tensor(test_ds.spec, dtype=torch.float32, device=self.device)
+        styles = encoder(spec_in)
+        
+        self.result.update(
+            {
+                "input": spec_in.cpu().numpy(),
+                "styles": styles.clone().detach().cpu().numpy(),
+                "output": decoder(styles).clone().detach().cpu().numpy()
+            }
+        )
+
+        if path_to_save is not None:
+            self.to_file(path_to_save)        
+    
+    def to_file(self, path_to_save):
+        file_path = os.path.join(path_to_save, "report_")
+        np.savetxt(file_path+"spec_in"+".txt", self.result["input"])
+        np.savetxt(file_path+"spec_out"+".txt", self.result["output"])
+        np.savetxt(file_path+"styles"+".txt", self.result["styles"])
 
 
 class EvaluatorAll:
@@ -129,8 +180,7 @@ class SpectraVariationEvaluator(Evaluator):
 
 
     def evaluate(self, istyle, true_range = True):
-        """
-        Spectra variation plot by varying one of the styles.
+        """Spectra variation plot by varying one of the styles.
         Parameters
         ----------
         istyle : int

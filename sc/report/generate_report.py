@@ -7,6 +7,7 @@ import os
 import argparse
 import json
 import sc.report.analysis as analysis
+import sc.report.analysis_new as analysis_new
 from sc.clustering.dataloader import AuxSpectraDataset
 
 def sorting_algorithm(x):
@@ -251,8 +252,11 @@ def main():
         title = '-'.join([args.output_name, sorted_jobs[0]]), 
         device = device
     )
-    save_report_plot(work_dir, args.output_name, fig_top_model)
 
+    save_report_plot(work_dir, args.output_name, fig_top_model)
+    recon_evaluator = analysis_new.Reconstruct(name="recon", device=device)
+    recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
+    
     # save top 5 result 
     save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
     
