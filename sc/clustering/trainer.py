@@ -379,8 +379,7 @@ class Trainer:
                 {'params': self.encoder.parameters()}
             ],
             lr = self.lr_ratio_Style * self.lr_base,
-            betas = (self.dis_beta * 0.9, 
-            self.dis_beta * 0.009 + 0.99)
+            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
         )
 
         self.optimizers = {

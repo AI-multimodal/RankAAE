@@ -122,10 +122,10 @@ class Reconstruct(Evaluator):
             self.to_file(path_to_save)        
     
     def to_file(self, path_to_save):
-        file_path = os.path.join(path_to_save, "report_")
-        np.savetxt(file_path+"spec_in"+".txt", self.result["input"])
-        np.savetxt(file_path+"spec_out"+".txt", self.result["output"])
-        np.savetxt(file_path+"styles"+".txt", self.result["styles"])
+        file_path = os.path.join(path_to_save, self.name)
+        np.savetxt(file_path+"_spec_in"+".txt", self.result["input"])
+        np.savetxt(file_path+"_spec_out"+".txt", self.result["output"])
+        np.savetxt(file_path+"_styles"+".txt", self.result["styles"])
 
 
 class EvaluatorAll:

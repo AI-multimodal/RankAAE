@@ -254,7 +254,7 @@ def main():
     )
 
     save_report_plot(work_dir, args.output_name, fig_top_model)
-    recon_evaluator = analysis_new.Reconstruct(name="recon", device=device)
+    recon_evaluator = analysis_new.Reconstruct(name=args.output_name, device=device)
     recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
     
     # save top 5 result 

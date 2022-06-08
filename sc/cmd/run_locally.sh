@@ -20,6 +20,7 @@ work_dir="../tests/work_dir_$1"
 cd ${work_dir}
 data_file=$(ls feff_$1_*)
 echo ${data_file}
+rm -r training
 
 ipython profile create --profile-dir=ipypar
 ipcontroller --ip="*" --profile-dir=ipypar &
@@ -43,6 +44,7 @@ train_sc \
     -v
 echo `date` "Job Finished"
 stop_ipcontroller
+rm -r ipypar
 
 echo `date` "Genearting Report"
 current_folder=$(basename `pwd`)
