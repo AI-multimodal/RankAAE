@@ -127,13 +127,13 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     # Plot q-q plot of the style distribution
     for col in [0,1,2,3]:
         ax = fig.add_subplot(gs[8,col])
-        _ = analysis.qqplot_normal(styles_no_s2[:,col], ax)
+        shapiro_statistic = analysis.qqplot_normal(styles_no_s2[:,col], ax)
         if col > 0: col += 1 # skip style 2 which is CN
-        ax.set_title(f'style_{col+1}')
+        ax.set_title(f'style_{col+1}: {shapiro_statistic:.2f}')
     
     ax = fig.add_subplot(gs[9,3])
-    _ = analysis.qqplot_normal(test_styles[:,1], ax)
-    ax.set_title('style_2')
+    shapiro_statistic = analysis.qqplot_normal(test_styles[:,1], ax)
+    ax.set_title(f'style_2: {shapiro_statistic:.2f}')
 
     # Plot out CN confusion matrix
     _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
