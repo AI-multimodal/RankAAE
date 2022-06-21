@@ -22,7 +22,7 @@ def sorting_algorithm(x):
         "Style-Descriptor Corr 5" # 6
     """
 
-    weight = [-1, 0, 0, 0, 0, 0, 0]
+    weight = [-1, 0, 1, 1, 1, 1, 1]
 
     # if only weight[1] is non zero, turn on offset so the final score is non zero.
     off_set = 0 

@@ -121,7 +121,7 @@ def load_evaluations(evaluation_path="./report_model_evaluations.pkl"):
 
 def sort_all_models(
     result_dict, 
-    sort_score = None,
+    sort_score = None, # sorting algorithm
     plot_score = False,
     ascending = True,
     top_n = None, 
