@@ -48,8 +48,7 @@ def get_parallel_map_func(work_dir=".", logger=logging.getLogger("Parallel")):
 def run_training(
     job_number, 
     work_dir, 
-    trainer_config, 
-    max_epoch, 
+    trainer_config,  
     verbose, 
     data_file, 
     timeout_hours=0,
@@ -83,7 +82,6 @@ def run_training(
     trainer = Trainer.from_data(
         data_file,
         igpu = igpu,
-        max_epoch = max_epoch,
         verbose = verbose,
         work_dir = work_dir,
         config_parameters = trainer_config,
@@ -96,7 +94,7 @@ def run_training(
     try:
         metrics = trainer.train()
         logger.info(metrics)
-        n_aux = trainer_config.get("n_aux", 0)
+
     except Exception as e:
         logger.warn(f"Error happened: {e.args}")
         metrics = e.args
@@ -111,28 +109,20 @@ def run_training(
 def main():
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--data_file', type=str, required=True,
-                        help='File name of the dataset in CSV format')
     parser.add_argument('-c', '--config', type=str, required=True,
                         help='Config for training parameter in YAML format')
-    parser.add_argument('-e', '--max_epoch', type=int, default=2000,
-                        help='Maximum iterations')
-    parser.add_argument('-v', '--verbose', action="store_true",
-                        help='Maximum iterations')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
-    parser.add_argument('--trials', type=int, default=1,
-                        help='Total number of trainings to run')
-    parser.add_argument('--timeout', type=int, default=5,
-                        help='Time limit per job in hours')
     args = parser.parse_args()
-    max_epoch = args.max_epoch
-    verbose = args.verbose
-    trials = args.trials
+
     work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
-    assert os.path.exists(work_dir)
-    data_file = os.path.join(work_dir, args.data_file)
     trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
+    assert os.path.exists(work_dir)
+
+    verbose = trainer_config.get("sys_verbose", False)
+    trials = trainer_config.get("sys_trials", 1)
+    data_file = os.path.join(work_dir, trainer_config.get("sys_data_file", None))
+    timeout = trainer_config.get("sys_timeout", 10)
 
     # Start Logger
     logger = create_logger("Main training:", f'{work_dir}/main_process_message.txt', append=True)
@@ -150,10 +140,9 @@ def main():
         list(range(trials)),
         [work_dir] * trials,
         [trainer_config] * trials,
-        [max_epoch] * trials,
         [verbose] * trials,
         [data_file] * trials,
-        [args.timeout] * trials,
+        [timeout] * trials,
         [logger] * trials
     )
 
