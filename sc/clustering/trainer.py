@@ -10,11 +10,10 @@ from scipy.stats import shapiro, spearmanr
 import torch
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.tensorboard import SummaryWriter
+
 from torchvision import transforms
 from sc.clustering.model import (
     GaussianSmoothing, 
-    DummyDualAAE, 
     DiscriminatorCNN, 
     DiscriminatorFC
 )
@@ -37,16 +36,17 @@ class Trainer:
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
-        max_epoch=300, verbose=True, work_dir='.', tb_logdir="runs", 
+        verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
-        logger = logging.getLogger("training")
+        logger = logging.getLogger("training"),
+        loss_logger = logging.getLogger("losses")
     ):
         self.logger = logger
+        self.loss_logger = loss_logger # for recording losses as a function of epochs
         self.device = device
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        self.max_epoch = max_epoch
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -65,17 +65,6 @@ class Trainer:
         self.padding4smooth = nn.ReplicationPad1d(
             padding=(self.gau_kernel_size - 1) // 2
         ).to(device)
-
-        if self.verbose:
-            self.tb_writer = SummaryWriter(log_dir=os.path.join(self.work_dir, self.tb_logdir))
-            self.tb_writer.add_graph(
-                DummyDualAAE(
-                    self.use_cnn_discriminator, 
-                    self.encoder.__class__, 
-                    self.decoder.__class__
-                ), 
-                iter(self.train_loader).next()[0] # example spec
-            )
         
         self.load_optimizers()
         self.load_schedulers()
@@ -97,7 +86,14 @@ class Trainer:
             os.makedirs(chkpt_dir, exist_ok=True)
         best_chpt_file = None
         metrics = None
-        for epoch in range(self.max_epoch):
+        
+        # Record first line of loss values
+        self.loss_logger.info( 
+                "# 0_Epoch, 1_Train_Advaserial, 2_Val_Advaserial, 3_Train_Aux, 4_Val_Aux, 5_Train_Recon, "
+                "6_Val_Recon, 7_Train_Smooth, 8_Val_Smooth, 9_Train_Mutual_Info, 10_Val_Mutual_Info"
+            )
+        
+        for epoch in range(self.train_max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
@@ -105,7 +101,7 @@ class Trainer:
 
             # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
-                                       epoch / self.max_epoch)) - 1) * self.alpha_limit
+                                       epoch / self.train_max_epoch)) - 1) * self.alpha_limit
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -208,7 +204,6 @@ class Trainer:
             
             recon_loss_val = recon_loss(spec_in, spec_re, mse_loss=mse_loss, device=self.device)
 
-
             if self.train_loader.dataset.aux is not None:
                 aux_loss_val = kendall_constraint(
                         aux_in, z[:,:n_aux], 
@@ -219,8 +214,12 @@ class Trainer:
 
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
-            style_coupling = np.max(np.fabs([spearmanr(style_np[j1], style_np[j2]).correlation
-                                             for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)]))
+            style_coupling = np.max(np.fabs(
+                [
+                    spearmanr(style_np[j1], style_np[j2]).correlation
+                    for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)
+                ]
+            ))
 
             z_fake_gauss = z
             z_real_gauss = torch.randn_like(
@@ -248,44 +247,18 @@ class Trainer:
             z_recon = self.encoder(x_sample)
             mutual_info_loss_val = mse_loss(z_recon, z)
 
-            # write losses to tensorboard
-            if self.verbose:
-                self.tb_writer.add_scalars("Adversarial", 
-                    {
-                        'Train': adversarial_loss_train.item(),
-                        'Validation': adversarial_loss_val.item()
-                    },
-                    global_step = epoch
-                )
-                self.tb_writer.add_scalars("Aux", 
-                    {
-                        'Train': aux_loss_train.item(),
-                        'Validation': aux_loss_val.item()
-                    },
-                    global_step = epoch
-                )
-                self.tb_writer.add_scalars("Recon", 
-                    {
-                        'Train': recon_loss_train.item(),
-                        'Validation': recon_loss_val.item()
-                    },
-                    global_step = epoch
-                )
-                self.tb_writer.add_scalars("Smooth", 
-                    {
-                        'Train': smooth_loss_train.item(),
-                        'Validation': smooth_loss_val.item()
-                    },
-                    global_step = epoch
-                )
-                self.tb_writer.add_scalars("Mutual Info", 
-                    {
-                        'Train': mutual_info_loss_train.item(),
-                        'Validation': mutual_info_loss_val.item()
-                    },
-                    global_step = epoch
+            # Write losses to a file
+            if epoch % 10 == 0:
+                self.loss_logger.info(
+                    f"{epoch:d}\t"
+                    f"{adversarial_loss_train.item():.6f}\t{adversarial_loss_val.item():.6f}\t"
+                    f"{aux_loss_train.item():.6f}\t{aux_loss_train.item():.6f}\t"
+                    f"{recon_loss_train.item():.6f}\t{recon_loss_val.item():.6f}\t"
+                    f"{smooth_loss_train.item():.6f}\t{smooth_loss_val.item():.6f}\t"
+                    f"{mutual_info_loss_train.item():.6f}\t{mutual_info_loss_val.item():.6f}\t"
                 )
 
+            
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
                           "Style Discriminator": self.discriminator}
@@ -305,18 +278,6 @@ class Trainer:
             if callback is not None:
                 callback(epoch, metrics)
             
-            # plot images
-            if epoch % 25 == 0:
-                spec_in = [torch.cat(x, dim=0)
-                           for x in zip(*list(self.val_loader))][0]
-                spec_in = spec_in.to(self.device)
-                z = self.encoder(spec_in)
-                if self.verbose:
-                    self.tb_writer.add_figure("Style Value Distribution", 
-                        self.get_style_distribution_plot(z.clone().cpu().detach().numpy()),
-                        global_step = epoch
-                    )
-
         # save the final model
         torch.save(model_dict, f'{self.work_dir}/final.pt')
 
@@ -405,10 +366,11 @@ class Trainer:
     @classmethod
     def from_data(
         cls, csv_fn, 
-        igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
+        igpu=0, verbose=True, work_dir='.', 
         train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
         config_parameters = Parameters({}),
-        logger = logging.getLogger("from_data")
+        logger = logging.getLogger("from_data"),
+        loss_logger = logging.getLogger("losses")
     ):
 
         p = config_parameters
@@ -461,8 +423,8 @@ class Trainer:
         # Load trainer
         trainer = Trainer(
             encoder, decoder, discriminator, device, dl_train, dl_val,
-            max_epoch=max_epoch, verbose=verbose, work_dir=work_dir,
-            config_parameters = p, logger = logger
+            verbose=verbose, work_dir=work_dir,
+            config_parameters=p, logger=logger, loss_logger=loss_logger
         )
         return trainer
 
