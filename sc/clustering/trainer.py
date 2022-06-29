@@ -36,7 +36,7 @@ class Trainer:
     def __init__(
         self, 
         encoder, decoder, discriminator, device, train_loader, val_loader,
-        max_epoch=300, verbose=True, work_dir='.', tb_logdir="runs", 
+        verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training"),
         loss_logger = logging.getLogger("losses")
@@ -47,7 +47,6 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        self.max_epoch = max_epoch
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -94,7 +93,7 @@ class Trainer:
                 "6_Val_Recon, 7_Train_Smooth, 8_Val_Smooth, 9_Train_Mutual_Info, 10_Val_Mutual_Info"
             )
         
-        for epoch in range(self.max_epoch):
+        for epoch in range(self.train_max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
@@ -102,7 +101,7 @@ class Trainer:
 
             # the weight of the gradient reversal
             alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
-                                       epoch / self.max_epoch)) - 1) * self.alpha_limit
+                                       epoch / self.train_max_epoch)) - 1) * self.alpha_limit
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -249,14 +248,15 @@ class Trainer:
             mutual_info_loss_val = mse_loss(z_recon, z)
 
             # Write losses to a file
-            self.loss_logger.info(
-                f"{epoch:d}\t"
-                f"{adversarial_loss_train.item():.6f}\t{adversarial_loss_val.item():.6f}\t"
-                f"{aux_loss_train.item():.6f}\t{aux_loss_train.item():.6f}\t"
-                f"{recon_loss_train.item():.6f}\t{recon_loss_val.item():.6f}\t"
-                f"{smooth_loss_train.item():.6f}\t{smooth_loss_val.item():.6f}\t"
-                f"{mutual_info_loss_train.item():.6f}\t{mutual_info_loss_val.item():.6f}\t"
-            )
+            if epoch % 10 == 0:
+                self.loss_logger.info(
+                    f"{epoch:d}\t"
+                    f"{adversarial_loss_train.item():.6f}\t{adversarial_loss_val.item():.6f}\t"
+                    f"{aux_loss_train.item():.6f}\t{aux_loss_train.item():.6f}\t"
+                    f"{recon_loss_train.item():.6f}\t{recon_loss_val.item():.6f}\t"
+                    f"{smooth_loss_train.item():.6f}\t{smooth_loss_val.item():.6f}\t"
+                    f"{mutual_info_loss_train.item():.6f}\t{mutual_info_loss_val.item():.6f}\t"
+                )
 
             
             model_dict = {"Encoder": self.encoder,
@@ -366,7 +366,7 @@ class Trainer:
     @classmethod
     def from_data(
         cls, csv_fn, 
-        igpu=0, max_epoch=2000, verbose=True, work_dir='.', 
+        igpu=0, verbose=True, work_dir='.', 
         train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, 
         config_parameters = Parameters({}),
         logger = logging.getLogger("from_data"),
@@ -423,7 +423,7 @@ class Trainer:
         # Load trainer
         trainer = Trainer(
             encoder, decoder, discriminator, device, dl_train, dl_val,
-            max_epoch=max_epoch, verbose=verbose, work_dir=work_dir,
+            verbose=verbose, work_dir=work_dir,
             config_parameters=p, logger=logger, loss_logger=loss_logger
         )
         return trainer
