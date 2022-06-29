@@ -60,7 +60,11 @@ def run_training(
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
 
+    # Set up a logger to record general training information
     logger = create_logger(f"subtraining_{job_number+1}", os.path.join(work_dir, "messages.txt"))
+    
+    # Set up a logger to record losses against epochs during training 
+    loss_logger = create_logger(f"losses_{job_number+1}", os.path.join(work_dir, "losses.txt"), simple_fmt=True)
 
     if torch.get_num_interop_threads() > 2:
         torch.set_num_interop_threads(1)
@@ -83,7 +87,8 @@ def run_training(
         verbose = verbose,
         work_dir = work_dir,
         config_parameters = trainer_config,
-        logger = logger
+        logger = logger,
+        loss_logger = loss_logger,
     )
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
@@ -92,7 +97,6 @@ def run_training(
         metrics = trainer.train()
         logger.info(metrics)
         n_aux = trainer_config.get("n_aux", 0)
-        trainer.test_models(data_file, n_aux=n_aux, work_dir=work_dir)
     except Exception as e:
         logger.warn(f"Error happened: {e.args}")
         metrics = e.args

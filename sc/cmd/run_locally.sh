@@ -13,7 +13,7 @@ ulimit -n 100000
 ulimit -a
 
 total_engines=16
-total_jobs=100
+total_jobs=16
 
 element=$1
 work_dir="../tests/work_dir_$1"
