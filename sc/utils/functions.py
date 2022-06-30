@@ -104,26 +104,70 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     
     return recon_loss
 
-def adversarial_loss(spec_in, styles, discriminator, alpha, batch_size=100,  nll_loss=None, device=None):
-        
-        if device is None:
-            device = torch.device('cpu')
-        if nll_loss is None:
-            nll_loss = nn.NLLLoss().to(device)
+def D_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
+    """
+    Parameters
+    ----------
+    D : Discriminator
+    """
+    if device is None:
+        device = torch.device('cpu')
+    if nll_loss is None:
+        nll_loss = nn.NLLLoss().to(device)
 
-        nstyle = styles.size()[1]
+    nstyle = styles.size()[1]
 
-        z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
-        real_gauss_pred = discriminator(z_real_gauss, alpha)
-        real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
-        
-        fake_gauss_pred = discriminator(styles, alpha)
-        fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
-                
-        adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                         + nll_loss(fake_gauss_pred, fake_guass_lable)
+    z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
+    real_gauss_pred = D(z_real_gauss, alpha)
+    real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
+    
+    fake_gauss_pred = D(styles, alpha)
+    fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
+            
+    loss = nll_loss(real_gauss_pred, real_gauss_label) \
+                        + nll_loss(fake_gauss_pred, fake_guass_lable)
 
-        return adversarial_loss
+    return loss
+
+
+def discriminator_loss(styles, D, batch_size=100,  loss_fn=None, device=None):
+    """
+    Parameters
+    ----------
+    D : Discriminator
+    """
+    if device is None:
+        device = torch.device('cpu')
+    if loss_fn is None:
+        loss_fn = nn.CrossEntropyLoss().to(device)
+
+    z_real_gauss = torch.randn(batch_size, styles.size()[1], requires_grad=True, device=device)
+    real_gauss_pred = D(z_real_gauss)
+    real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
+    
+    fake_gauss_pred = D(styles)
+    fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
+            
+    loss = loss_fn(real_gauss_pred, real_gauss_label) + loss_fn(fake_gauss_pred, fake_guass_lable)
+
+    return loss
+
+
+def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
+    if device is None:
+        device = torch.device('cpu')
+    if loss_fn is None:
+        loss_fn = nn.CrossEntropyLoss.to(device)
+
+    styles = encoder(spec_in)
+    fake_gauss_pred = D(styles)
+
+    fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
+            
+    loss = loss_fn(fake_gauss_pred, fake_guass_lable)
+
+    return loss
+
 
 def mutual_info_loss(spec_in, styles, encoder, decoder, mse_loss=None, device=None):
     """

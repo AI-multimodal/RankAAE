@@ -665,7 +665,6 @@ class DiscriminatorFC(nn.Module):
                 nn.BatchNorm1d(hiden_size, affine=False),
                 nn.Dropout(p=dropout_rate),
                 nn.Linear(hiden_size, 2),
-                nn.LogSoftmax(dim=1)
             ]
         )
 
@@ -674,11 +673,10 @@ class DiscriminatorFC(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
 
-    def forward(self, x, alpha):
+    def forward(self, x):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        reverse_feature = ReverseLayerF.apply(x, alpha)
-        out = self.main(reverse_feature)
+        out = self.main(x)
         return out
 
 

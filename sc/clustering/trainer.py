@@ -8,23 +8,23 @@ import matplotlib.pyplot as plt
 from scipy.stats import shapiro, spearmanr
 
 import torch
+torch.autograd.set_detect_anomaly(True)
 from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from torchvision import transforms
 from sc.clustering.model import (
-    GaussianSmoothing, 
     DiscriminatorCNN, 
     DiscriminatorFC
 )
-from sc.clustering.dataloader import get_dataloaders, AuxSpectraDataset, ToTensor
+from sc.clustering.dataloader import get_dataloaders
 from sc.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
 from sc.utils.functions import (
     kendall_constraint, 
     recon_loss, 
     mutual_info_loss, 
     smoothness_loss, 
-    adversarial_loss
+    discriminator_loss,
+    generator_loss,
 )
 
 
@@ -55,17 +55,6 @@ class Trainer:
 
         # update name space with config_parameters dictionary
         self.__dict__.update(config_parameters.to_dict())
-
-        self.gaussian_smoothing = GaussianSmoothing(
-            channels=1, 
-            kernel_size=self.gau_kernel_size, 
-            sigma=3.0, dim=1,
-            device = self.device
-        ).to(device)
-        self.padding4smooth = nn.ReplicationPad1d(
-            padding=(self.gau_kernel_size - 1) // 2
-        ).to(device)
-        
         self.load_optimizers()
         self.load_schedulers()
 
@@ -77,8 +66,8 @@ class Trainer:
 
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
-        nll_loss = nn.NLLLoss().to(self.device)
-        
+        CE_loss = nn.CrossEntropyLoss().to(self.device)
+
         # train network
         best_combined_metric = 10.0 # Initialize a guess for best combined metric.
         chkpt_dir = f"{self.work_dir}/checkpoints"
@@ -89,8 +78,8 @@ class Trainer:
         
         # Record first line of loss values
         self.loss_logger.info( 
-                "# 0_Epoch, 1_Train_Advaserial, 2_Val_Advaserial, 3_Train_Aux, 4_Val_Aux, 5_Train_Recon, "
-                "6_Val_Recon, 7_Train_Smooth, 8_Val_Smooth, 9_Train_Mutual_Info, 10_Val_Mutual_Info"
+                "# 0_Epoch, 1_Train_D, 2_Val_D, 3_Train_G, 4_Val_G, 5_Train_Aux, 6_Val_Aux, 7_Train_Recon, "
+                "8_Val_Recon, 9_Train_Smooth, 10_Val_Smooth, 11_Train_Mutual_Info, 12_Val_Mutual_Info"
             )
         
         for epoch in range(self.train_max_epoch):
@@ -98,10 +87,6 @@ class Trainer:
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
-
-            # the weight of the gradient reversal
-            alpha = (2. / (1. + np.exp(-1.0E4 / self.alpha_flat_step *
-                                       epoch / self.train_max_epoch)) - 1) * self.alpha_limit
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -120,17 +105,6 @@ class Trainer:
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
-
-                # Init gradients, adversarial loss
-                self.zerograd()
-                adversarial_loss_train = adversarial_loss(
-                    spec_in, styles, self.discriminator, alpha, 
-                    batch_size=self.batch_size, 
-                    nll_loss=nll_loss, 
-                    device=self.device
-                )
-                adversarial_loss_train.backward()
-                self.optimizers["adversarial"].step()
 
                 # Kendall constraint
                 self.zerograd()
@@ -181,6 +155,29 @@ class Trainer:
                 else:
                     smooth_loss_train = torch.tensor(0) 
                 
+                # Init gradients, discriminator loss
+                self.zerograd()
+                styles = self.encoder(spec_in)
+                dis_loss_train = discriminator_loss(
+                    styles, self.discriminator, 
+                    batch_size=self.batch_size, 
+                    loss_fn=CE_loss,
+                    device=self.device
+                )
+                dis_loss_train.backward()
+                self.optimizers["discriminator"].step()
+
+
+                # Init gradients, generator loss
+                self.zerograd()
+                gen_loss_train = generator_loss(
+                    spec_in, self.encoder, self.discriminator, 
+                    loss_fn=CE_loss,
+                    device=self.device
+                )
+                gen_loss_train.backward()
+                self.optimizers["generator"].step()
+
                 # Init gradients
                 self.zerograd()
 
@@ -189,29 +186,72 @@ class Trainer:
             self.decoder.eval()
             self.discriminator.eval()
             
-            avg_mutual_info /= n_batch
-            spec_in, aux_in = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
-            spec_in = spec_in.to(self.device)
-            z = self.encoder(spec_in)
-            spec_re = self.decoder(z)
+            spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
+            spec_in_val = spec_in_val.to(self.device)
+            z = self.encoder(spec_in_val)
+            spec_out_val = self.decoder(z)
 
             if self.train_loader.dataset.aux is None:
                 aux_in = None
             else:
-                assert len(aux_in.size()) == 2
-                n_aux = aux_in.size()[-1]
-                aux_in = aux_in.to(self.device)
+                assert len(aux_in_val.size()) == 2
+                n_aux = aux_in_val.size()[-1]
+                aux_in_val = aux_in_val.to(self.device)
             
-            recon_loss_val = recon_loss(spec_in, spec_re, mse_loss=mse_loss, device=self.device)
+            recon_loss_val = recon_loss(
+                spec_in_val, 
+                spec_out_val, 
+                mse_loss=mse_loss, 
+                device=self.device
+            )
+            aux_loss_val = kendall_constraint(
+                aux_in_val, 
+                z[:,:n_aux], 
+                activate=self.kendall_activation
+            )
+            dis_loss_val = discriminator_loss(
+                z, self.discriminator, 
+                batch_size=len(z),
+                loss_fn=CE_loss,
+                device=self.device
+            )
+            gen_loss_val = generator_loss(
+                spec_in_val, 
+                self.encoder, 
+                self.discriminator, 
+                loss_fn=CE_loss, 
+                device=self.device
+            )
+            smooth_loss_val = smoothness_loss(
+                spec_out_val, 
+                gs_kernel_size=self.gau_kernel_size,
+                device=self.device
+            )
+            mutual_info_loss_val = mutual_info_loss(
+                spec_in_val, z,
+                encoder=self.encoder, 
+                decoder=self.decoder, 
+                mse_loss=mse_loss, 
+                device=self.device
+            )
 
-            if self.train_loader.dataset.aux is not None:
-                aux_loss_val = kendall_constraint(
-                        aux_in, z[:,:n_aux], 
-                        activate=self.kendall_activation
-                    )
-            else:
-                aux_loss_val = None
-
+            # Write losses to a file
+            if epoch % 10 == 0:
+                self.loss_logger.info(
+                    f"{epoch:d},\t"
+                    f"{dis_loss_train.item():.6f},\t{dis_loss_val.item():.6f},\t"
+                    f"{gen_loss_train.item():.6f},\t{gen_loss_val.item():.6f},\t"
+                    f"{aux_loss_train.item():.6f},\t{aux_loss_train.item():.6f},\t"
+                    f"{recon_loss_train.item():.6f},\t{recon_loss_val.item():.6f},\t"
+                    f"{smooth_loss_train.item():.6f},\t{smooth_loss_val.item():.6f},\t"
+                    f"{mutual_info_loss_train.item():.6f},\t{mutual_info_loss_val.item():.6f},\t"
+                )
+            
+            model_dict = {"Encoder": self.encoder,
+                          "Decoder": self.decoder,
+                          "Style Discriminator": self.discriminator}
+            
+            avg_mutual_info /= n_batch
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
             style_coupling = np.max(np.fabs(
@@ -220,49 +260,6 @@ class Trainer:
                     for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)
                 ]
             ))
-
-            z_fake_gauss = z
-            z_real_gauss = torch.randn_like(
-                z, requires_grad=True, device=self.device)
-            real_gauss_label = torch.ones(
-                spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
-            real_gauss_pred = self.discriminator(z_real_gauss, alpha)
-            fake_guass_lable = torch.zeros(
-                spec_in.size()[0], dtype=torch.long, requires_grad=False, device=self.device)
-            fake_gauss_pred = self.discriminator(z_fake_gauss, alpha)
-
-            adversarial_loss_val = nll_loss(
-                real_gauss_pred, real_gauss_label) + nll_loss(fake_gauss_pred, fake_guass_lable)
-
-            x_sample = self.decoder(z)
-            x_sample_padded = self.padding4smooth(
-                x_sample.unsqueeze(dim=1))
-            spec_smoothed = self.gaussian_smoothing(
-                x_sample_padded).squeeze(dim=1)
-            smooth_loss_val = mse_loss(x_sample, spec_smoothed)
-
-            z = torch.randn(self.batch_size, self.nstyle,
-                            requires_grad=False, device=self.device)
-            x_sample = self.decoder(z)
-            z_recon = self.encoder(x_sample)
-            mutual_info_loss_val = mse_loss(z_recon, z)
-
-            # Write losses to a file
-            if epoch % 10 == 0:
-                self.loss_logger.info(
-                    f"{epoch:d}\t"
-                    f"{adversarial_loss_train.item():.6f}\t{adversarial_loss_val.item():.6f}\t"
-                    f"{aux_loss_train.item():.6f}\t{aux_loss_train.item():.6f}\t"
-                    f"{recon_loss_train.item():.6f}\t{recon_loss_val.item():.6f}\t"
-                    f"{smooth_loss_train.item():.6f}\t{smooth_loss_val.item():.6f}\t"
-                    f"{mutual_info_loss_train.item():.6f}\t{mutual_info_loss_val.item():.6f}\t"
-                )
-
-            
-            model_dict = {"Encoder": self.encoder,
-                          "Decoder": self.decoder,
-                          "Style Discriminator": self.discriminator}
-            
             metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
                        aux_loss_val.item() if aux_in is not None else 0]
             
@@ -291,7 +288,6 @@ class Trainer:
         self.encoder.zero_grad()
         self.decoder.zero_grad()
         self.discriminator.zero_grad()
-
 
     def get_style_distribution_plot(self, z):
         # noinspection PyTypeChecker
@@ -334,13 +330,20 @@ class Trainer:
             lr = self.lr_ratio_Corr * self.lr_base,
             weight_decay = self.weight_decay
         )
-        adversarial_optimizer = opt_cls(
+        dis_optimizer = opt_cls(
             [
-                {'params': self.discriminator.parameters()},
+                {'params': self.discriminator.parameters()}
+            ],
+            lr = self.lr_ratio_dis * self.lr_base,
+            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
+        )
+
+        gen_optimizer = opt_cls(
+            [
                 {'params': self.encoder.parameters()}
             ],
-            lr = self.lr_ratio_Style * self.lr_base,
-            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
+            lr = self.lr_ratio_gen * self.lr_base,
+            betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99)
         )
 
         self.optimizers = {
@@ -348,7 +351,8 @@ class Trainer:
             "mutual_info": mutual_info_optimizer,
             "smoothness": smooth_optimizer,
             "correlation": corr_optimizer,
-            "adversarial": adversarial_optimizer
+            "discriminator": dis_optimizer,
+            "generator": gen_optimizer,
         }
 
 
@@ -428,44 +432,5 @@ class Trainer:
         )
         return trainer
 
-
-    @staticmethod
-    def test_models(csv_fn, n_aux=0,
-                    train_ratio=0.7, validation_ratio=0.15, test_ratio=0.15, work_dir='.',
-                    final_model_name='final.pt', best_model_name='best.pt'):
-        final_spuncat = torch.load(
-            f'{work_dir}/{final_model_name}', map_location=torch.device('cpu'))
-
-        transform_list = transforms.Compose([ToTensor()])
-        _, _, dataset_test = [AuxSpectraDataset(
-            csv_fn, p, (train_ratio, validation_ratio, test_ratio),
-            transform=transform_list, n_aux=n_aux)
-            for p in ["train", "val", "test"]]
-
-        def plot_style_distributions(encoder, ds, title_base="Style Distribution"):
-            encoder.eval()
-            spec_in = torch.tensor(ds.spec.copy(), dtype=torch.float32)
-            z = encoder(spec_in).clone().detach().cpu().numpy()
-            nstyle = z.shape[1]
-            # noinspection PyTypeChecker
-            fig, ax_list = plt.subplots(
-                nstyle, 1, sharex=True, sharey=True, figsize=(9, 12))
-            for istyle, ax in zip(range(nstyle), ax_list):
-                sns.histplot(z[:, istyle], kde=False, color='blue', bins=np.arange(-3.0, 3.01, 0.2),
-                             ax=ax, element="step")
-                ax.set_xlabel(f"Style #{istyle}")
-                ax.set_ylabel("Counts")
-
-            title = f'{title_base}'
-            fig.suptitle(title, y=0.91)
-
-            report_dir = os.path.join(work_dir, "reports")
-            if not os.path.exists(report_dir):
-                os.makedirs(report_dir)
-            plt.savefig(f'{report_dir}/{title}.pdf',
-                        dpi=300, bbox_inches='tight')
-
-        plot_style_distributions(final_spuncat["Encoder"], dataset_test,
-                                 title_base="Style Distribution on FEFF Test Set")
 
  
