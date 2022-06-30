@@ -263,8 +263,16 @@ class LossCurvePlotter(MSONable):
         i = 0
         for name, loss in self.loss_dict.items():
             if name == "Epochs": continue
-            axs[i].plot(self.epochs, loss["Train"], label="Train")
-            axs[i].plot(self.epochs, loss["Val"], label="Val", alpha=0.5)
+            axs[i].plot(
+                self.epochs, loss["Train"], 
+                label=f"Train:{loss['Train'][-10:].mean():.4f}",
+                lw=0.8, alpha=1
+            )
+            axs[i].plot(
+                self.epochs, loss["Val"], 
+                label=f"Val:{loss['Val'][-10:].mean():.4f}", 
+                lw=0.8, alpha=0.5
+            )
             axs[i].set_title(name, y=1.0, pad=-14)
             axs[i].tick_params(axis="both", direction="in")
             axs[i].legend()
