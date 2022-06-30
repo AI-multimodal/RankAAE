@@ -260,6 +260,9 @@ def main():
     # save top 5 result 
     save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
     
+    plotter = analysis_new.LossCurvePlotter()
+    fig = plotter.plot_loss_curve(os.path.join(jobs_dir, sorted_jobs[0], "losses.csv"))
+    fig.savefig("loss_curves.png", bbox_inches="tight")
     print("Success: training report saved!")
 
 if __name__ == "__main__":

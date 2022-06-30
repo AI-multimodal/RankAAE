@@ -3,6 +3,7 @@ import torch
 from datetime import datetime
 from uuid import uuid4
 import numpy as np
+import pandas as pd
 from monty.json import MSONable
 
 from scipy.interpolate import interp1d
@@ -242,3 +243,30 @@ class SpectraVariationEvaluator(Evaluator):
         return fig
 
 
+class LossCurvePlotter(MSONable):
+    def __init__(self):
+        self.loss_names = ["D", "G", "Aux", "Recon", "Smooth", "Mutual_Info"]
+        self.loss_dict = {name: {} for name in self.loss_names}
+        self.epochs = None
+
+    def _load_losses(self, file_path):
+        self.loss_df = pd.read_csv(file_path, index_col=False, delimiter=",")
+        # self.loss_df.columns = ["_".join(col.split("_")[1:]) for col in self.loss_df.columns.tolist()]
+        self.epochs = self.loss_df.iloc[:,0].to_numpy()
+        for name in self.loss_names:
+            self.loss_dict[name]["Train"] = self.loss_df.loc[:, f"Train_{name}"].to_numpy()
+            self.loss_dict[name]["Val"] = self.loss_df.loc[:, f"Val_{name}"].to_numpy()
+
+    def plot_loss_curve(self, file_path):
+        self._load_losses(file_path)
+        fig, axs = plt.subplots(6, 1, figsize=(6,15), dpi=150)
+        i = 0
+        for name, loss in self.loss_dict.items():
+            if name == "Epochs": continue
+            axs[i].plot(self.epochs, loss["Train"], label="Train")
+            axs[i].plot(self.epochs, loss["Val"], label="Val", alpha=0.5)
+            axs[i].set_title(name, y=1.0, pad=-14)
+            axs[i].tick_params(axis="both", direction="in")
+            axs[i].legend()
+            i += 1
+        return fig

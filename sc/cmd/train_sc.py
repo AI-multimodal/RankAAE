@@ -63,7 +63,7 @@ def run_training(
     logger = create_logger(f"subtraining_{job_number+1}", os.path.join(work_dir, "messages.txt"))
     
     # Set up a logger to record losses against epochs during training 
-    loss_logger = create_logger(f"losses_{job_number+1}", os.path.join(work_dir, "losses.txt"), simple_fmt=True)
+    loss_logger = create_logger(f"losses_{job_number+1}", os.path.join(work_dir, "losses.csv"), simple_fmt=True)
 
     if torch.get_num_interop_threads() > 2:
         torch.set_num_interop_threads(1)

@@ -78,8 +78,8 @@ class Trainer:
         
         # Record first line of loss values
         self.loss_logger.info( 
-                "# 0_Epoch, 1_Train_D, 2_Val_D, 3_Train_G, 4_Val_G, 5_Train_Aux, 6_Val_Aux, 7_Train_Recon, "
-                "8_Val_Recon, 9_Train_Smooth, 10_Val_Smooth, 11_Train_Mutual_Info, 12_Val_Mutual_Info"
+                "Epoch,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
+                "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
             )
         
         for epoch in range(self.train_max_epoch):
@@ -158,6 +158,7 @@ class Trainer:
                 # Init gradients, discriminator loss
                 self.zerograd()
                 styles = self.encoder(spec_in)
+
                 dis_loss_train = discriminator_loss(
                     styles, self.discriminator, 
                     batch_size=self.batch_size, 

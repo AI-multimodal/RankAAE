@@ -8,8 +8,8 @@ import sc.report.analysis_new as analysis_new
 class Test_GenerateReport():
 
     device = torch.device('cpu')
-    data_dir = os.path.join(os.path.dirname(__file__), "work_dir_Fe/")
-    data_file = os.path.join(data_dir, 'feff_Fe_CT_CN_OCN_RSTD_MOOD_spec_202201171147_5000.csv')
+    data_dir = os.path.join(os.path.dirname(__file__), "work_dir_Cu_net/")
+    data_file = os.path.join(data_dir, 'feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202203091415_4000.csv')
     model_file = os.path.join(data_dir, 'training/job_1/final.pt')
     model = torch.load(model_file, map_location = device)
     val_ds = AuxSpectraDataset(data_file, split_portion = "test", n_aux = 5)
@@ -39,5 +39,11 @@ class Test_GenerateReport():
         recon_evaluator.evaluate(self.val_ds, self.model, path_to_save=self.data_dir)
         pass
 
+    def test_LossCurvePlotter_works(self):
+        plotter = analysis_new.LossCurvePlotter()
+        fig = plotter.plot_loss_curve(os.path.join(self.data_dir, "training/job_1/losses.csv"))
+        fig.savefig(os.path.join(self.data_dir, "loss_curves.png"), bbox_inches="tight")
+        print("Success: training report saved!")
+
 if __name__ == "__main__":
-    Test_GenerateReport().test_reconstruct_evatuator_works()
+    Test_GenerateReport().test_LossCurvePlotter_works()
