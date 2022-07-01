@@ -212,7 +212,8 @@ class Trainer:
             if self.train_loader.dataset.aux is not None:
                 aux_loss_val = kendall_constraint(
                         aux_in, z[:,:n_aux], 
-                        activate=self.kendall_activation
+                        activate=self.kendall_activation,
+                        device=self.device
                     )
             else:
                 aux_loss_val = None
