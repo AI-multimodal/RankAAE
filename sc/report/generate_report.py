@@ -5,8 +5,9 @@ from collections import OrderedDict
 from matplotlib import pyplot as plt
 import os
 import argparse
-import yaml
+import json
 import sc.report.analysis as analysis
+import sc.report.analysis_new as analysis_new
 from sc.clustering.dataloader import AuxSpectraDataset
 
 def sorting_algorithm(x):
@@ -21,7 +22,7 @@ def sorting_algorithm(x):
         "Style-Descriptor Corr 5" # 6
     """
 
-    weight = [-1, 0, 0, 0, 0, 0, 0]
+    weight = [-1, 0, 1, 1, 1, 1, 1]
 
     # if only weight[1] is non zero, turn on offset so the final score is non zero.
     off_set = 0 
@@ -126,13 +127,13 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     # Plot q-q plot of the style distribution
     for col in [0,1,2,3]:
         ax = fig.add_subplot(gs[8,col])
-        _ = analysis.qqplot_normal(styles_no_s2[:,col], ax)
+        shapiro_statistic = analysis.qqplot_normal(styles_no_s2[:,col], ax)
         if col > 0: col += 1 # skip style 2 which is CN
-        ax.set_title(f'style_{col+1}')
+        ax.set_title(f'style_{col+1}: {shapiro_statistic:.2f}')
     
     ax = fig.add_subplot(gs[9,3])
-    _ = analysis.qqplot_normal(test_styles[:,1], ax)
-    ax.set_title('style_2')
+    shapiro_statistic = analysis.qqplot_normal(test_styles[:,1], ax)
+    ax.set_title(f'style_2: {shapiro_statistic:.2f}')
 
     # Plot out CN confusion matrix
     _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
@@ -159,8 +160,8 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
         if (result['Rank'] == 0) and save_spectra:
             spec_in = result["Input"]
             spec_out = result["Output"]
-
-    yaml.dump(save_dict, open(os.path.join(save_dir, file_name+'.txt'), 'wt'))
+    with open(os.path.join(save_dir, file_name+'.json'), 'wt') as f:
+        f.write(json.dumps(save_dict))
     np.savetxt(os.path.join(save_dir, file_name+'.out'),spec_out)
     np.savetxt(os.path.join(save_dir, file_name+'.in'),spec_in)
 
@@ -251,8 +252,11 @@ def main():
         title = '-'.join([args.output_name, sorted_jobs[0]]), 
         device = device
     )
-    save_report_plot(work_dir, args.output_name, fig_top_model)
 
+    save_report_plot(work_dir, args.output_name, fig_top_model)
+    recon_evaluator = analysis_new.Reconstruct(name=args.output_name, device=device)
+    recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
+    
     # save top 5 result 
     save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
     

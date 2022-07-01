@@ -5,20 +5,18 @@ dim_out: 256 # if ae_form==normal, dim_out is always set to 256
 n_layers: 3 # FC model only
 FC_discriminator_layers: 3 # used only if use_cnn_discriminator==false
 use_cnn_discriminator: false
+dis_beta: 1.1
+dis_dropout_rate: 0.05310439557626974
+dis_noise: 0.5674717136118386
 #
 # Training parameters
 batch_size: 1024
 dropout_rate: 0.02
 sch_factor: 0.07796888280447459
 sch_patience: 107
-#
-#
 alpha_flat_step: 496
 alpha_limit: 1
 decoder_activation: Softplus
-grad_rev_beta: 1.1
-grad_rev_dropout_rate: 0.05310439557626974
-grad_rev_noise: 0.5674717136118386
 lr_base: 0.001
 lr_ratio_Corr: 10
 lr_ratio_Mutual: 1

@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 from numpy.polynomial import Polynomial
 from scipy import stats
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, shapiro
 from scipy.interpolate import interp1d
 from sklearn.metrics import f1_score, confusion_matrix, mean_absolute_error
 
@@ -121,7 +121,7 @@ def load_evaluations(evaluation_path="./report_model_evaluations.pkl"):
 
 def sort_all_models(
     result_dict, 
-    sort_score = None,
+    sort_score = None, # sorting algorithm
     plot_score = False,
     ascending = True,
     top_n = None, 
@@ -427,6 +427,7 @@ def evaluate_model(
 def qqplot_normal(x, ax=None, grid=True):
     """
     Examine the "normality" of a distribution using qqplot.
+    Return the Shapiro statistic that represent the similarity of `x` to normality.
     """
     data_length = len(x)
     
@@ -437,11 +438,13 @@ def qqplot_normal(x, ax=None, grid=True):
     # sample from standard normal distribution and calculate quantiles
     normal = np.random.randn(data_length)
     q_normal = np.quantile(normal, np.linspace(0,1,data_length))
-    
+
+    # Calculate Shapiro statistic for z_score
+    shapiro_statistic = shapiro(z_score).statistic
     # make the q-q plot if ax is given
     if ax is not None:
         ax.plot(q_normal, z_score, ls='',marker='.', color='k')
         ax.plot([q_normal.min(),q_normal.max()],[q_normal.min(),q_normal.max()],
                  color='k',alpha=0.5)
         ax.grid(grid)
-    return q_normal, z_score
+    return shapiro_statistic

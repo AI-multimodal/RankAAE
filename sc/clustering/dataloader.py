@@ -8,6 +8,7 @@ import numpy as np
 class AuxSpectraDataset(Dataset):
     def __init__(self, csv_fn, split_portion, train_val_test_ratios=(0.7, 0.15, 0.15),
                  n_aux=0, transform=None):
+        self.metadata = self._process_metadata(csv_fn, train_val_test_ratios)
         full_df = pd.read_csv(csv_fn, index_col=[0, 1], comment='#')
         self.grid = np.array([float(col.strip('ENE_')) for col in full_df.columns if col.startswith('ENE_')])
         n_train_val_test = [int(len(full_df) * ratio)
@@ -30,9 +31,17 @@ class AuxSpectraDataset(Dataset):
             self.aux = None
         self.transform = transform
         self.atom_index = df.index.to_list()
-
+    
+    def _process_metadata(self, file_path, split_ratio):
+        metadata = {
+                "path": file_path,
+                "train_test_val_split_ratio": split_ratio
+        }
+        return metadata
+    
     def __len__(self):
         return self.spec.shape[0]
+
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
