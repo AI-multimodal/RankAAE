@@ -8,7 +8,7 @@ class Test_Parameters():
         fix_config_path = os.path.join(os.path.dirname(__file__), "./data/fix_config.yaml")
         p = Parameters.from_yaml(fix_config_path)
         
-        assert p.ae_form == "compact"
+        assert p.ae_form == "FC"
         assert p.alpha_limit == 1
     
 

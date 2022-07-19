@@ -265,7 +265,7 @@ class CompactEncoder(nn.Module):
     def __init__(
         self, 
         dropout_rate = 0.2, 
-        nstyle = 2, 
+        nstyle = 5, 
         dim_in = 256,
         n_layers = 3 # A place holder here for now . Only effective for FC model.
     ):
@@ -296,7 +296,7 @@ class CompactEncoder(nn.Module):
 class QvecEncoder(nn.Module):
     """ for Q vector only"""
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, dim_in=12):
+    def __init__(self, dropout_rate=0.2, nstyle=5, dim_in=12):
         super(QvecEncoder, self).__init__()
         self.main = nn.Sequential(
             nn.Linear(dim_in, 8),
@@ -334,7 +334,7 @@ class FCEncoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=2, 
+        nstyle=5, 
         dim_in=256, 
         last_layer_activation='Softplus',
         n_layers=3,
@@ -445,7 +445,7 @@ class CompactDecoder(nn.Module):
     def __init__(
         self, 
         dropout_rate = 0.2, 
-        nstyle = 2, 
+        nstyle = 5, 
         debug = False, 
         last_layer_activation = 'ReLu', 
         dim_out = 256,
@@ -489,7 +489,7 @@ class CompactDecoder(nn.Module):
 
 class QvecDecoder(nn.Module):
 
-    def __init__(self, dropout_rate=0.2, nstyle=2, debug=False, last_layer_activation='ReLu', dim_out=12):
+    def __init__(self, dropout_rate=0.2, nstyle=5, debug=False, last_layer_activation='ReLu', dim_out=12):
         super(QvecDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -533,7 +533,7 @@ class FCDecoder(nn.Module):
     def __init__(
         self, 
         dropout_rate=0.2, 
-        nstyle=2, 
+        nstyle=5, 
         debug=False, 
         dim_out=256, 
         last_layer_activation='ReLu', 
@@ -586,7 +586,7 @@ class FCDecoder(nn.Module):
 
 
 class DiscriminatorCNN(nn.Module):
-    def __init__(self, hiden_size=64, channels=2, kernel_size=5, dropout_rate=0.2, nstyle=2, noise=0.1):
+    def __init__(self, hiden_size=64, channels=2, kernel_size=5, dropout_rate=0.2, nstyle=5, noise=0.1):
         super(DiscriminatorCNN, self).__init__()
 
         self.pre = nn.Sequential(
@@ -631,10 +631,9 @@ class DiscriminatorCNN(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
 
-    def forward(self, x, alpha):
+    def forward(self, x):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        x = ReverseLayerF.apply(x, alpha)
         x = self.pre(x)
         x = x.unsqueeze(dim=1)
         x = self.main(x)
@@ -644,7 +643,7 @@ class DiscriminatorCNN(nn.Module):
 
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=2, noise=0.1, layers=3):
+    def __init__(self, hiden_size=50, dropout_rate=0.2, nstyle=5, noise=0.1, layers=3):
         super(DiscriminatorFC, self).__init__()
         
         sequential_layers = [
@@ -690,5 +689,5 @@ class DummyDualAAE(nn.Module):
     def forward(self, x):
         z = self.encoder(x)
         x2 = self.decoder(z)
-        is_gau = self.discriminator(z, 0.3)
+        is_gau = self.discriminator(z)
         return x2, is_gau

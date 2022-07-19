@@ -17,8 +17,8 @@ class Test_GenerateReport():
     def test_reconstrusction_err(self):
         result = analysis.evaluate_model(self.val_ds, self.model, device=self.device)
         mae, std = result["Reconstruct Err"]
-        assert np.allclose(mae, 0.0316, atol=1e-4)
-        assert np.allclose(std, 0.0095, atol=1e-4)
+        assert np.allclose(mae, 0.0320, atol=1e-4)
+        assert np.allclose(std, 0.0124, atol=1e-4)
     
     def test_plot_spectra_variation(self):
         spec_in = torch.tensor(self.val_ds.spec, dtype = torch.float32, device = self.device)

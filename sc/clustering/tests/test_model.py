@@ -43,18 +43,18 @@ class TestEncoder(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
         eb = Encoder()
-        self.assertEqual(eb(t).shape, (64, 2))
+        self.assertEqual(eb(t).shape, (64, 5))
 
 
 class TestDecoder(TestCase):
     def test_model(self):
-        tz = torch.ones(32, 2)
+        tz = torch.ones(32, 5)
         eb = Decoder()
         self.assertEqual(eb(tz).shape, (32, 256))
 
 class TestCompactDecoder(TestCase):
     def test_model(self):
-        tz = torch.ones(32, 2)
+        tz = torch.ones(32, 5)
         eb = CompactDecoder()
         self.assertEqual(eb(tz).shape, (32, 256))
 
@@ -70,7 +70,7 @@ class TestCompactEncoder(TestCase):
     def test_model(self):
         t = torch.ones((64, 256))
         eb = CompactEncoder()
-        self.assertEqual(eb(t).shape, (64, 2))
+        self.assertEqual(eb(t).shape, (64, 5))
 
 
 class TestQvecEncoder(TestCase):
