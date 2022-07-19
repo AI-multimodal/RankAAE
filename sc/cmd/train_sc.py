@@ -48,7 +48,7 @@ def get_parallel_map_func(work_dir=".", logger=logging.getLogger("Parallel")):
 def run_training(
     job_number, 
     work_dir, 
-    trainer_config,  
+    train_config,  
     verbose, 
     data_file, 
     timeout_hours=0,
@@ -84,7 +84,7 @@ def run_training(
         igpu = igpu,
         verbose = verbose,
         work_dir = work_dir,
-        config_parameters = trainer_config,
+        config_parameters = train_config,
         logger = logger,
         loss_logger = loss_logger,
     )
@@ -116,13 +116,13 @@ def main():
     args = parser.parse_args()
 
     work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
-    trainer_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
+    train_config = Parameters.from_yaml(os.path.join(work_dir, args.config))
     assert os.path.exists(work_dir)
 
-    verbose = trainer_config.get("sys_verbose", False)
-    trials = trainer_config.get("sys_trials", 1)
-    data_file = os.path.join(work_dir, trainer_config.get("sys_data_file", None))
-    timeout = trainer_config.get("sys_timeout", 10)
+    verbose = train_config.get("verbose", False)
+    trials = train_config.get("trials", 1)
+    data_file = os.path.join(work_dir, train_config.get("data_file", None))
+    timeout = train_config.get("timeout", 10)
 
     # Start Logger
     logger = create_logger("Main training:", f'{work_dir}/main_process_message.txt', append=True)
@@ -139,7 +139,7 @@ def main():
         run_training,
         list(range(trials)),
         [work_dir] * trials,
-        [trainer_config] * trials,
+        [train_config] * trials,
         [verbose] * trials,
         [data_file] * trials,
         [timeout] * trials,
@@ -158,6 +158,8 @@ def main():
         f"({(end-start)/trials:.2f} each on average)."
     )
     logger.info("END\n\n")
+
+
 
 if __name__ == '__main__':
     main()

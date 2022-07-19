@@ -47,7 +47,7 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        self.train_loader = train_loader
+        self.loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
         self.work_dir = work_dir
@@ -82,7 +82,7 @@ class Trainer:
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
             )
         
-        for epoch in range(self.train_max_epoch):
+        for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
@@ -91,11 +91,11 @@ class Trainer:
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
-            n_batch = len(self.train_loader)
+            n_batch = len(self.loader)
             avg_mutual_info = 0.0
-            for spec_in, aux_in in self.train_loader:
+            for spec_in, aux_in in self.loader:
                 spec_in = spec_in.to(self.device)
-                if self.train_loader.dataset.aux is None:
+                if self.loader.dataset.aux is None:
                     aux_in = None
                 else:
                     assert len(aux_in.size()) == 2
@@ -192,7 +192,7 @@ class Trainer:
             z = self.encoder(spec_in_val)
             spec_out_val = self.decoder(z)
 
-            if self.train_loader.dataset.aux is None:
+            if self.loader.dataset.aux is None:
                 aux_in = None
             else:
                 assert len(aux_in_val.size()) == 2
