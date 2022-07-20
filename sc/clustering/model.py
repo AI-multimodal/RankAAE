@@ -538,7 +538,8 @@ class FCDecoder(nn.Module):
         dim_out=256, 
         last_layer_activation='ReLu', 
         n_layers=3,
-        hidden_size=64):
+        hidden_size=64
+    ):
         super(FCDecoder, self).__init__()
 
         if last_layer_activation == 'ReLu':
@@ -555,23 +556,24 @@ class FCDecoder(nn.Module):
                 nn.BatchNorm1d(16, affine=False),
                 nn.Dropout(p=dropout_rate),
                 nn.Linear(16, hidden_size),
+                nn.PReLU(num_parameters=hidden_size, init=0.01),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Dropout(p=dropout_rate),
         ]
 
         for _ in range(n_layers-3):
             sequential_layers.extend( # the n layers in the middle
                 [
+                    nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
-                    nn.Linear(hidden_size, hidden_size),
                 ]
             )
         sequential_layers.extend( # the last layer
             [
+                nn.Linear(hidden_size, dim_out),
                 ll_act,
-                nn.BatchNorm1d(hidden_size, affine=False),
-                nn.Dropout(dropout_rate),
-                nn.Linear(hidden_size, dim_out)
             ]
         )  
 
