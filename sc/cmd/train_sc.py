@@ -91,13 +91,9 @@ def run_training(
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(int(timeout_hours * 3600))
 
-    try:
-        metrics = trainer.train()
-        logger.info(metrics)
+    metrics = trainer.train()
+    logger.info(metrics)
 
-    except Exception as e:
-        logger.warn(f"Error happened: {e.args}")
-        metrics = e.args
     signal.alarm(0)
     
     time_used = time.time() - start

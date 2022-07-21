@@ -14,8 +14,11 @@ class ReverseLayerF(Function):
 
     @staticmethod
     def backward(ctx, grad_output):
+        """If `alpha` is none, than this layer does nothing.
+        """
         grad_input = grad_output.clone()
-        grad_input = grad_input.neg() * ctx.alpha
+        if ctx.alpha is not None:
+            grad_input = grad_input.neg() * ctx.alpha
         return grad_input, None
 
 
@@ -633,9 +636,10 @@ class DiscriminatorCNN(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
 
-    def forward(self, x):
+    def forward(self, x, alpha):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
+        x = ReverseLayerF.apply(x, alpha)
         x = self.pre(x)
         x = x.unsqueeze(dim=1)
         x = self.main(x)
@@ -673,13 +677,13 @@ class DiscriminatorFC(nn.Module):
         
         self.nstyle = nstyle
         self.noise = noise
-
-    def forward(self, x):
+    
+    def forward(self, x, alpha):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        out = self.main(x)
+        reverse_feature = ReverseLayerF.apply(x, alpha)
+        out = self.main(reverse_feature)
         return out
-
 
 class DummyDualAAE(nn.Module):
     def __init__(self, use_cnn_dis, cls_encoder, cls_decoder):
@@ -691,5 +695,5 @@ class DummyDualAAE(nn.Module):
     def forward(self, x):
         z = self.encoder(x)
         x2 = self.decoder(z)
-        is_gau = self.discriminator(z)
+        is_gau = self.discriminator(z, 0.3)
         return x2, is_gau

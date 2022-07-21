@@ -25,6 +25,8 @@ from sc.utils.functions import (
     smoothness_loss, 
     discriminator_loss,
     generator_loss,
+    adversarial_loss,
+    alpha
 )
 
 
@@ -67,6 +69,8 @@ class Trainer:
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
         CE_loss = nn.CrossEntropyLoss().to(self.device)
+        nll_loss = nn.NLLLoss().to(self.device)
+
 
         # train network
         best_combined_metric = 10.0 # Initialize a guess for best combined metric.
@@ -80,13 +84,16 @@ class Trainer:
         self.loss_logger.info( 
                 "Epoch,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
-            )
+        )
         
         for epoch in range(self.max_epoch):
             # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
+
+            if self.gradient_reversal:
+                alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
 
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
@@ -105,6 +112,42 @@ class Trainer:
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
+
+                # Use gradient reversal method or standard GAN structure
+                if self.gradient_reversal:
+                    self.zerograd()
+                    dis_loss_train = adversarial_loss(
+                        spec_in, styles, self.discriminator, alpha_,
+                        batch_size=self.batch_size, 
+                        nll_loss=nll_loss, 
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["adversarial"].step()
+                    gen_loss_train = torch.tensor(0)
+                else:
+                    # Init gradients, discriminator loss
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+
+                    dis_loss_train = discriminator_loss(
+                        styles, self.discriminator, 
+                        batch_size=self.batch_size, 
+                        loss_fn=CE_loss,
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["discriminator"].step()
+
+                    # Init gradients, generator loss
+                    self.zerograd()
+                    gen_loss_train = generator_loss(
+                        spec_in, self.encoder, self.discriminator, 
+                        loss_fn=CE_loss,
+                        device=self.device
+                    )
+                    gen_loss_train.backward()
+                    self.optimizers["generator"].step()
 
                 # Kendall constraint
                 self.zerograd()
@@ -155,30 +198,7 @@ class Trainer:
                 else:
                     smooth_loss_train = torch.tensor(0) 
                 
-                # Init gradients, discriminator loss
-                self.zerograd()
-                styles = self.encoder(spec_in)
-
-                dis_loss_train = discriminator_loss(
-                    styles, self.discriminator, 
-                    batch_size=self.batch_size, 
-                    loss_fn=CE_loss,
-                    device=self.device
-                )
-                dis_loss_train.backward()
-                self.optimizers["discriminator"].step()
-
-
-                # Init gradients, generator loss
-                self.zerograd()
-                gen_loss_train = generator_loss(
-                    spec_in, self.encoder, self.discriminator, 
-                    loss_fn=CE_loss,
-                    device=self.device
-                )
-                gen_loss_train.backward()
-                self.optimizers["generator"].step()
-
+                
                 # Init gradients
                 self.zerograd()
 
@@ -210,19 +230,6 @@ class Trainer:
                 z[:,:n_aux], 
                 activate=self.kendall_activation
             )
-            dis_loss_val = discriminator_loss(
-                z, self.discriminator, 
-                batch_size=len(z),
-                loss_fn=CE_loss,
-                device=self.device
-            )
-            gen_loss_val = generator_loss(
-                spec_in_val, 
-                self.encoder, 
-                self.discriminator, 
-                loss_fn=CE_loss, 
-                device=self.device
-            )
             smooth_loss_val = smoothness_loss(
                 spec_out_val, 
                 gs_kernel_size=self.gau_kernel_size,
@@ -235,7 +242,28 @@ class Trainer:
                 mse_loss=mse_loss, 
                 device=self.device
             )
-
+            if self.gradient_reversal:
+                dis_loss_val = adversarial_loss(
+                    spec_in, styles, self.discriminator, alpha_,
+                    batch_size=self.batch_size, 
+                    nll_loss=nll_loss, 
+                    device=self.device
+                )
+                gen_loss_val = torch.tensor(0)
+            else:
+                dis_loss_val = discriminator_loss(
+                    z, self.discriminator, 
+                    batch_size=len(z),
+                    loss_fn=CE_loss,
+                    device=self.device
+                )
+                gen_loss_val = generator_loss(
+                    spec_in_val, 
+                    self.encoder, 
+                    self.discriminator, 
+                    loss_fn=CE_loss, 
+                    device=self.device
+                )
             # Write losses to a file
             if epoch % 10 == 0:
                 self.loss_logger.info(
@@ -347,6 +375,15 @@ class Trainer:
             betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99)
         )
 
+        adv_optimizer = opt_cls(
+            [
+                {'params': self.discriminator.parameters()},
+                {'params': self.encoder.parameters()}
+            ],
+            lr = self.lr_ratio_dis * self.lr_base,
+            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
+        )
+
         self.optimizers = {
             "reconstruction": recon_optimizer,
             "mutual_info": mutual_info_optimizer,
@@ -354,6 +391,7 @@ class Trainer:
             "correlation": corr_optimizer,
             "discriminator": dis_optimizer,
             "generator": gen_optimizer,
+            "adversarial": adv_optimizer
         }
 
 

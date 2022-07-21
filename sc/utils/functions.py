@@ -104,7 +104,7 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     
     return recon_loss
 
-def D_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
+def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
     """
     Parameters
     ----------
@@ -124,10 +124,10 @@ def D_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=Non
     fake_gauss_pred = D(styles, alpha)
     fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
-    loss = nll_loss(real_gauss_pred, real_gauss_label) \
+    adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
                         + nll_loss(fake_gauss_pred, fake_guass_lable)
 
-    return loss
+    return adversarial_loss
 
 
 def discriminator_loss(styles, D, batch_size=100,  loss_fn=None, device=None):
@@ -142,10 +142,10 @@ def discriminator_loss(styles, D, batch_size=100,  loss_fn=None, device=None):
         loss_fn = nn.CrossEntropyLoss().to(device)
 
     z_real_gauss = torch.randn(batch_size, styles.size()[1], requires_grad=True, device=device)
-    real_gauss_pred = D(z_real_gauss)
+    real_gauss_pred = D(z_real_gauss, None) # no gradient reversal, alpha=None
     real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
     
-    fake_gauss_pred = D(styles)
+    fake_gauss_pred = D(styles, None)
     fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
     loss = loss_fn(real_gauss_pred, real_gauss_label) + loss_fn(fake_gauss_pred, fake_guass_lable)
@@ -160,7 +160,7 @@ def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
         loss_fn = nn.CrossEntropyLoss.to(device)
 
     styles = encoder(spec_in)
-    fake_gauss_pred = D(styles)
+    fake_gauss_pred = D(styles, None) # no gradient reversal, alpha=None
 
     fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
@@ -208,3 +208,10 @@ def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
     smooth_loss_train = mse_loss(spec_out, spec_smoothed)
 
     return smooth_loss_train
+
+def alpha(epoch_percentage, step=800, limit=0.7):
+    """
+    `epoch_percentage = epoch / max_epoch`
+    """
+    a = (2. / (1. + np.exp(-1.0E4 / step * epoch_percentage)) - 1) * limit
+    return a
