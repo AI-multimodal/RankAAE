@@ -22,7 +22,6 @@ setup(
             "wait_ipp_engines = sc.cmd.wait_ipp_engines:main",
             "train_lat2apdf = sc.cmd.train_lat2apdf:main",
             "train_lat2prdf = sc.cmd.train_lat2prdf:main",
-            "test_model = sc.cmd.test_model:main",
             "opt_hyper_single = sc.cmd.opt_hyper_single:main"
         ]
     },

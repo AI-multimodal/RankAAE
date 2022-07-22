@@ -8,6 +8,7 @@ import argparse
 import json
 import sc.report.analysis as analysis
 import sc.report.analysis_new as analysis_new
+from sc.utils.parameter import Parameters
 from sc.clustering.dataloader import AuxSpectraDataset
 
 def sorting_algorithm(x):
@@ -44,7 +45,7 @@ def sorting_algorithm(x):
 def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
 
     if n_aux == 5:
-        name_list = ["CT", "CN", "OCN", "Rstd", "MOOD"]
+        name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
     elif n_aux == 3:
         name_list = ["BVS", "CN", "OCN"]
 
@@ -188,30 +189,21 @@ def save_model_selection_plot(save_dir, file_name, fig):
 def main():
     #### Parse arguments ####
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--n_aux', type = int, default = 3,
-                        help = "The number of auxiliary parameters")
-    parser.add_argument('-m', '--n_free', type = int, default = 1,
-                        help = "The number of free parameters")
     parser.add_argument('-w', '--work_dir', type = str, default = '.',
-                        help = "The folder where the model and data are.")
-    parser.add_argument('-f', '--data_file', type = str, default = None,
-                        help = "The name of the .csv data file.")
-    parser.add_argument('-o', "--output_name", type = str, default = "report",
-                        help = "The saved report figure.")
-    parser.add_argument('-t', "--type", type = str, default = "all",
-                        help = "The type of report: plot or accuracy file")
-    parser.add_argument('-p', "--top_n", type = int, default = 20,
-                        help = "The number of top models to plot.")
-    parser.add_argument('-g', '--gpu', action="store_true",
-                        help = "Use GPU.")
-
+                        help = "The folder where the model and data are.")  
+    parser.add_argument('-c', '--config', type=str, required=True,
+                        help='Config for training parameter in YAML format')
+    
     args = parser.parse_args()
-    work_dir = args.work_dir
+    work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
+    config = Parameters.from_yaml(os.path.join(work_dir, args.config))
+    
+
     jobs_dir = os.path.join(work_dir, "training")
-    file_name = args.data_file
+    file_name = config.data_file
     
     device = torch.device("cpu") # device is cpu by default
-    if args.gpu: 
+    if config.gpu: 
         try:
             device = torch.device("cuda:0")
         except:
@@ -230,15 +222,15 @@ def main():
     model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
         model_results, 
         plot_score = True, 
-        top_n = args.top_n, 
+        top_n = config.top_n, 
         sort_score = sorting_algorithm,
         ascending = False, # best model has the highest score
     ) # models are sorted
-    save_model_evaluations(work_dir, args.output_name, model_results)
+    save_model_evaluations(work_dir, config.output_name, model_results)
     
     # genearte model selection scores plot
     if fig_model_selection is not None:
-        save_model_selection_plot(work_dir, args.output_name, fig_model_selection)
+        save_model_selection_plot(work_dir, config.output_name, fig_model_selection)
 
     # generate report for top model
     top_model = torch.load(
@@ -248,18 +240,21 @@ def main():
     fig_top_model = plot_report(
         test_ds, 
         top_model, 
-        n_aux = args.n_aux, 
-        title = '-'.join([args.output_name, sorted_jobs[0]]), 
+        n_aux = config.n_aux, 
+        title = '-'.join([config.output_name, sorted_jobs[0]]), 
         device = device
     )
 
-    save_report_plot(work_dir, args.output_name, fig_top_model)
-    recon_evaluator = analysis_new.Reconstruct(name=args.output_name, device=device)
+    save_report_plot(work_dir, config.output_name, fig_top_model)
+    recon_evaluator = analysis_new.Reconstruct(name=config.output_name, device=device)
     recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
     
     # save top 5 result 
-    save_evaluation_result(work_dir, args.output_name, model_results, save_spectra=True, top_n=args.top_n)
+    save_evaluation_result(work_dir, config.output_name, model_results, save_spectra=True, top_n=config.top_n)
     
+    plotter = analysis_new.LossCurvePlotter()
+    fig = plotter.plot_loss_curve(os.path.join(jobs_dir, sorted_jobs[0], "losses.csv"))
+    fig.savefig("loss_curves.png", bbox_inches="tight")
     print("Success: training report saved!")
 
 if __name__ == "__main__":
