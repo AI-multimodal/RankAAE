@@ -9,7 +9,7 @@ class Test_Parameters():
         p = Parameters.from_yaml(fix_config_path)
         
         assert p.ae_form == "FC"
-        assert p.alpha_limit == 1
+        assert p.alpha_limit == 0.7172
     
 
     def test_update(self):

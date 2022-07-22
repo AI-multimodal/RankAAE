@@ -8,7 +8,7 @@ import sc.report.analysis_new as analysis_new
 class Test_GenerateReport():
 
     device = torch.device('cpu')
-    data_dir = os.path.join(os.path.dirname(__file__), "work_dir_Cu_net/")
+    data_dir = os.path.join(os.path.dirname(__file__), "data/")
     data_file = os.path.join(data_dir, 'feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202203091415_4000.csv')
     model_file = os.path.join(data_dir, 'training/job_1/final.pt')
     model = torch.load(model_file, map_location = device)
@@ -17,8 +17,8 @@ class Test_GenerateReport():
     def test_reconstrusction_err(self):
         result = analysis.evaluate_model(self.val_ds, self.model, device=self.device)
         mae, std = result["Reconstruct Err"]
-        assert np.allclose(mae, 0.0320, atol=1e-4)
-        assert np.allclose(std, 0.0124, atol=1e-4)
+        assert np.allclose(mae, 0.0628, atol=1e-4)
+        assert np.allclose(std, 0.0205, atol=1e-4)
     
     def test_plot_spectra_variation(self):
         spec_in = torch.tensor(self.val_ds.spec, dtype = torch.float32, device = self.device)
