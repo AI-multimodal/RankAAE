@@ -5,7 +5,7 @@ from matminer.featurizers.utils.grdf import Gaussian
 from pymatgen.util.testing import PymatgenTest
 from pymatgen.core.structure import Structure
 from pymatgen.core.lattice import Lattice
-from sc.report.descriptors import AngularPDF, GeneralizedPartialRadialDistributionFunction
+from sc.legacy.descriptors import AngularPDF, GeneralizedPartialRadialDistributionFunction
 
 
 class TestAngularPDF(PymatgenTest):
