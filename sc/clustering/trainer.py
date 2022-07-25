@@ -165,7 +165,8 @@ class Trainer:
                 spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                 recon_loss_train = recon_loss(
                     spec_in, spec_out, 
-                    scale=self.use_flex_spec_target
+                    scale=self.use_flex_spec_target,
+                    device=self.device
                 )
                 recon_loss_train.backward()
                 self.optimizers["reconstruction"].step()
@@ -228,7 +229,8 @@ class Trainer:
             aux_loss_val = kendall_constraint(
                 aux_in_val, 
                 z[:,:n_aux], 
-                activate=self.kendall_activation
+                activate=self.kendall_activation,
+                device=self.device
             )
             smooth_loss_val = smoothness_loss(
                 spec_out_val, 
