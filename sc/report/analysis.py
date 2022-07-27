@@ -39,7 +39,8 @@ def plot_spectra_variation(
     amplitude = 2,
     device = torch.device("cpu"),
     ax = None,
-    energy_grid = None
+    energy_grid = None,
+    colors=None
 ):
     """
     Spectra variation plot by varying one of the styles.
@@ -84,7 +85,9 @@ def plot_spectra_variation(
         spec_out = spec_out.mean(axis = 1).cpu().detach().numpy()
     
     if ax is not None:
-        colors = create_plotly_colormap(n_spec)
+        if colors is None:
+            colors = create_plotly_colormap(n_spec)
+        assert len(colors) == n_spec
         for spec, color in zip(spec_out, colors):
             if energy_grid is None:
                 ax.plot(spec, lw=0.8, c=color)
