@@ -56,6 +56,7 @@ class Trainer:
         self.tb_logdir = tb_logdir
 
         # update name space with config_parameters dictionary
+        self.epoch_stop_smooth = 500 # default value in case it's not in fix_config, (to deprecate).
         self.__dict__.update(config_parameters.to_dict())
         self.load_optimizers()
         self.load_schedulers()
@@ -186,7 +187,7 @@ class Trainer:
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
-                if epoch < 500: # turn off smooth loss after 500
+                if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
                     self.zerograd()
                     spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                     smooth_loss_train = smoothness_loss(
