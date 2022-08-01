@@ -49,13 +49,14 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        self.loader = train_loader
+        self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
         self.work_dir = work_dir
         self.tb_logdir = tb_logdir
 
         # update name space with config_parameters dictionary
+        self.epoch_stop_smooth = 500 # default value in case it's not in fix_config, (to deprecate).
         self.__dict__.update(config_parameters.to_dict())
         self.load_optimizers()
         self.load_schedulers()
@@ -98,11 +99,11 @@ class Trainer:
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
-            n_batch = len(self.loader)
+            n_batch = len(self.train_loader)
             avg_mutual_info = 0.0
-            for spec_in, aux_in in self.loader:
+            for spec_in, aux_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
-                if self.loader.dataset.aux is None:
+                if self.train_loader.dataset.aux is None:
                     aux_in = None
                 else:
                     assert len(aux_in.size()) == 2
@@ -186,7 +187,7 @@ class Trainer:
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
-                if epoch < 500: # turn off smooth loss after 500
+                if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
                     self.zerograd()
                     spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                     smooth_loss_train = smoothness_loss(
@@ -213,7 +214,7 @@ class Trainer:
             z = self.encoder(spec_in_val)
             spec_out_val = self.decoder(z)
 
-            if self.loader.dataset.aux is None:
+            if self.train_loader.dataset.aux is None:
                 aux_in = None
             else:
                 assert len(aux_in_val.size()) == 2
@@ -272,7 +273,7 @@ class Trainer:
                     f"{epoch:d},\t"
                     f"{dis_loss_train.item():.6f},\t{dis_loss_val.item():.6f},\t"
                     f"{gen_loss_train.item():.6f},\t{gen_loss_val.item():.6f},\t"
-                    f"{aux_loss_train.item():.6f},\t{aux_loss_train.item():.6f},\t"
+                    f"{aux_loss_train.item():.6f},\t{aux_loss_val.item():.6f},\t"
                     f"{recon_loss_train.item():.6f},\t{recon_loss_val.item():.6f},\t"
                     f"{smooth_loss_train.item():.6f},\t{smooth_loss_val.item():.6f},\t"
                     f"{mutual_info_loss_train.item():.6f},\t{mutual_info_loss_val.item():.6f},\t"
