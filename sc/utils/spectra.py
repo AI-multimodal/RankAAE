@@ -42,7 +42,8 @@ class SpecDescriptors():
             },
             "other": {
                 "main_last_separation": None, "main_pit_separation": None,
-                "pit_last_spread": None, "pit_last_separation": None
+                "pit_last_spread": None, "pit_last_separation": None,
+                "fluctuation": None
             },
         }
         return descriptors
@@ -73,7 +74,9 @@ class SpecDescriptors():
     
     
     def find_main_peak(self, window=1):
-        peaks = self._peaks(height=1)
+        peaks = self._peaks(height=1, left=self.edge["position"], right=self.edge["position"]+20)
+        if len(peaks) == 0:
+            peaks = self._peaks(height=1)
         position, _, intensity = peaks[np.argmax(peaks[:,-1])] # Used as an initial guess to calculate curvature
         self.main_peak["position"] = position
         select = (self.grid >= position - window/2) & (self.grid < position + window/2)
@@ -95,19 +98,34 @@ class SpecDescriptors():
         self.other[f"intensity_{self._energy:.1f}"] = self.spec[select].mean()
         
         
-    def find_main_pit(self):
+    def find_main_pit(self, curvature_window=None):
         left = self.edge["position"] + 20
         pits = self._peaks(left=left, reverse=True)
-        position, _, intensity = pits[np.argmin(pits[:,-1])]
-        position, intensity, curvature, (grid,fit) = \
+        try:
+            position, _, intensity = pits[np.argmin(pits[:,-1])]
+        except ValueError:
+            select = self.grid > left
+            index_min = np.argmin(self.spec[select])
+            position = self.grid[select][index_min]
+            intensity = self.spec[select][index_min]
+        position, intensity, curvature, _ = \
             self._curve(guess=position, extremum="min", window=16)
+        if curvature_window is not None:
+            select = (self.grid > position - curvature_window/2) & (self.grid < position + curvature_window/2)
+            curvature = np.abs(self._derivative(n=2)[select].mean())
         self.pit["position"] = position
         self.pit["intensity"] = intensity
         self.pit["curvature"] = curvature
+    
+    def find_fluctuation(self):
+        left = self.main_peak["position"]
+        select = (self.grid > left)
+        self.other["fluctuation"] = np.abs(self._derivative(n=2)[select].mean())
+
         
     def find_last_peak(self):
         left = self.pit["position"]
-        peaks = self._peaks(left=left)
+        peaks = self._peaks(left=left, prominence=0.01)
         try: 
             position, _, intensity = peaks[0]
         except IndexError:
@@ -127,18 +145,18 @@ class SpecDescriptors():
         self.other["main_pit_separation"] = self.pit["position"] - self.main_peak["position"]
     
     def find_pre_peak(self):
-        left = self.grid[0]
+        left = self.grid[0]+3
         right = self.edge["position"]
         select = (self.grid >= left) & (self.grid < right)
         try:
-            peaks = self._peaks(left=left, right=right)
+            peaks = self._peaks(left=left, right=right-1)
             position, _, intensity = peaks[np.argmax(peaks[:,-1])]
         except ValueError:
             try:
-                peaks = self._peaks(left=left, right=right, reverse=True, gradient=2)
-                position, curvature, intensity = peaks[np.argmin(peaks[:,-1])]
+                peaks = self._peaks(left=left, right=right-3, reverse=True, gradient=2)
+                position, _, intensity = peaks[np.argmax(peaks[:,1])]
             except ValueError:
-                position, intensity = None, None
+                position, intensity = None, 0
         self.pre_peak["position"] = position
         self.pre_peak["intensity"] = intensity
        
