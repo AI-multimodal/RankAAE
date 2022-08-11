@@ -22,5 +22,5 @@ python setup.py develop
 
 
 # Optional, for Jupyter notebooks
-conda install -c conda-forge jupyterlab
 ```
+
