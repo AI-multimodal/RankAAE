@@ -40,7 +40,8 @@ def plot_spectra_variation(
     device = torch.device("cpu"),
     ax = None,
     energy_grid = None,
-    colors=None
+    colors=None,
+    **kwargs
 ):
     """
     Spectra variation plot by varying one of the styles.
@@ -90,9 +91,9 @@ def plot_spectra_variation(
         assert len(colors) == n_spec
         for spec, color in zip(spec_out, colors):
             if energy_grid is None:
-                ax.plot(spec, lw=0.8, c=color)
+                ax.plot(spec, c=color, **kwargs)
             else: 
-                ax.plot(energy_grid, spec, lw=0.8, c=color)
+                ax.plot(energy_grid, spec, c=color, **kwargs)
         ax.set_title(f"Style {istyle+1} varying from {left:.2f} to {right:.2f}", y=1)
 
     return style_variation, spec_out
