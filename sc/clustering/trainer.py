@@ -111,14 +111,35 @@ class Trainer:
                     aux_in = aux_in.to(self.device)
                 
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                styles = self.encoder(spec_in) # exclude the free style
-                spec_out = self.decoder(styles) # reconstructed spectra
+                styles_from_spec = self.encoder(spec_in) # exclude the free style
+                spec_out = self.decoder(styles_from_spec) # reconstructed spectra
+
+                z_sample = torch.randn(self.batch_size*self.space_expansion, styles.size()[1], 
+                                       requires_grad=False, device=self.device)
+                styles_from_virtual = self.encoder(self.decoder(z_sample))
+
+                dm = ((styles_from_virtual[:, np.newaxis, :] - 
+                       styles_from_spec[np.newaxis, :, :])**2) \
+                    .sum(dim=-1).cpu().detach().numpy()
+                shortest_indices = []
+                for i in range(dm.shape[1]):
+                    ii = np.argsort(dm[:, i])
+                    shortest_indices.append(ii[0])
+                    dm[ii[0]] = 1.0E50
+                far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
+                                                    set(shortest_indices)
+                far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
+
+                styles_from_merged_space = torch.cat(
+                    [styles_from_spec, styles_from_virtual[far_indices_in_virtual_to_reality, :]], 
+                    dim=0)
+
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
                     self.zerograd()
                     dis_loss_train = adversarial_loss(
-                        spec_in, styles, self.discriminator, alpha_,
+                        spec_in, styles_from_merged_space, self.discriminator, alpha_,
                         batch_size=self.batch_size, 
                         nll_loss=nll_loss, 
                         device=self.device
