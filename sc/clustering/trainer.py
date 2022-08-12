@@ -26,7 +26,8 @@ from sc.utils.functions import (
     discriminator_loss,
     generator_loss,
     adversarial_loss,
-    alpha
+    alpha,
+    set_bn_drop_eval
 )
 
 
@@ -110,9 +111,10 @@ class Trainer:
                     n_aux = aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
                 
+                set_bn_drop_eval(self.encoder, True, ["BatchNorm1d", "Dropout"])
+                set_bn_drop_eval(self.decoder, True, ["BatchNorm1d", "Dropout"])
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 styles_from_spec = self.encoder(spec_in) # exclude the free style
-                spec_out = self.decoder(styles_from_spec) # reconstructed spectra
 
                 z_sample = torch.randn(self.batch_size*self.space_expansion, styles.size()[1], 
                                        requires_grad=False, device=self.device)
@@ -132,6 +134,8 @@ class Trainer:
                 far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
                 spec_supplementary = spec_from_virtual[far_indices_in_virtual_to_reality, :].clone().detach()
                 spec_from_merged_space = torch.cat([spec_in, spec_supplementary], dim=0)
+                set_bn_drop_eval(self.encoder, False, ["BatchNorm1d", "Dropout"])
+                set_bn_drop_eval(self.decoder, False, ["BatchNorm1d", "Dropout"])
                 styles_from_merged_space = self.encoder(spec_from_merged_space)
 
 
@@ -172,6 +176,8 @@ class Trainer:
                     )
                     gen_loss_train.backward()
                     self.optimizers["generator"].step()
+                set_bn_drop_eval(self.encoder, True, ["BatchNorm1d", "Dropout"])
+                set_bn_drop_eval(self.decoder, True, ["BatchNorm1d", "Dropout"])
 
                 # Kendall constraint
                 self.zerograd()
@@ -196,6 +202,8 @@ class Trainer:
                 self.optimizers["reconstruction"].step()
 
                 # Init gradients, mutual information loss
+                set_bn_drop_eval(self.encoder, False, ["BatchNorm1d", "Dropout"])
+                set_bn_drop_eval(self.decoder, False, ["BatchNorm1d", "Dropout"])
                 self.zerograd()
                 styles = self.encoder(spec_in)
                 mutual_info_loss_train = mutual_info_loss(
@@ -208,6 +216,8 @@ class Trainer:
                 mutual_info_loss_train.backward()
                 self.optimizers["mutual_info"].step()
                 avg_mutual_info += mutual_info_loss_train.item()
+                set_bn_drop_eval(self.encoder, True, ["BatchNorm1d", "Dropout"])
+                set_bn_drop_eval(self.decoder, True, ["BatchNorm1d", "Dropout"])
 
                 # Init gradients, smoothness loss
                 if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500

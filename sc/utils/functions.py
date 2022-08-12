@@ -217,3 +217,12 @@ def alpha(epoch_percentage, step=800, limit=0.7):
     """
     a = (2. / (1. + np.exp(-1.0E4 / step * epoch_percentage)) - 1) * limit
     return a
+
+def set_bn_drop_eval(model, is_eval, target_modules = ["BatchNorm1d", "Dropout"]):
+    for layer in model.main.children():
+        if str(layer).split("(")[0] in target_modules:
+            if is_eval:
+                layer.eval()
+            else:
+                layer.train()
+                
