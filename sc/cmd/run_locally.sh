@@ -18,8 +18,6 @@ echo "will run use ${total_engines} processes"
 
 element=$1
 work_dir="work_dir_$1"
-data_file=$(ls feff_$1_*)
-echo ${data_file}
 rm loss_curves.png
 rm -r ${work_dir}/training
 rm -r ${work_dir}/report*
