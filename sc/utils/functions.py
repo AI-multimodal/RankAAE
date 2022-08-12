@@ -229,7 +229,7 @@ def set_bn_drop_eval(model, is_eval, target_modules = ["BatchNorm1d", "Dropout"]
 def get_enriched_spec_space(spec_in, encoder, decoder, space_expansion, batch_size, device):
     styles_from_spec = encoder(spec_in) 
     z_sample = torch.randn(batch_size * space_expansion, styles_from_spec.size()[1], 
-                            requires_grad=False, device=device)
+                           requires_grad=False, device=device)
     spec_from_virtual = decoder(z_sample)
     styles_from_virtual = encoder(spec_from_virtual)
 
