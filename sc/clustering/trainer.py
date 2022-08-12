@@ -116,7 +116,8 @@ class Trainer:
 
                 z_sample = torch.randn(self.batch_size*self.space_expansion, styles.size()[1], 
                                        requires_grad=False, device=self.device)
-                styles_from_virtual = self.encoder(self.decoder(z_sample))
+                spec_from_virtual = self.decoder(z_sample)
+                styles_from_virtual = self.encoder(spec_from_virtual)
 
                 dm = ((styles_from_virtual[:, np.newaxis, :] - 
                        styles_from_spec[np.newaxis, :, :])**2) \
@@ -129,17 +130,18 @@ class Trainer:
                 far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
                                                     set(shortest_indices)
                 far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
-
-                styles_from_merged_space = torch.cat(
-                    [styles_from_spec, styles_from_virtual[far_indices_in_virtual_to_reality, :]], 
-                    dim=0)
+                spec_supplementary = spec_from_virtual[far_indices_in_virtual_to_reality, :].clone().detach()
+                spec_from_merged_space = torch.cat([spec_in, spec_supplementary], dim=0)
+                styles_from_merged_space = self.encoder(spec_from_merged_space)
 
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
                     self.zerograd()
                     dis_loss_train = adversarial_loss(
-                        spec_in, styles_from_merged_space, self.discriminator, alpha_,
+                        spec_from_merged_space, 
+                        styles_from_merged_space, 
+                        self.discriminator, alpha_,
                         batch_size=self.batch_size, 
                         nll_loss=nll_loss, 
                         device=self.device
