@@ -12,8 +12,9 @@ ulimit -u 524288
 ulimit -n 100000
 ulimit -a
 
-total_engines=16
+total_engines=${2:-8}
 total_jobs=100
+echo "will run use ${total_engines} processes"
 
 element=$1
 work_dir="work_dir_$1"
