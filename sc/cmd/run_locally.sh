@@ -39,7 +39,8 @@ echo `date` "Start training"
 echo train_sc -w ${work_dir} -c fix_config.yaml
 train_sc -w ${work_dir} -c fix_config.yaml
 echo `date` "Job Finished"
-stop_ipcontroller
+stop_ipcontroller -w ${work_dir}
+sleep 3
 rm -r ${work_dir}/ipypar
 
 echo `date` "Genearting Report"
