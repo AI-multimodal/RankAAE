@@ -123,9 +123,9 @@ class Trainer:
                     .sum(dim=-1).cpu().detach().numpy()
                 shortest_indices = []
                 for i in range(dm.shape[1]):
-                    ii = np.argsort(dm[:, i])
-                    shortest_indices.append(ii[0])
-                    dm[ii[0]] = 1.0E50
+                    ii = np.argmin(dm[:, i])
+                    shortest_indices.append(ii)
+                    dm[ii] = 1.0E50
                 far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
                                                     set(shortest_indices)
                 far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
