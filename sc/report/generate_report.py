@@ -149,6 +149,8 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
     Information is saved to a txt file.
     """
     save_dict = OrderedDict()
+    if top_n > len(model_results):
+        top_n = len(model_results)
     sorted_top_n_jobs = list(range(top_n))
     for job, result in model_results.items():
         if result['Rank'] in sorted_top_n_jobs:
