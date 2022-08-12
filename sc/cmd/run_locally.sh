@@ -20,7 +20,11 @@ element=$1
 work_dir="work_dir_$1"
 data_file=$(ls feff_$1_*)
 echo ${data_file}
-rm -r training
+rm loss_curves.png
+rm -r ${work_dir}/training
+rm -r ${work_dir}/report*
+rm -r ${work_dir}/main_process_message.txt
+
 
 ipython profile create --profile-dir=${work_dir}/ipypar
 ipcontroller --ip="*" --profile-dir=${work_dir}/ipypar &
