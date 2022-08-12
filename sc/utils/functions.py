@@ -234,11 +234,16 @@ def get_enriched_spec_space(spec_in, encoder, decoder, space_expansion, batch_si
     styles_from_virtual = encoder(spec_from_virtual)
 
     dm = ((styles_from_virtual[:, np.newaxis, :] - 
-           styles_from_spec[np.newaxis, :, :])**2).sum(dim=-1)
-    shortest_indices = dm.argmin(dim=0)
-    far_indices_in_virtual_to_reality = torch.ones(dm.size()[0], device=device)
-    far_indices_in_virtual_to_reality[shortest_indices] = 0
-    far_indices_in_virtual_to_reality.to(torch.bool)
+           styles_from_spec[np.newaxis, :, :])**2) \
+        .sum(dim=-1).cpu().detach().numpy()
+    shortest_indices = []
+    for i in range(dm.shape[1]):
+        ii = np.argmin(dm[:, i])
+        shortest_indices.append(ii)
+        dm[ii] = 1.0E50
+    far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
+                                        set(shortest_indices)
+    far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
 
     spec_supplementary = spec_from_virtual[far_indices_in_virtual_to_reality, :].clone().detach()
     spec_from_merged_space = torch.cat([spec_in, spec_supplementary], dim=0)
