@@ -27,7 +27,8 @@ from sc.utils.functions import (
     generator_loss,
     adversarial_loss,
     alpha,
-    set_bn_drop_eval
+    set_bn_drop_eval,
+    get_enriched_spec_space
 )
 
 
@@ -111,37 +112,19 @@ class Trainer:
                     n_aux = aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
                 
-                set_bn_drop_eval(self.encoder, True, ["BatchNorm1d", "Dropout"])
-                set_bn_drop_eval(self.decoder, True, ["BatchNorm1d", "Dropout"])
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                styles_from_spec = self.encoder(spec_in) # exclude the free style
-
-                z_sample = torch.randn(self.batch_size*self.space_expansion, styles.size()[1], 
-                                       requires_grad=False, device=self.device)
-                spec_from_virtual = self.decoder(z_sample)
-                styles_from_virtual = self.encoder(spec_from_virtual)
-
-                dm = ((styles_from_virtual[:, np.newaxis, :] - 
-                       styles_from_spec[np.newaxis, :, :])**2) \
-                    .sum(dim=-1).cpu().detach().numpy()
-                shortest_indices = []
-                for i in range(dm.shape[1]):
-                    ii = np.argmin(dm[:, i])
-                    shortest_indices.append(ii)
-                    dm[ii] = 1.0E50
-                far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
-                                                    set(shortest_indices)
-                far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
-                spec_supplementary = spec_from_virtual[far_indices_in_virtual_to_reality, :].clone().detach()
-                spec_from_merged_space = torch.cat([spec_in, spec_supplementary], dim=0)
-                set_bn_drop_eval(self.encoder, False, ["BatchNorm1d", "Dropout"])
-                set_bn_drop_eval(self.decoder, False, ["BatchNorm1d", "Dropout"])
-                styles_from_merged_space = self.encoder(spec_from_merged_space)
-
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
                     self.zerograd()
+                    set_bn_drop_eval(self.encoder, True, ["BatchNorm1d", "Dropout"])
+                    set_bn_drop_eval(self.decoder, True, ["BatchNorm1d", "Dropout"])
+                    spec_from_merged_space = get_enriched_spec_space(
+                        spec_in, self.encoder, self.decoder, self.space_expansion, 
+                        self.batch_size, self.device)
+                    set_bn_drop_eval(self.encoder, False, ["BatchNorm1d", "Dropout"])
+                    set_bn_drop_eval(self.decoder, False, ["BatchNorm1d", "Dropout"])
+                    styles_from_merged_space = self.encoder(spec_from_merged_space)
                     dis_loss_train = adversarial_loss(
                         spec_from_merged_space, 
                         styles_from_merged_space, 

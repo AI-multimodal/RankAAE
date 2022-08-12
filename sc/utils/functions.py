@@ -225,4 +225,26 @@ def set_bn_drop_eval(model, is_eval, target_modules = ["BatchNorm1d", "Dropout"]
                 layer.eval()
             else:
                 layer.train()
-                
+
+def get_enriched_spec_space(spec_in, encoder, decoder, space_expansion, batch_size, device):
+    styles_from_spec = encoder(spec_in) 
+    z_sample = torch.randn(batch_size * space_expansion, styles_from_spec.size()[1], 
+                            requires_grad=False, device=device)
+    spec_from_virtual = decoder(z_sample)
+    styles_from_virtual = encoder(spec_from_virtual)
+
+    dm = ((styles_from_virtual[:, np.newaxis, :] - 
+           styles_from_spec[np.newaxis, :, :])**2) \
+        .sum(dim=-1).cpu().detach().numpy()
+    shortest_indices = []
+    for i in range(dm.shape[1]):
+        ii = np.argmin(dm[:, i])
+        shortest_indices.append(ii)
+        dm[ii] = 1.0E50
+    far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
+                                        set(shortest_indices)
+    far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
+
+    spec_supplementary = spec_from_virtual[far_indices_in_virtual_to_reality, :].clone().detach()
+    spec_from_merged_space = torch.cat([spec_in, spec_supplementary], dim=0)
+    return spec_from_merged_space
