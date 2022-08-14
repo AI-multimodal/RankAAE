@@ -32,8 +32,33 @@ class KendallConstraint(TrainingLossGeneral):
     
     def __call__(self, epoch, input=None, model=None):
         pass
-      
-    
+
+
+def get_enriched_styles(spec_in, encoder, batch_size, space_expansion, nstyle, device):
+    no_enrich_styles = encoder(spec_in) 
+    no_enrich_avgs = no_enrich_styles.mean(dim=0)
+    no_enrich_stds = no_enrich_styles.std(dim=0)
+    z_sample = torch.randn(int(batch_size * space_expansion), nstyle, 
+                           requires_grad=False, device=device)
+    z_sample = z_sample * no_enrich_stds + no_enrich_avgs
+
+    dm = ((z_sample[:, np.newaxis, :] - 
+           no_enrich_styles[np.newaxis, :, :])**2) \
+        .sum(dim=-1).cpu().detach().numpy()
+    shortest_indices = []
+    for i in range(dm.shape[1]):
+        ii = np.argmin(dm[:, i])
+        shortest_indices.append(ii)
+        dm[ii] = 1.0E50
+    far_indices_in_virtual_to_reality = set(list(range(dm.shape[0]))) - \
+                                        set(shortest_indices)
+    far_indices_in_virtual_to_reality = list(far_indices_in_virtual_to_reality)
+
+    styles_supplementary = z_sample[far_indices_in_virtual_to_reality, :]
+    enriched_styles = torch.cat([no_enrich_styles, styles_supplementary], dim=0).clone().detach()
+    return enriched_styles
+
+
 def kendall_constraint(descriptors, styles, activate=False, device=None):
     """
     Implement kendall_constraint. It runs on GPU.
