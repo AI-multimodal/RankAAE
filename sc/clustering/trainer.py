@@ -136,7 +136,7 @@ class Trainer:
                 self.optimizers["reconstruction"].step()
 
                 # adversarial, mutual and smooth works in enriched space
-                enriched_styles = get_enriched_styles(spec_in, self.batch_size, 
+                enriched_styles = get_enriched_styles(spec_in, self.encoder, self.batch_size, 
                     self.space_expansion, self.nstyle, self.device)
 
                 # Use gradient reversal method or standard GAN structure
