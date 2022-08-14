@@ -245,7 +245,7 @@ class Trainer:
                 device=self.device
             )
 
-            enriched_styles_val = get_enriched_styles(spec_in_val, self.batch_size, 
+            enriched_styles_val = get_enriched_styles(spec_in_val, self.encoder, self.batch_size, 
                     self.space_expansion, self.nstyle, self.device)
             enrich_spec_out_val  = self.decoder(enriched_styles_val)
             smooth_loss_val = smoothness_loss(
