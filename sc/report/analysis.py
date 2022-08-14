@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 
+from sc.utils.functions import get_enriched_styles
+
 
 
 def create_plotly_colormap(n_colors):
@@ -423,7 +425,14 @@ def evaluate_model(
                     get_descriptor_style_correlation(descriptors[:,i], styles[:,i], ax=None,
                                                   choice = ["R2", "Spearman", "Quadratic"])
     if style:
-        result["Inter-style Corr"] = get_max_inter_style_correlation(styles)
+        # From XQ: Zhu, I put a hard coded number here, please modify to read from fix_config.yaml
+        space_expansion = 3.0
+        enriched_raw_styles = get_enriched_styles(spec_in, encoder, spec_in.size()[0], 
+            space_expansion, styles.size()[1], device)
+        supplementary_spec = decoder(enriched_raw_styles[spec_in.size()[0]:])
+        enriched_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+        enriched_styles = encoder(enriched_spec)
+        result["Inter-style Corr"] = get_max_inter_style_correlation(enriched_styles)
 
     return result
 
