@@ -432,6 +432,7 @@ def evaluate_model(
         supplementary_spec = decoder(enriched_raw_styles[spec_in.size()[0]:])
         enriched_spec = torch.cat([spec_in, supplementary_spec], dim=0)
         enriched_styles = encoder(enriched_spec)
+        enriched_styles = enriched_styles.clone().detach().cpu().numpy()
         result["Inter-style Corr"] = get_max_inter_style_correlation(enriched_styles)
 
     return result
