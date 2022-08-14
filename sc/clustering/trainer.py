@@ -26,7 +26,8 @@ from sc.utils.functions import (
     discriminator_loss,
     generator_loss,
     adversarial_loss,
-    alpha
+    alpha,
+    get_enriched_styles
 )
 
 
@@ -111,44 +112,6 @@ class Trainer:
                     aux_in = aux_in.to(self.device)
                 
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
-                styles = self.encoder(spec_in) # exclude the free style
-                spec_out = self.decoder(styles) # reconstructed spectra
-
-                # Use gradient reversal method or standard GAN structure
-                if self.gradient_reversal:
-                    self.zerograd()
-                    dis_loss_train = adversarial_loss(
-                        spec_in, styles, self.discriminator, alpha_,
-                        batch_size=self.batch_size, 
-                        nll_loss=nll_loss, 
-                        device=self.device
-                    )
-                    dis_loss_train.backward()
-                    self.optimizers["adversarial"].step()
-                    gen_loss_train = torch.tensor(0)
-                else:
-                    # Init gradients, discriminator loss
-                    self.zerograd()
-                    styles = self.encoder(spec_in)
-
-                    dis_loss_train = discriminator_loss(
-                        styles, self.discriminator, 
-                        batch_size=self.batch_size, 
-                        loss_fn=CE_loss,
-                        device=self.device
-                    )
-                    dis_loss_train.backward()
-                    self.optimizers["discriminator"].step()
-
-                    # Init gradients, generator loss
-                    self.zerograd()
-                    gen_loss_train = generator_loss(
-                        spec_in, self.encoder, self.discriminator, 
-                        loss_fn=CE_loss,
-                        device=self.device
-                    )
-                    gen_loss_train.backward()
-                    self.optimizers["generator"].step()
 
                 # Kendall constraint
                 self.zerograd()
@@ -172,11 +135,59 @@ class Trainer:
                 recon_loss_train.backward()
                 self.optimizers["reconstruction"].step()
 
+                # adversarial, mutual and smooth works in enriched space
+                enriched_styles = get_enriched_styles(spec_in, self.batch_size, 
+                    self.space_expansion, self.nstyle, self.device)
+
+                # Use gradient reversal method or standard GAN structure
+                if self.gradient_reversal:
+                    self.zerograd()
+                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    comb_styles = self.encoder(comb_spec)
+                    dis_loss_train = adversarial_loss(
+                        self.space_expansion, comb_styles, self.discriminator, alpha_,
+                        batch_size=self.batch_size, 
+                        nll_loss=nll_loss, 
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["adversarial"].step()
+                    gen_loss_train = torch.tensor(0)
+                else:
+                    # Init gradients, discriminator loss
+                    self.zerograd()
+                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    comb_styles = self.encoder(comb_spec)
+
+                    dis_loss_train = discriminator_loss(
+                        comb_styles, self.discriminator, 
+                        batch_size=self.batch_size, 
+                        loss_fn=CE_loss,
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["discriminator"].step()
+
+                    # Init gradients, generator loss
+                    self.zerograd()
+                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    gen_loss_train = generator_loss(
+                        comb_spec, self.encoder, self.discriminator, 
+                        loss_fn=CE_loss,
+                        device=self.device
+                    )
+                    gen_loss_train.backward()
+                    self.optimizers["generator"].step()
+
+
                 # Init gradients, mutual information loss
                 self.zerograd()
                 styles = self.encoder(spec_in)
                 mutual_info_loss_train = mutual_info_loss(
-                    spec_in, styles,
+                    enriched_styles,
                     encoder=self.encoder, 
                     decoder=self.decoder, 
                     mse_loss=mse_loss, 
@@ -189,7 +200,7 @@ class Trainer:
                 # Init gradients, smoothness loss
                 if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
                     self.zerograd()
-                    spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                    spec_out  = self.decoder(enriched_styles) # retain the graph?
                     smooth_loss_train = smoothness_loss(
                         spec_out, 
                         gs_kernel_size=self.gau_kernel_size,
@@ -233,21 +244,28 @@ class Trainer:
                 activate=self.kendall_activation,
                 device=self.device
             )
+
+            enriched_styles_val = get_enriched_styles(spec_in_val, self.batch_size, 
+                    self.space_expansion, self.nstyle, self.device)
+            enrich_spec_out_val  = self.decoder(enriched_styles_val)
             smooth_loss_val = smoothness_loss(
-                spec_out_val, 
+                enrich_spec_out_val, 
                 gs_kernel_size=self.gau_kernel_size,
                 device=self.device
             )
             mutual_info_loss_val = mutual_info_loss(
-                spec_in_val, z,
+                enriched_styles_val,
                 encoder=self.encoder, 
                 decoder=self.decoder, 
                 mse_loss=mse_loss, 
                 device=self.device
             )
+            supplementary_spec_val = self.decoder(enriched_styles_val[spec_in_val.size()[0]:])
+            comb_spec_val = torch.cat([spec_in_val, supplementary_spec_val], dim=0)
+            comb_styles_val = self.encoder(comb_spec_val)
             if self.gradient_reversal:
                 dis_loss_val = adversarial_loss(
-                    spec_in_val, z, self.discriminator, alpha_,
+                    self.space_expansion, comb_styles_val, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
                     nll_loss=nll_loss, 
                     device=self.device
@@ -255,13 +273,13 @@ class Trainer:
                 gen_loss_val = torch.tensor(0)
             else:
                 dis_loss_val = discriminator_loss(
-                    z, self.discriminator, 
-                    batch_size=len(z),
+                    comb_styles_val, self.discriminator, 
+                    batch_size=comb_styles_val.size()[0],
                     loss_fn=CE_loss,
                     device=self.device
                 )
                 gen_loss_val = generator_loss(
-                    spec_in_val, 
+                    comb_spec_val, 
                     self.encoder, 
                     self.discriminator, 
                     loss_fn=CE_loss, 
@@ -381,7 +399,8 @@ class Trainer:
         adv_optimizer = opt_cls(
             [
                 {'params': self.discriminator.parameters()},
-                {'params': self.encoder.parameters()}
+                {'params': self.encoder.parameters()},
+                {'params': self.decoder.parameters()}
             ],
             lr = self.lr_ratio_dis * self.lr_base,
             betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)

@@ -131,7 +131,7 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     
     return recon_loss
 
-def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
+def adversarial_loss(space_expansion, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
     """
     Parameters
     ----------
@@ -144,12 +144,12 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, 
 
     nstyle = styles.size()[1]
 
-    z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
+    z_real_gauss = torch.randn(int(batch_size * space_expansion), nstyle, requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, alpha)
-    real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
+    real_gauss_label = torch.ones(int(batch_size * space_expansion), dtype=torch.long, requires_grad=False, device=device)
     
     fake_gauss_pred = D(styles, alpha)
-    fake_guass_lable = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
+    fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
     adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
                         + nll_loss(fake_gauss_pred, fake_guass_lable)
@@ -196,7 +196,7 @@ def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
     return loss
 
 
-def mutual_info_loss(spec_in, styles, encoder, decoder, mse_loss=None, device=None):
+def mutual_info_loss(styles, encoder, decoder, mse_loss=None, device=None):
     """
     Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
     Return the loss between the sampled and reconstructed latent spacc.
@@ -207,12 +207,8 @@ def mutual_info_loss(spec_in, styles, encoder, decoder, mse_loss=None, device=No
     if mse_loss is None:
         mse_loss = nn.MSELoss().to(device)
 
-    batch_size = spec_in.size()[0]
-    nstyle = styles.size()[1]
-    z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
-    
-    z_recon = encoder(decoder(z_sample))
-    mutual_info_loss = mse_loss(z_recon, z_sample)
+    z_recon = encoder(decoder(styles))
+    mutual_info_loss = mse_loss(z_recon, styles)
     
     return mutual_info_loss
 
