@@ -428,7 +428,7 @@ def evaluate_model(
         # From XQ: Zhu, I put a hard coded number here, please modify to read from fix_config.yaml
         space_expansion = 3.0
         enriched_raw_styles = get_enriched_styles(spec_in, encoder, spec_in.size()[0], 
-            space_expansion, styles.size()[1], device)
+            space_expansion, styles.shape[1], device)
         supplementary_spec = decoder(enriched_raw_styles[spec_in.size()[0]:])
         enriched_spec = torch.cat([spec_in, supplementary_spec], dim=0)
         enriched_styles = encoder(enriched_spec)
