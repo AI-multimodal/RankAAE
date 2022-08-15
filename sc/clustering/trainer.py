@@ -258,9 +258,13 @@ class Trainer:
                 device=self.device
             )
 
-            enriched_styles_val = get_enriched_styles(spec_in_val, self.encoder, self.batch_size, 
-                    self.space_expansion, self.nstyle, self.device)
+            if self.space_expansion > 0:
+                enriched_styles_val = get_enriched_styles(spec_in_val, self.encoder, self.batch_size, 
+                        self.space_expansion, self.nstyle, self.device)
+            else:
+                enriched_styles_val = z
             enrich_spec_out_val  = self.decoder(enriched_styles_val)
+
             smooth_loss_val = smoothness_loss(
                 enrich_spec_out_val, 
                 gs_kernel_size=self.gau_kernel_size,
@@ -273,8 +277,11 @@ class Trainer:
                 mse_loss=mse_loss, 
                 device=self.device
             )
-            supplementary_spec_val = self.decoder(enriched_styles_val[spec_in_val.size()[0]:])
-            comb_spec_val = torch.cat([spec_in_val, supplementary_spec_val], dim=0)
+            if self.space_expansion > 0:
+                supplementary_spec_val = self.decoder(enriched_styles_val[spec_in_val.size()[0]:])
+                comb_spec_val = torch.cat([spec_in_val, supplementary_spec_val], dim=0)
+            else:
+                comb_spec_val = spec_in_val
             comb_styles_val = self.encoder(comb_spec_val)
             if self.gradient_reversal:
                 dis_loss_val = adversarial_loss(

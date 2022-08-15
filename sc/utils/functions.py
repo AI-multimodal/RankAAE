@@ -144,9 +144,13 @@ def adversarial_loss(space_expansion, styles, D, alpha, batch_size=100,  nll_los
 
     nstyle = styles.size()[1]
 
-    z_real_gauss = torch.randn(int(batch_size * space_expansion), nstyle, requires_grad=True, device=device)
+    if space_expansion > 0:
+        real_gauss_size = int(batch_size * space_expansion)
+    else:
+        real_gauss_size = batch_size
+    z_real_gauss = torch.randn(real_gauss_size, nstyle, requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, alpha)
-    real_gauss_label = torch.ones(int(batch_size * space_expansion), dtype=torch.long, requires_grad=False, device=device)
+    real_gauss_label = torch.ones(real_gauss_size, dtype=torch.long, requires_grad=False, device=device)
     
     fake_gauss_pred = D(styles, alpha)
     fake_guass_lable = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
