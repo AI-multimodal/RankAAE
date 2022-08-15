@@ -136,14 +136,21 @@ class Trainer:
                 self.optimizers["reconstruction"].step()
 
                 # adversarial, mutual and smooth works in enriched space
-                enriched_styles = get_enriched_styles(spec_in, self.encoder, self.batch_size, 
-                    self.space_expansion, self.nstyle, self.device)
+                if self.space_expansion > 0:
+                    enriched_styles = get_enriched_styles(spec_in, self.encoder, self.batch_size, 
+                        self.space_expansion, self.nstyle, self.device)
+                else:
+                    enriched_styles = torch.randn(self.batch_size, self.nstyle, 
+                        requires_grad=False, device=self.device)
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
                     self.zerograd()
-                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
-                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    if self.space_expansion > 0:
+                        supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                        comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    else:
+                        comb_spec = spec_in
                     comb_styles = self.encoder(comb_spec)
                     dis_loss_train = adversarial_loss(
                         self.space_expansion, comb_styles, self.discriminator, alpha_,
@@ -157,8 +164,11 @@ class Trainer:
                 else:
                     # Init gradients, discriminator loss
                     self.zerograd()
-                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
-                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    if self.space_expansion > 0:
+                        supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                        comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    else:
+                        comb_spec = spec_in
                     comb_styles = self.encoder(comb_spec)
 
                     dis_loss_train = discriminator_loss(
@@ -172,8 +182,11 @@ class Trainer:
 
                     # Init gradients, generator loss
                     self.zerograd()
-                    supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
-                    comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    if self.space_expansion > 0:
+                        supplementary_spec = self.decoder(enriched_styles[spec_in.size()[0]:])
+                        comb_spec = torch.cat([spec_in, supplementary_spec], dim=0)
+                    else:
+                        comb_spec = spec_in
                     gen_loss_train = generator_loss(
                         comb_spec, self.encoder, self.discriminator, 
                         loss_fn=CE_loss,
