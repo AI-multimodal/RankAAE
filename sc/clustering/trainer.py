@@ -247,7 +247,7 @@ class Trainer:
             )
             if self.gradient_reversal:
                 dis_loss_val = adversarial_loss(
-                    spec_in, styles, self.discriminator, alpha_,
+                    spec_in_val, z, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
                     nll_loss=nll_loss, 
                     device=self.device
