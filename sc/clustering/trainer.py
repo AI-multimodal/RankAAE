@@ -134,7 +134,7 @@ class Trainer:
                     dis_loss_train = discriminator_loss(
                         styles, self.discriminator, 
                         batch_size=self.batch_size, 
-                        loss_fn=CE_loss,
+                        loss_fn=nll_loss,
                         device=self.device
                     )
                     dis_loss_train.backward()
@@ -144,7 +144,7 @@ class Trainer:
                     self.zerograd()
                     gen_loss_train = generator_loss(
                         spec_in, self.encoder, self.discriminator, 
-                        loss_fn=CE_loss,
+                        loss_fn=nll_loss,
                         device=self.device
                     )
                     gen_loss_train.backward()
@@ -257,14 +257,14 @@ class Trainer:
                 dis_loss_val = discriminator_loss(
                     z, self.discriminator, 
                     batch_size=len(z),
-                    loss_fn=CE_loss,
+                    loss_fn=nll_loss,
                     device=self.device
                 )
                 gen_loss_val = generator_loss(
                     spec_in_val, 
                     self.encoder, 
                     self.discriminator, 
-                    loss_fn=CE_loss, 
+                    loss_fn=nll_loss, 
                     device=self.device
                 )
             # Write losses to a file
