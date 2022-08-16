@@ -194,7 +194,7 @@ def sort_all_models(
     # plot out the heat map of scores
     fig = None
     if plot_score:
-        if top_n is None:
+        if top_n is None or top_n > len(ranked_z_scores):
             top_n = len(ranked_z_scores)
 
         fig, ax = plt.subplots(figsize = (top_n, scores.shape[1]))

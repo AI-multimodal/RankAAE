@@ -342,26 +342,28 @@ class FCEncoder(nn.Module):
         n_layers=3,
         hidden_size=64):
         super(FCEncoder, self).__init__()
+
         
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
-            nn.ReLU(),
+            nn.PReLU(num_parameters=hidden_size, init=0.01),
             nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Dropout(dropout_rate)
+            nn.Dropout(p=dropout_rate),
+            
         ]
 
         for _ in range(n_layers-2):
             sequential_layers.extend(
-                [   
-                    nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
+                [   nn.Linear(hidden_size, hidden_size),
+                    nn.PReLU(num_parameters=hidden_size, init=0.01),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(dropout_rate),
                 ]
             )
+
         sequential_layers.extend( # last layer
             [
-                nn.Linear(16, nstyle),
+                nn.Linear(hidden_size, nstyle),
                 nn.BatchNorm1d(nstyle, affine=False) 
                 # add this batchnorm layer to make sure the output is standardized.
             ]
@@ -536,9 +538,9 @@ class FCDecoder(nn.Module):
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
-        sequential_layers = [ # first layer.
+        sequential_layers = [ # the first layer.
                 nn.Linear(nstyle, hidden_size),
-                nn.ReLU(),
+                nn.PReLU(num_parameters=hidden_size, init=0.01),
                 nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(p=dropout_rate),
         ]
@@ -633,24 +635,23 @@ class DiscriminatorFC(nn.Module):
         
         sequential_layers = [
             nn.Linear(nstyle, hiden_size),
-            nn.ReLU(),
+            nn.PReLU(num_parameters=hiden_size, init=0.01),
             nn.BatchNorm1d(hiden_size, affine=False),
-            nn.Dropout(p=dropout_rate)
+            nn.Dropout(p=dropout_rate),
         ]
         for _ in range(layers-2):
             sequential_layers.extend(
                 [
-                    
                     nn.Linear(hiden_size, hiden_size),
-                    nn.ReLU(),
+                    nn.PReLU(num_parameters=hiden_size, init=0.01),
                     nn.BatchNorm1d(hiden_size, affine=False),
-                    nn.Dropout(p=dropout_rate)
+                    nn.Dropout(p=dropout_rate),
                 ]
             )
         sequential_layers.extend(
             [
-                nn.Linear(hiden_size, 2),
-                nn.LogSoftmax(dim=1)
+                nn.Linear(hiden_size, 1),
+                nn.Sigmoid()
             ]
         )
         self.main = nn.Sequential(*sequential_layers)
