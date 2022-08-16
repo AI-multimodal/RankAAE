@@ -124,10 +124,10 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, 
     real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
     
     fake_gauss_pred = D(styles, alpha)
-    fake_guass_label = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
+    fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
     adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                        + nll_loss(fake_gauss_pred, fake_guass_label)
+                        + nll_loss(fake_gauss_pred, fake_gauss_label)
 
     return adversarial_loss
 
@@ -148,9 +148,9 @@ def discriminator_loss(styles, D, batch_size=100,  loss_fn=None, device=None):
     real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
     
     fake_gauss_pred = D(styles, None)
-    fake_guass_label = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
+    fake_gauss_label = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
-    loss = loss_fn(real_gauss_pred, real_gauss_label) + loss_fn(fake_gauss_pred, fake_guass_label)
+    loss = loss_fn(real_gauss_pred, real_gauss_label) + loss_fn(fake_gauss_pred, fake_gauss_label)
 
     return loss
 
@@ -164,9 +164,9 @@ def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
     styles = encoder(spec_in)
     fake_gauss_pred = D(styles, None) # no gradient reversal, alpha=None
 
-    fake_guass_label = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
+    fake_gauss_label = torch.zeros(styles.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
-    loss = loss_fn(fake_gauss_pred, fake_guass_label)
+    loss = loss_fn(fake_gauss_pred, fake_gauss_label)
 
     return loss
 

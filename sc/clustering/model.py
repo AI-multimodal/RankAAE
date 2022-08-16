@@ -549,7 +549,7 @@ class FCDecoder(nn.Module):
             sequential_layers.extend( # the n layers in the middle
                 [
                     nn.Linear(hidden_size, hidden_size),
-                    nn.ReLU(),
+                    nn.PReLU(num_parameters=hidden_size, init=0.01),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
@@ -650,7 +650,7 @@ class DiscriminatorFC(nn.Module):
             )
         sequential_layers.extend(
             [
-                nn.Linear(hiden_size, 1),
+                nn.Linear(hiden_size, 2),
                 nn.Sigmoid()
             ]
         )
