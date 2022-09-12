@@ -152,27 +152,22 @@ def sort_all_models(
     for job, result in result_dict.items():
         
         jobs.append(job)
-        score = [
-            result["Inter-style Corr"], # 0
-            result["Reconstruct Err"][0], # 1
-        ]
-        for i in range(5):
-            try:
-                a = result["Style-descriptor Corr"][i]
-                if i == 1:
-                    score.append(a["F1 score"])
-                else:
-                    score.append(a["Spearman"])
-            except KeyError:
-                score.append(0)
-        scores.append(score)
-
+        scores.append(
+            [
+                result["Inter-style Corr"], # 0
+                result["Reconstruct Err"][0], # 1
+                result["Style-descriptor Corr"][0]['Spearman'], # 2
+                result["Style-descriptor Corr"][1]["F1 score"], # 3
+                result["Style-descriptor Corr"][2]['Spearman'], # 4
+                result["Style-descriptor Corr"][3]['Spearman'], # 5
+                result["Style-descriptor Corr"][4]['Spearman'], # 6
+            ]
+        )
     jobs = np.array(jobs)
     scores = np.array(scores)
     # normalize the score so their color fall in the same range
     mu_std = np.stack((scores.mean(axis=0), scores.std(axis=0)), axis=1)
     z_scores = (scores - mu_std[:,0]) / mu_std[:,1]
-    z_scores[:, (mu_std[:,1]==0)] = 0 # for columns of no variations, score=0
 
     
     # sort scroes
@@ -199,7 +194,7 @@ def sort_all_models(
     # plot out the heat map of scores
     fig = None
     if plot_score:
-        if top_n is None or top_n > len(ranked_z_scores):
+        if top_n is None:
             top_n = len(ranked_z_scores)
 
         fig, ax = plt.subplots(figsize = (top_n, scores.shape[1]))

@@ -6,10 +6,9 @@ from matplotlib import pyplot as plt
 import os
 import argparse
 import json
-import sc.report.analysis as analysis
-import sc.report.analysis_new as analysis_new
 from sc.utils.parameter import Parameters
 from sc.clustering.dataloader import AuxSpectraDataset
+from plot import utils, utils_new
 
 def sorting_algorithm(x):
     """
@@ -44,28 +43,21 @@ def sorting_algorithm(x):
 
 def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
 
-    name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
+    if n_aux == 5:
+        name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
+    elif n_aux == 3:
+        name_list = ["BVS", "CN", "OCN"]
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    result = analysis.evaluate_model(test_ds, model, device=device)
+    result = utils.evaluate_model(test_ds, model, device=device)
     style_correlation = result["Inter-style Corr"]
     
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32, device=device)
     test_grid = test_ds.grid
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
-    n_styles = test_styles.shape[1]
     descriptors = test_ds.aux
-    if n_aux < 5:
-        test_styles_ = np.zeros(shape=(test_styles.shape[0], 6))
-        test_styles_[:,:n_aux+1] = test_styles
-        test_styles = test_styles_
-        descriptors_ = np.zeros(shape=(descriptors.shape[0], 5))
-        descriptors_[:,:n_aux] = descriptors
-        descriptors = descriptors_
-        if n_aux < 2:
-            descriptors[:,1] = 4
-    
+
     # generate a figure object to host all the plots
     fig = plt.figure(figsize=(12,24),constrained_layout=True)
     gs = fig.add_gridspec(12,6)
@@ -85,10 +77,9 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     )
     
     # Plot out synthetic spectra variation
-    axs_spec_all = [ax1, ax2, axa, ax3, ax4, axb]
-    axs_spec = axs_spec_all[:n_styles]
+    axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
     for istyle, ax in enumerate(axs_spec):
-        _ = analysis.plot_spectra_variation(
+        _ = utils.plot_spectra_variation(
             decoder, istyle, 
             true_range = True,
             styles = test_styles,
@@ -120,7 +111,7 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
             else:
                 result_choice = ["R2", "Spearman"]
             
-            accuracy = analysis.get_descriptor_style_correlation(
+            accuracy = utils.get_descriptor_style_correlation(
                 styles_no_s2[:,col], 
                 descriptors_no_cn[:,row-4], 
                 ax=ax,
@@ -136,16 +127,16 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     # Plot q-q plot of the style distribution
     for col in [0,1,2,3]:
         ax = fig.add_subplot(gs[8,col])
-        shapiro_statistic = analysis.qqplot_normal(styles_no_s2[:,col], ax)
+        shapiro_statistic = utils.qqplot_normal(styles_no_s2[:,col], ax)
         if col > 0: col += 1 # skip style 2 which is CN
         ax.set_title(f'style_{col+1}: {shapiro_statistic:.2f}')
     
     ax = fig.add_subplot(gs[9,3])
-    shapiro_statistic = analysis.qqplot_normal(test_styles[:,1], ax)
+    shapiro_statistic = utils.qqplot_normal(test_styles[:,1], ax)
     ax.set_title(f'style_2: {shapiro_statistic:.2f}')
 
     # Plot out CN confusion matrix
-    _ = analysis.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
+    _ = utils.get_confusion_matrix(descriptors[:,1].astype('int'), test_styles[:,1], [ax5, ax6, ax7])
     
     return fig
     
@@ -157,8 +148,6 @@ def save_evaluation_result(save_dir, file_name, model_results, save_spectra=Fals
     Information is saved to a txt file.
     """
     save_dict = OrderedDict()
-    if top_n > len(model_results):
-        top_n = len(model_results)
     sorted_top_n_jobs = list(range(top_n))
     for job, result in model_results.items():
         if result['Rank'] in sorted_top_n_jobs:
@@ -224,12 +213,12 @@ def main():
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
-    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = config.n_aux)
+    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = 5)
     
     #### Choose the 20 top model based on evaluation criteria ####
-    model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+    model_results = utils.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
 
-    model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
+    model_results, sorted_jobs, fig_model_selection = utils.sort_all_models( 
         model_results, 
         plot_score = True, 
         top_n = config.top_n, 
@@ -256,13 +245,13 @@ def main():
     )
 
     save_report_plot(work_dir, config.output_name, fig_top_model)
-    recon_evaluator = analysis_new.Reconstruct(name=config.output_name, device=device)
+    recon_evaluator = utils_new.Reconstruct(name=config.output_name, device=device)
     recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
     
     # save top 5 result 
     save_evaluation_result(work_dir, config.output_name, model_results, save_spectra=True, top_n=config.top_n)
     
-    plotter = analysis_new.LossCurvePlotter()
+    plotter = utils_new.LossCurvePlotter()
     fig = plotter.plot_loss_curve(os.path.join(jobs_dir, sorted_jobs[0], "losses.csv"))
     fig.savefig("loss_curves.png", bbox_inches="tight")
     print("Success: training report saved!")
