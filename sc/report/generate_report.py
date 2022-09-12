@@ -44,10 +44,7 @@ def sorting_algorithm(x):
 
 def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
 
-    if n_aux == 5:
-        name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
-    elif n_aux == 3:
-        name_list = ["BVS", "CN", "OCN"]
+    name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
 
     encoder = model['Encoder']
     decoder = model['Decoder']
@@ -57,8 +54,18 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     test_spec = torch.tensor(test_ds.spec, dtype=torch.float32, device=device)
     test_grid = test_ds.grid
     test_styles = encoder(test_spec).clone().detach().cpu().numpy()
+    n_styles = test_styles.shape[1]
     descriptors = test_ds.aux
-
+    if n_aux < 5:
+        test_styles_ = np.zeros(shape=(test_styles.shape[0], 6))
+        test_styles_[:,:n_aux+1] = test_styles
+        test_styles = test_styles_
+        descriptors_ = np.zeros(shape=(descriptors.shape[0], 5))
+        descriptors_[:,:n_aux] = descriptors
+        descriptors = descriptors_
+        if n_aux < 2:
+            descriptors[:,1] = 4
+    
     # generate a figure object to host all the plots
     fig = plt.figure(figsize=(12,24),constrained_layout=True)
     gs = fig.add_gridspec(12,6)
@@ -78,7 +85,8 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     )
     
     # Plot out synthetic spectra variation
-    axs_spec = [ax1, ax2, axa, ax3, ax4, axb]
+    axs_spec_all = [ax1, ax2, axa, ax3, ax4, axb]
+    axs_spec = axs_spec_all[:n_styles]
     for istyle, ax in enumerate(axs_spec):
         _ = analysis.plot_spectra_variation(
             decoder, istyle, 
@@ -216,7 +224,7 @@ def main():
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
-    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = 5)
+    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = config.n_aux)
     
     #### Choose the 20 top model based on evaluation criteria ####
     model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
