@@ -241,7 +241,7 @@ def main():
         # save top 5 result 
         save_evaluation_result(work_dir, config.output_name, model_results, save_spectra=True, top_n=config.top_n)
         output_path_best_model = os.path.join(work_dir, f"{config.output_name}_best_model.png")
-    else:
+    finally:
         # generate report for top model
         top_model = torch.load(
                 os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
