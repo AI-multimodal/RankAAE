@@ -651,7 +651,7 @@ class DiscriminatorFC(nn.Module):
         sequential_layers.extend(
             [
                 nn.Linear(hiden_size, 2),
-                nn.Softmax(dim=1)
+                nn.LogSoftmax(dim=1)
             ]
         )
         self.main = nn.Sequential(*sequential_layers)

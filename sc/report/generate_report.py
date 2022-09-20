@@ -182,13 +182,6 @@ def save_model_evaluations(save_dir, file_name, result):
         pickle.dump(result, f)
 
 
-def save_report_plot(save_dir, file_name, fig):
-    fig.savefig(
-        os.path.join(save_dir, file_name+"_best_model.png"),
-        bbox_inches='tight'
-    )
-
-
 def save_model_selection_plot(save_dir, file_name, fig):
     fig.savefig(
         os.path.join(save_dir, file_name + "_model_selection.png"),
@@ -226,41 +219,47 @@ def main():
         file_name = data_file_list[0]
     test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = config.n_aux)
     
-    #### Choose the 20 top model based on evaluation criteria ####
-    model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+    try:
+        sorted_jobs = [config.plot_job]
+        output_path_best_model = os.path.join(work_dir, f"{config.output_name}_{sorted_jobs[0]}.png")
+    except:
+        #### Choose the 20 top model based on evaluation criteria ####
+        model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+        model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
+            model_results, 
+            plot_score = True, 
+            top_n = config.top_n, 
+            sort_score = sorting_algorithm,
+            ascending = False, # best model has the highest score
+        ) # models are sorted
+        save_model_evaluations(work_dir, config.output_name, model_results)
+        
+        # genearte model selection scores plot
+        if fig_model_selection is not None:
+            save_model_selection_plot(work_dir, config.output_name, fig_model_selection)
 
-    model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
-        model_results, 
-        plot_score = True, 
-        top_n = config.top_n, 
-        sort_score = sorting_algorithm,
-        ascending = False, # best model has the highest score
-    ) # models are sorted
-    save_model_evaluations(work_dir, config.output_name, model_results)
+        # save top 5 result 
+        save_evaluation_result(work_dir, config.output_name, model_results, save_spectra=True, top_n=config.top_n)
+        output_path_best_model = os.path.join(work_dir, f"{config.output_name}_best_model.png")
+    finally:
+        # generate report for top model
+        top_model = torch.load(
+                os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
+                map_location = device
+        )
+        fig_top_model = plot_report(
+            test_ds, 
+            top_model, 
+            n_aux = config.n_aux, 
+            title = '-'.join([config.output_name, sorted_jobs[0]]), 
+            device = device
+        )
     
-    # genearte model selection scores plot
-    if fig_model_selection is not None:
-        save_model_selection_plot(work_dir, config.output_name, fig_model_selection)
-
-    # generate report for top model
-    top_model = torch.load(
-            os.path.join(jobs_dir, sorted_jobs[0], "final.pt"), 
-            map_location = device
-    )
-    fig_top_model = plot_report(
-        test_ds, 
-        top_model, 
-        n_aux = config.n_aux, 
-        title = '-'.join([config.output_name, sorted_jobs[0]]), 
-        device = device
-    )
-
-    save_report_plot(work_dir, config.output_name, fig_top_model)
+    fig_top_model.savefig(output_path_best_model, bbox_inches="tight")
     recon_evaluator = analysis_new.Reconstruct(name=config.output_name, device=device)
     recon_evaluator.evaluate(test_ds, top_model, path_to_save=work_dir)
     
-    # save top 5 result 
-    save_evaluation_result(work_dir, config.output_name, model_results, save_spectra=True, top_n=config.top_n)
+    
     
     plotter = analysis_new.LossCurvePlotter()
     fig = plotter.plot_loss_curve(os.path.join(jobs_dir, sorted_jobs[0], "losses.csv"))

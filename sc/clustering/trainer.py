@@ -69,7 +69,6 @@ class Trainer:
 
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
-        CE_loss = nn.CrossEntropyLoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
 
 
