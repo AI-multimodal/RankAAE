@@ -141,7 +141,7 @@ def discriminator_loss(styles, D, batch_size=100,  loss_fn=None, device=None):
     if device is None:
         device = torch.device('cpu')
     if loss_fn is None:
-        loss_fn = nn.CrossEntropyLoss().to(device)
+        loss_fn = nn.BCEWithLogitsLoss().to(device)
 
     z_real_gauss = torch.randn(batch_size, styles.size()[1], requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, None) # no gradient reversal, alpha=None
@@ -159,7 +159,7 @@ def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
     if device is None:
         device = torch.device('cpu')
     if loss_fn is None:
-        loss_fn = nn.CrossEntropyLoss.to(device)
+        loss_fn = nn.BCEWithLogitsLoss().to(device)
 
     styles = encoder(spec_in)
     fake_gauss_pred = D(styles, None) # no gradient reversal, alpha=None
