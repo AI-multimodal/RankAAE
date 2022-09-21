@@ -364,6 +364,7 @@ class FCEncoder(nn.Module):
         sequential_layers.extend( # last layer
             [
                 nn.Linear(hidden_size, nstyle),
+                nn.BatchNorm1d(nstyle, affine=False)
             ]
         )
 
