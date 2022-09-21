@@ -308,7 +308,7 @@ def get_max_inter_style_correlation(styles):
     """
     corr_list = [
         math.fabs(spearmanr(styles[:, i], styles[:, -1]).correlation) \
-        for i in range(styles.shape[1])
+        for i in range(styles.shape[1]-1)
     ]
     return round(max(corr_list), 4)
     
