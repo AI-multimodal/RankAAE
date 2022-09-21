@@ -250,6 +250,7 @@ class Trainer:
                     spec_in_val, z, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
                     bce_logits_loss=bce_logits_loss, 
+                    n_aux=n_aux,
                     device=self.device
                 )
                 gen_loss_val = torch.tensor(0)
