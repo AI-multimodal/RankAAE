@@ -119,7 +119,7 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss
 
     nstyle = styles.size()[1]
 
-    gs_shuffle_indices = np.tile(np.arange(batch_size), 
+    gs_shuffle_indices = np.tile(np.arange(styles.size()[0]), 
                                  [nstyle, 1]).T
     no_shuffle_guided_dim = np.random.randint(low=0, high=n_aux)
     shuffle_dim_list = list(range(n_aux))
