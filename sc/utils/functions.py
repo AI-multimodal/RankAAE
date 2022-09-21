@@ -106,7 +106,7 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     
     return recon_loss
 
-def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, device=None):
+def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss=None, device=None):
     """
     Parameters
     ----------
@@ -114,8 +114,8 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, 
     """
     if device is None:
         device = torch.device('cpu')
-    if nll_loss is None:
-        nll_loss = nn.NLLLoss().to(device)
+    if bce_logits_loss is None:
+        bce_logits_loss = nn.BCEWithLogitsLoss().to(device)
 
     nstyle = styles.size()[1]
 
@@ -126,8 +126,8 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, 
     fake_gauss_pred = D(styles, alpha)
     fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
             
-    adversarial_loss = nll_loss(real_gauss_pred, real_gauss_label) \
-                        + nll_loss(fake_gauss_pred, fake_gauss_label)
+    adversarial_loss = bce_logits_loss(real_gauss_pred, real_gauss_label) \
+                        + bce_logits_loss(fake_gauss_pred, fake_gauss_label)
 
     return adversarial_loss
 

@@ -69,7 +69,7 @@ class Trainer:
 
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
-        nll_loss = nn.NLLLoss().to(self.device)
+        bce_logits_loss = nn.BCEWithLogitsLoss().to(self.device)
 
 
         # train network
@@ -119,7 +119,7 @@ class Trainer:
                     dis_loss_train = adversarial_loss(
                         spec_in, styles, self.discriminator, alpha_,
                         batch_size=self.batch_size, 
-                        nll_loss=nll_loss, 
+                        bce_logits_loss=bce_logits_loss, 
                         device=self.device
                     )
                     dis_loss_train.backward()
@@ -133,7 +133,7 @@ class Trainer:
                     dis_loss_train = discriminator_loss(
                         styles, self.discriminator, 
                         batch_size=self.batch_size, 
-                        loss_fn=nll_loss,
+                        loss_fn=bce_logits_loss,
                         device=self.device
                     )
                     dis_loss_train.backward()
@@ -143,7 +143,7 @@ class Trainer:
                     self.zerograd()
                     gen_loss_train = generator_loss(
                         spec_in, self.encoder, self.discriminator, 
-                        loss_fn=nll_loss,
+                        loss_fn=bce_logits_loss,
                         device=self.device
                     )
                     gen_loss_train.backward()
@@ -248,7 +248,7 @@ class Trainer:
                 dis_loss_val = adversarial_loss(
                     spec_in_val, z, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
-                    nll_loss=nll_loss, 
+                    bce_logits_loss=bce_logits_loss, 
                     device=self.device
                 )
                 gen_loss_val = torch.tensor(0)
@@ -256,14 +256,14 @@ class Trainer:
                 dis_loss_val = discriminator_loss(
                     z, self.discriminator, 
                     batch_size=len(z),
-                    loss_fn=nll_loss,
+                    loss_fn=bce_logits_loss,
                     device=self.device
                 )
                 gen_loss_val = generator_loss(
                     spec_in_val, 
                     self.encoder, 
                     self.discriminator, 
-                    loss_fn=nll_loss, 
+                    loss_fn=bce_logits_loss, 
                     device=self.device
                 )
             # Write losses to a file
