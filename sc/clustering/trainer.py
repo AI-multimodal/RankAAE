@@ -120,6 +120,7 @@ class Trainer:
                         spec_in, styles, self.discriminator, alpha_,
                         batch_size=self.batch_size, 
                         bce_logits_loss=bce_logits_loss, 
+                        n_aux=n_aux,
                         device=self.device
                     )
                     dis_loss_train.backward()

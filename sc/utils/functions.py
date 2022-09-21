@@ -106,7 +106,7 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     
     return recon_loss
 
-def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss=None, device=None):
+def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss=None, n_aux=0, device=None):
     """
     Parameters
     ----------
@@ -119,11 +119,24 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss
 
     nstyle = styles.size()[1]
 
+    gs_shuffle_indices = np.tile(np.arange(batch_size), 
+                                 [nstyle, 1]).T
+    no_shuffle_guided_dim = np.random.randint(low=0, high=n_aux)
+    shuffle_dim_list = list(range(n_aux))
+    shuffle_dim_list.pop(no_shuffle_guided_dim)
+    for i in shuffle_dim_list:
+        np.random.shuffle(gs_shuffle_indices[i])
+    shuffled_styles = [styles[:, i][gs_shuffle_indices[:, i]] 
+                   for i in range(styles.size()[1])]
+    shuffled_styles = torch.stack(shuffled_styles).T
+
+    
+
     z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, alpha)
     real_gauss_label = torch.ones(batch_size, dtype=torch.float32, requires_grad=False, device=device)
     
-    fake_gauss_pred = D(styles, alpha)
+    fake_gauss_pred = D(shuffled_styles, alpha)
     fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.float32, requires_grad=False,device=device)
             
     adversarial_loss = bce_logits_loss(real_gauss_pred.squeeze(), real_gauss_label) \
