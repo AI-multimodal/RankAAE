@@ -121,13 +121,13 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  bce_logits_loss
 
     z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, alpha)
-    real_gauss_label = torch.ones(batch_size, dtype=torch.long, requires_grad=False, device=device)
+    real_gauss_label = torch.ones(batch_size, dtype=torch.float32, requires_grad=False, device=device)
     
     fake_gauss_pred = D(styles, alpha)
-    fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.long, requires_grad=False,device=device)
+    fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.float32, requires_grad=False,device=device)
             
-    adversarial_loss = bce_logits_loss(real_gauss_pred, real_gauss_label) \
-                        + bce_logits_loss(fake_gauss_pred, fake_gauss_label)
+    adversarial_loss = bce_logits_loss(real_gauss_pred.squeeze(), real_gauss_label) \
+                        + bce_logits_loss(fake_gauss_pred.squeeze(), fake_gauss_label)
 
     return adversarial_loss
 
