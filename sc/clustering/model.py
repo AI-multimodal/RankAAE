@@ -636,7 +636,6 @@ class DiscriminatorFC(nn.Module):
         sequential_layers = [
             nn.Linear(nstyle, hiden_size),
             nn.PReLU(num_parameters=hiden_size, init=0.01),
-            nn.BatchNorm1d(hiden_size, affine=False),
             nn.Dropout(p=dropout_rate),
         ]
         for _ in range(layers-2):
@@ -644,7 +643,6 @@ class DiscriminatorFC(nn.Module):
                 [
                     nn.Linear(hiden_size, hiden_size),
                     nn.PReLU(num_parameters=hiden_size, init=0.01),
-                    nn.BatchNorm1d(hiden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
             )
