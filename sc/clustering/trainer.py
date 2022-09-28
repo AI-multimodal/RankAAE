@@ -248,7 +248,7 @@ class Trainer:
                 dis_loss_val = adversarial_loss(
                     spec_in_val, z, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
-                    nll_loss=nll_loss, 
+                    nll_loss=bce_lgt_loss, 
                     device=self.device
                 )
                 gen_loss_val = torch.tensor(0)
@@ -256,7 +256,7 @@ class Trainer:
                 dis_loss_val = discriminator_loss(
                     z, self.discriminator, 
                     batch_size=len(z),
-                    loss_fn=nll_loss,
+                    loss_fn=bce_lgt_loss,
                     device=self.device
                 )
                 gen_loss_val = generator_loss(
