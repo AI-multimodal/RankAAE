@@ -70,7 +70,7 @@ class Trainer:
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
         nll_loss = nn.NLLLoss().to(self.device)
-
+        bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
 
         # train network
         best_combined_metric = 10.0 # Initialize a guess for best combined metric.
@@ -119,7 +119,7 @@ class Trainer:
                     dis_loss_train = adversarial_loss(
                         spec_in, styles, self.discriminator, alpha_,
                         batch_size=self.batch_size, 
-                        nll_loss=nll_loss, 
+                        nll_loss=bce_lgt_loss, 
                         device=self.device
                     )
                     dis_loss_train.backward()
@@ -133,7 +133,7 @@ class Trainer:
                     dis_loss_train = discriminator_loss(
                         styles, self.discriminator, 
                         batch_size=self.batch_size, 
-                        loss_fn=nll_loss,
+                        loss_fn=bce_lgt_loss,
                         device=self.device
                     )
                     dis_loss_train.backward()
