@@ -122,8 +122,15 @@ def adversarial_loss(spec_in, styles, D, alpha, batch_size=100,  nll_loss=None, 
     z_real_gauss = torch.randn(batch_size, nstyle, requires_grad=True, device=device)
     real_gauss_pred = D(z_real_gauss, alpha)
     real_gauss_label = torch.ones(batch_size, dtype=torch.float32, requires_grad=False, device=device)
-    
-    fake_gauss_pred = D(styles, alpha)
+
+    # avoid disentangling the styles
+    shuffled_index = np.tile(np.arange(len(styles)),[nstyle, 1]).T # create ordered index
+    random_1less_col = np.delete(np.arange(nstyle), [np.random.randint(nstyle)]) # mask out random col.
+    for i in random_1less_col: 
+        np.random.default_rng(0).shuffle(shuffled_index[:,i]) # shuffle the index
+    shuffled_styles = torch.stack([styles[:,i][shuffled_index[:,i]] for i in range(nstyle)]).T
+
+    fake_gauss_pred = D(shuffled_styles, alpha)
     fake_gauss_label = torch.zeros(spec_in.size()[0], dtype=torch.float32, requires_grad=False,device=device)
             
     adversarial_loss = nll_loss(real_gauss_pred.squeeze(), real_gauss_label) \
