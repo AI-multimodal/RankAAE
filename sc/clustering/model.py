@@ -5,22 +5,21 @@ from torch import nn
 from torch.autograd import Function
 
 
-class ReverseLayerF(Function):
+class GradientReversalLayer(Function):
 
     @staticmethod
-    def forward(ctx, x, alpha):
-        ctx.alpha = alpha
+    def forward(ctx, x, beta):
+        ctx.beta = beta
         return x
 
     @staticmethod
     def backward(ctx, grad_output):
-        """If `alpha` is none, than this layer does nothing.
+        """If `beta` is none, than this layer does nothing.
         """
         grad_input = grad_output.clone()
-        if ctx.alpha is not None:
-            grad_input = grad_input.neg() * ctx.alpha
+        if ctx.beta is not None:
+            grad_input = -grad_input * ctx.beta
         return grad_input, None
-
 
 class EncodingBlock(nn.Module):
     def __init__(self, in_channels, out_channels, in_len, out_len, kernel_size=7, stride=2, excitation=4,
@@ -612,10 +611,10 @@ class DiscriminatorCNN(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
 
-    def forward(self, x, alpha):
+    def forward(self, x, beta):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        x = ReverseLayerF.apply(x, alpha)
+        x = GradientReversalLayer.apply(x, beta)
         x = self.pre(x)
         x = x.unsqueeze(dim=1)
         x = self.main(x)
@@ -651,10 +650,10 @@ class DiscriminatorFC(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
     
-    def forward(self, x, alpha):
+    def forward(self, x, beta):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        reverse_feature = ReverseLayerF.apply(x, alpha)
+        reverse_feature = GradientReversalLayer.apply(x, beta)
         out = self.main(reverse_feature)
         return out
 
