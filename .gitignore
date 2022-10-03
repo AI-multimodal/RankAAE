@@ -4,10 +4,5 @@
 *.pyc
 .ipynb_checkpoints/
 *.ipynb
-work_dir/
-work_dir*/
-cluster/
 __pycache__
 ipypar/
-todo_list*
-data/
