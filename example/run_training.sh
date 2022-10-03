@@ -12,28 +12,14 @@ ulimit -u 524288
 ulimit -n 100000
 ulimit -a
 
-total_jobs=8
-
 ipcluster start -n=8 --profile-dir=ipypar &
-sleep 40
-
+sleep 10
 echo `date` "Start training"
-train_sc \
-    -d feff_Co_CT_CN_OCN_RSTD_MOOD_spec_202201161134_4000.csv \
-    --trials ${total_jobs} \
-    -c fix_config.yaml \
-    -e 1500 \
-    -v
+train_sc -c fix_config.yaml
 echo `date` "Job Finished"
+ipcluster stop --profile-dir=ipypar
 
 echo `date` "Genearting Report"
-current_folder=$(basename `pwd`)
-parent_folder=$(basename $(dirname `pwd`))
-python ~/Documents/semi_clustering/sc/report/generate_report.py \
-    -o report_${parent_folder}_${current_folder} \
-    -n 5 \
-    -p ${total_jobs} \
-    -g 
+sc_generate_report -c fix_config.yaml
 echo `date` "Report Generated"
 
-ipcluster stop --profile-dir=ipypar

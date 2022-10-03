@@ -10,3 +10,4 @@ cluster/
 __pycache__
 ipypar/
 todo_list*
+data/

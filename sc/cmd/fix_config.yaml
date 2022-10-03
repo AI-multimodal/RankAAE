@@ -1,6 +1,6 @@
 # System settings
-data_file: feff_Cu_CT_CN_OCN_RSTD_NOOA_spec_202207201031_3969.csv
-trials: 1
+data_file: feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202203091415_4000.csv
+trials: 8
 timeout: 10
 verbose: true
 max_epoch: 20

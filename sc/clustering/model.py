@@ -5,22 +5,21 @@ from torch import nn
 from torch.autograd import Function
 
 
-class ReverseLayerF(Function):
+class GradientReversalLayer(Function):
 
     @staticmethod
-    def forward(ctx, x, alpha):
-        ctx.alpha = alpha
+    def forward(ctx, x, beta):
+        ctx.beta = beta
         return x
 
     @staticmethod
     def backward(ctx, grad_output):
-        """If `alpha` is none, than this layer does nothing.
+        """If `beta` is none, than this layer does nothing.
         """
         grad_input = grad_output.clone()
-        if ctx.alpha is not None:
-            grad_input = grad_input.neg() * ctx.alpha
+        if ctx.beta is not None:
+            grad_input = -grad_input * ctx.beta
         return grad_input, None
-
 
 class EncodingBlock(nn.Module):
     def __init__(self, in_channels, out_channels, in_len, out_len, kernel_size=7, stride=2, excitation=4,
@@ -347,7 +346,6 @@ class FCEncoder(nn.Module):
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
             nn.PReLU(num_parameters=hidden_size, init=0.01),
-            nn.BatchNorm1d(hidden_size, affine=False),
             nn.Dropout(p=dropout_rate),
             
         ]
@@ -356,7 +354,6 @@ class FCEncoder(nn.Module):
             sequential_layers.extend(
                 [   nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
-                    nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(dropout_rate),
                 ]
             )
@@ -364,7 +361,6 @@ class FCEncoder(nn.Module):
         sequential_layers.extend( # last layer
             [
                 nn.Linear(hidden_size, nstyle),
-                nn.BatchNorm1d(nstyle, affine=False) 
                 # add this batchnorm layer to make sure the output is standardized.
             ]
         )
@@ -541,7 +537,6 @@ class FCDecoder(nn.Module):
         sequential_layers = [ # the first layer.
                 nn.Linear(nstyle, hidden_size),
                 nn.PReLU(num_parameters=hidden_size, init=0.01),
-                nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(p=dropout_rate),
         ]
 
@@ -550,7 +545,6 @@ class FCDecoder(nn.Module):
                 [
                     nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
-                    nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
             )
@@ -617,10 +611,10 @@ class DiscriminatorCNN(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
 
-    def forward(self, x, alpha):
+    def forward(self, x, beta):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        x = ReverseLayerF.apply(x, alpha)
+        x = GradientReversalLayer.apply(x, beta)
         x = self.pre(x)
         x = x.unsqueeze(dim=1)
         x = self.main(x)
@@ -636,7 +630,6 @@ class DiscriminatorFC(nn.Module):
         sequential_layers = [
             nn.Linear(nstyle, hiden_size),
             nn.PReLU(num_parameters=hiden_size, init=0.01),
-            nn.BatchNorm1d(hiden_size, affine=False),
             nn.Dropout(p=dropout_rate),
         ]
         for _ in range(layers-2):
@@ -644,14 +637,12 @@ class DiscriminatorFC(nn.Module):
                 [
                     nn.Linear(hiden_size, hiden_size),
                     nn.PReLU(num_parameters=hiden_size, init=0.01),
-                    nn.BatchNorm1d(hiden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
             )
         sequential_layers.extend(
             [
-                nn.Linear(hiden_size, 2),
-                nn.LogSoftmax(dim=1)
+                nn.Linear(hiden_size, 1),
             ]
         )
         self.main = nn.Sequential(*sequential_layers)
@@ -659,10 +650,10 @@ class DiscriminatorFC(nn.Module):
         self.nstyle = nstyle
         self.noise = noise
     
-    def forward(self, x, alpha):
+    def forward(self, x, beta):
         if self.training:
             x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        reverse_feature = ReverseLayerF.apply(x, alpha)
+        reverse_feature = GradientReversalLayer.apply(x, beta)
         out = self.main(reverse_feature)
         return out
 
