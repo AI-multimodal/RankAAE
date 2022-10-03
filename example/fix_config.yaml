@@ -1,0 +1,56 @@
+# System settings
+data_file: feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202203091415_4000.csv
+trials: 8  # the number of parallel training jobs, ipyparallel engines must be strated if larger than 1.
+timeout: 10 
+verbose: true
+max_epoch: 20 # maximum epochs for training
+batch_size: 1024 # match size 
+
+gradient_reversal: true # if true, `alpha_flat_step` and `alpha_limit` must be specified.
+alpha_flat_step: 739 # Alpha will reach to `alpha_limit` and stay constant after `alpha_flat_step` ecpochs.
+alpha_limit: 0.7172 
+
+
+# Report Parameters
+output_name: report # customize the name of the training report.
+top_n: 5  # display the score of the top 5 models 
+gpu: true # whether to use gpu
+
+
+# Network Structure
+n_aux: 5  # The number of physical descriptors, must be consistent with the "AUX_" columns in the data file.
+nstyle: 6 # The dimention of latent space, must be no smaller than `n_aux`
+ae_form: FC # whether to use FC layers or CNN layers (CNN) for encoder and decoder
+dim_in: 256 
+dim_out: 256 # if ae_form==normal, dim_out is always set to 256
+n_layers: 5 # for FC only, the number of FC layers used.
+FC_discriminator_layers: 3 # the number of FC layers for discriminator, for `use_cnn_discriminator: false` only.
+use_cnn_discriminator: false # if true use cnn for discrinimator, otherwise use FC layers
+
+
+# Training Parameters
+dropout_rate: 0.1 # dropout rate through out the model
+sch_factor: 0.1 # scheduling factor and patience 
+sch_patience: 100
+
+lr_base: 0.0090  # the actual learning rate equals to lr_base * lr_ratio_XXXX
+lr_ratio_Corr: 2  # for  
+lr_ratio_Mutual: 0.1979 # for mutrual information loss
+lr_ratio_Reconn: 1.6524 # for reconstruction loss
+lr_ratio_Smooth: 0.0100 # for smoothness loss
+lr_ratio_dis: 0.1215 # for discrinimative loss 
+lr_ratio_gen: 10 # for generative loss
+optimizer_name: AdamW # the choice of optimizer 
+spec_noise: 0.02 # the noise level added to the input spectra
+use_flex_spec_target: true
+weight_decay: 0.011354650673910454
+kendall_activation: true 
+
+decoder_activation: Softplus
+dis_beta: 1.1
+dis_dropout_rate: 0.0056
+dis_noise: 0.0029
+gen_beta: 1.1
+
+
+

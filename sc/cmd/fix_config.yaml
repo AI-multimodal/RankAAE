@@ -1,0 +1,57 @@
+# System settings
+data_file: feff_Cu_CT_CN_OCN_RSTD_MOOD_spec_202203091415_4000.csv
+trials: 8
+timeout: 10
+verbose: true
+max_epoch: 20
+batch_size: 1024
+
+gradient_reversal: true # if true, `alpha_flat_step` and `alpha_limit` must be specified.
+alpha_flat_step: 739 # Alpha will reach to `alpha_limit` and stay constant after `alpha_flat_step` ecpochs.
+alpha_limit: 0.7172
+
+
+# Report Parameters
+output_name: report
+top_n: 5
+gpu: true
+
+
+# Network Structure
+n_aux: 5
+nstyle: 6
+ae_form: FC
+dim_in: 256
+dim_out: 256 # if ae_form==normal, dim_out is always set to 256
+n_layers: 5 # FC only
+FC_discriminator_layers: 3 # used only if use_cnn_discriminator==false
+use_cnn_discriminator: false
+
+
+# Training Parameters
+dropout_rate: 0.1
+sch_factor: 0.1
+sch_patience: 100
+
+lr_base: 0.0090
+lr_ratio_Corr: 2
+lr_ratio_Mutual: 0.1979
+lr_ratio_Reconn: 1.6524
+lr_ratio_Smooth: 0.0100
+lr_ratio_dis: 0.1215
+lr_ratio_gen: 10
+optimizer_name: AdamW
+spec_noise: 0.02
+use_flex_spec_target: true
+weight_decay: 0.011354650673910454
+kendall_activation: true
+
+
+decoder_activation: Softplus
+dis_beta: 1.1
+dis_dropout_rate: 0.0056
+dis_noise: 0.0029
+gen_beta: 1.1
+
+
+
