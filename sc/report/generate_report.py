@@ -24,6 +24,7 @@ def sorting_algorithm(x):
     """
 
     weight = [-1, 0, 1, 1, 1, 1, 1]
+#    weight = [-1, 0, 0, 0, 0, 0, 0]
 
     # if only weight[1] is non zero, turn on offset so the final score is non zero.
     off_set = 0 
