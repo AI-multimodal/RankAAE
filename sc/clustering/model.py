@@ -346,6 +346,7 @@ class FCEncoder(nn.Module):
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
             nn.PReLU(num_parameters=hidden_size, init=0.01),
+            nn.BatchNorm1d(hidden_size, affine=False),
             nn.Dropout(p=dropout_rate),
             
         ]
@@ -354,6 +355,7 @@ class FCEncoder(nn.Module):
             sequential_layers.extend(
                 [   nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(dropout_rate),
                 ]
             )
@@ -361,6 +363,7 @@ class FCEncoder(nn.Module):
         sequential_layers.extend( # last layer
             [
                 nn.Linear(hidden_size, nstyle),
+                nn.BatchNorm1d(nstyle, affine=False)
                 # add this batchnorm layer to make sure the output is standardized.
             ]
         )
@@ -537,6 +540,7 @@ class FCDecoder(nn.Module):
         sequential_layers = [ # the first layer.
                 nn.Linear(nstyle, hidden_size),
                 nn.PReLU(num_parameters=hidden_size, init=0.01),
+                nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(p=dropout_rate),
         ]
 
@@ -545,6 +549,7 @@ class FCDecoder(nn.Module):
                 [
                     nn.Linear(hidden_size, hidden_size),
                     nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
             )
