@@ -1,9 +1,9 @@
 # System settings
 data_file: feff_V_CT_CN_OCN_RSTD_MOOD_spec_202209081430_7000.csv
-trials: 32
+trials: 8
 timeout: 10
 verbose: true
-max_epoch: 1500
+max_epoch: 2000
 batch_size: 1024
 
 gradient_reversal: true # if true, `alpha_flat_step` and `alpha_limit` must be specified.
@@ -17,7 +17,7 @@ gen_beta: 1.1
 
 # Report Parameters
 output_name: report
-top_n: 5
+top_n: 8
 gpu: true
 
 
@@ -42,7 +42,7 @@ lr_ratio_Corr: 10
 lr_ratio_Mutual: 1
 lr_ratio_Reconn: 10
 lr_ratio_Smooth: 1
-lr_ratio_dis: 10
+lr_ratio_dis: 1
 lr_ratio_gen: 10
 optimizer_name: AdamW
 spec_noise: 0.02
