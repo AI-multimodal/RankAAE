@@ -6,6 +6,8 @@ from matplotlib import pyplot as plt
 import os
 import argparse
 import json
+from scipy.stats import spearmanr
+from sklearn.metrics import mean_absolute_error as mae
 import sc.report.analysis as analysis
 import sc.report.analysis_new as analysis_new
 from sc.utils.parameter import Parameters
@@ -43,7 +45,12 @@ def sorting_algorithm(x):
     return (off_set + xx[:,0] + np.sum(xx[:,2:], axis=1)) / xx[:,1]
 
 
-def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
+def plot_report(test_ds, model, config=None, title='report', device = torch.device("cpu")):
+    n_aux = config.n_aux
+    try:
+        plot_residual = config.plot_residual
+    except AttributeError:
+        plot_residual = None
 
     name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
 
@@ -68,7 +75,7 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
             descriptors[:,1] = 4
     
     # generate a figure object to host all the plots
-    fig = plt.figure(figsize=(12,24),constrained_layout=True)
+    fig = plt.figure(figsize=(12,24),constrained_layout=True, dpi=200)
     gs = fig.add_gridspec(12,6)
     ax1 = fig.add_subplot(gs[0:2,0:2])
     ax2 = fig.add_subplot(gs[0:2,2:4])
@@ -88,8 +95,9 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
     # Plot out synthetic spectra variation
     axs_spec_all = [ax1, ax2, axa, ax3, ax4, axb]
     axs_spec = axs_spec_all[:n_styles]
+    spectra_reconstructed = []
     for istyle, ax in enumerate(axs_spec):
-        _ = analysis.plot_spectra_variation(
+        _, spec_reconstructed = analysis.plot_spectra_variation(
             decoder, istyle, 
             true_range = True,
             styles = test_styles,
@@ -98,8 +106,23 @@ def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("
             n_sampling = 5000, 
             device = device,
             energy_grid = test_grid, 
+            plot_residual=plot_residual,
             ax = ax
         )
+        spectra_reconstructed.append(spec_reconstructed)
+    
+    if plot_residual:
+        residuals = [s[-1]-s[0] for s in spectra_reconstructed]
+        for i, ax in enumerate(axs_spec):
+            corr_value = np.max([
+                spearmanr(residuals[i], residuals[j]).correlation 
+                for j in range(len(residuals)) if j!=i
+            ])
+            # corr_value = np.min([
+            #     mae(residuals[i], residuals[j]) for j in range(len(residuals)) if j!=i 
+            # ])
+            corr_text = f"max_corr: {corr_value:.2f}"
+            ax.text(0.95, 0.95, corr_text, va="top", ha="right", transform=ax.transAxes, fontsize=20)
 
     # Plot out descriptors vs styles
     styles_no_s2 = np.delete(test_styles,1, axis=1)
@@ -250,8 +273,8 @@ def main():
         )
         fig_top_model = plot_report(
             test_ds, 
-            top_model, 
-            n_aux = config.n_aux, 
+            top_model,
+            config = config,
             title = '-'.join([config.output_name, sorted_jobs[0]]), 
             device = device
         )

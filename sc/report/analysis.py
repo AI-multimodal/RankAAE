@@ -41,6 +41,7 @@ def plot_spectra_variation(
     ax = None,
     energy_grid = None,
     colors=None,
+    plot_residual=False,
     **kwargs
 ):
     """
@@ -90,9 +91,13 @@ def plot_spectra_variation(
             colors = create_plotly_colormap(n_spec)
         assert len(colors) == n_spec
         for spec, color in zip(spec_out, colors):
-            if energy_grid is None:
+            if energy_grid is None: # whether use energy as x-axis unit
                 ax.plot(spec, c=color, **kwargs)
-            else: 
+            elif plot_residual:  # whether plot raw variation or residual between extrema
+                ax.plot(energy_grid, spec_out[-1]-spec_out[0], **kwargs)
+                ax.set_ylim([-0.5, 0.5])
+                break
+            else:
                 ax.plot(energy_grid, spec, c=color, **kwargs)
         ax.set_title(f"Style {istyle+1} varying from {left:.2f} to {right:.2f}", y=1)
 
