@@ -165,6 +165,8 @@ def sort_all_models(
                     score.append(a["Spearman"])
             except KeyError:
                 score.append(0)
+            except TypeError:
+                score.append(0)
         scores.append(score)
 
     jobs = np.array(jobs)
@@ -238,6 +240,8 @@ def get_confusion_matrix(cn, style_cn, ax=None):
     thresh_grid = np.linspace(-3.5, 3.5, 700)
     cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
     cn_class_sets = list(set(cn_classes))
+    if len(cn_class_sets) > 3: # in case the input descriptor is noise
+        return None
 
     cn4_f1_scores = [f1_score(style_cn < th, cn_classes<1,zero_division=0) for th in thresh_grid]
     cn6_f1_scores = [f1_score(style_cn > th, cn_classes>1,zero_division=0) for th in thresh_grid]

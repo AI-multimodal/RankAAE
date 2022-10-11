@@ -43,7 +43,8 @@ def sorting_algorithm(x):
     return (off_set + xx[:,0] + np.sum(xx[:,2:], axis=1)) / xx[:,1]
 
 
-def plot_report(test_ds, model, n_aux=5, title='report', device = torch.device("cpu")):
+def plot_report(test_ds, model, config=None, title='report', device = torch.device("cpu")):
+    n_aux = config.n_aux
 
     name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
 
@@ -251,7 +252,7 @@ def main():
         fig_top_model = plot_report(
             test_ds, 
             top_model, 
-            n_aux = config.n_aux, 
+            config=config,
             title = '-'.join([config.output_name, sorted_jobs[0]]), 
             device = device
         )
