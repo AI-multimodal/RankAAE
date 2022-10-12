@@ -7,7 +7,7 @@ import os
 import argparse
 import json
 from scipy.stats import spearmanr
-from sklearn.metrics import mean_absolute_error as mae
+from sklearn.metrics.pairwise import cosine_similarity
 import sc.report.analysis as analysis
 import sc.report.analysis_new as analysis_new
 from sc.utils.parameter import Parameters
@@ -113,15 +113,17 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
     
     if plot_residual:
         residuals = [s[-1]-s[0] for s in spectra_reconstructed]
-        for i, ax in enumerate(axs_spec):
-            corr_value = np.max([
-                spearmanr(residuals[i], residuals[j]).correlation 
-                for j in range(len(residuals)) if j!=i
-            ])
-            # corr_value = np.min([
-            #     mae(residuals[i], residuals[j]) for j in range(len(residuals)) if j!=i 
-            # ])
-            corr_text = f"max_corr: {corr_value:.2f}"
+        cos_sim_matrix = cosine_similarity(residuals, residuals)
+        for istyle, ax in enumerate(axs_spec):
+            cos_sim_list = cos_sim_matrix[istyle]
+            max_cos_sim = -1
+            for jstyle, cos_sim in enumerate(cos_sim_list):
+                if jstyle == istyle: 
+                    continue
+                if cos_sim >= max_cos_sim:
+                    max_cos_sim = cos_sim
+                    max_jstyle = jstyle
+            corr_text = f"max_cos_sim: {max_cos_sim:.2f}\nwith style{max_jstyle+1}"
             ax.text(0.95, 0.95, corr_text, va="top", ha="right", transform=ax.transAxes, fontsize=20)
 
     # Plot out descriptors vs styles
