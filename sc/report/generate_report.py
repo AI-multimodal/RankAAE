@@ -273,8 +273,8 @@ def main():
         )
         fig_top_model = plot_report(
             test_ds, 
-            top_model,
-            config = config,
+            top_model, 
+            config=config,
             title = '-'.join([config.output_name, sorted_jobs[0]]), 
             device = device
         )
