@@ -18,17 +18,10 @@ setup(
         "console_scripts": [
             "train_sc = sc.cmd.train_sc:main",
             "sc_generate_report = sc.report.generate_report:main",
-            "stop_ipcontroller = sc.cmd.stop_ipcontroller:main",
-            "wait_ipp_engines = sc.cmd.wait_ipp_engines:main",
-            "train_lat2apdf = sc.cmd.train_lat2apdf:main",
-            "train_lat2prdf = sc.cmd.train_lat2prdf:main",
-            "opt_hyper_single = sc.cmd.opt_hyper_single:main"
         ]
     },
     scripts=[
-        "sc/cmd/opt_hyper.sh",
-        "sc/cmd/start_ipyparallel_worker.sh",
-        "sc/cmd/run_locally.sh"
+        "sc/cmd/run_training.sh"
     ]
 )
 
