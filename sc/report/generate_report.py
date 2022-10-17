@@ -103,7 +103,7 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
             styles = test_styles,
             amplitude = 2,
             n_spec = 50, 
-            n_sampling = 5000, 
+            n_sampling = config.n_sampling, 
             device = device,
             energy_grid = test_grid, 
             plot_residual=plot_residual,
