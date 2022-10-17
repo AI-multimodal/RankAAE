@@ -53,32 +53,31 @@ def plot_spectra_variation(
     true_range : bool
         If True, sample from the 5th percentile to 95th percentile of a style, instead of 
         [-amplitude, +amplitude].
+    n_sampling : int
+        The number of random "styles" sampled. If zero, then set other styles to zero.
     amplitude : float
         The range from which styles are sampled. Effective only if `true_range` is False.
     style : array_like
         2-D array of complete styles. Effective and can't be None if `true_range` evaluates.
         True. The `istyle`th column 
+    plot_residual : bool
+        Weather to plot out the difference between two extrema instead of all variations.
     """
 
     decoder.eval()
-    
-    if n_sampling == None: 
-        c = np.linspace(*[-amplitude, amplitude], n_spec)
+    left, right = np.percentile(styles[:, istyle], [5, 95])
+    if n_sampling == 0: 
+        c = np.linspace(left, right, n_spec)
         c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
-        con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False)
+        con_c = torch.tensor(c2, dtype=torch.float, requires_grad=False, device=device)
         spec_out = decoder(con_c).reshape(n_spec, -1).clone().cpu().detach().numpy()
-
+        style_variation = c
     else:
         # Create a 3-D array whose x,y,z dimensions correspond to: style variation, n_sampling, 
         # and number of styles. 
-        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle], device = device)
-        if true_range: # sample from the true range of a style 
-            assert len(styles.shape) == 2 # styles must be a 2-D array
-            style_range = np.percentile(styles[:, istyle], [5, 95])
-            left, right = style_range
-            style_variation = torch.linspace(left, right, n_spec, device = device)
-        else: # sample from the absolute range
-            style_variation = torch.linspace(-amplitude, amplitude, n_spec, device = device)
+        con_c = torch.randn([n_spec, n_sampling, decoder.nstyle], device=device)
+        assert len(styles.shape) == 2 # styles must be a 2-D array
+        style_variation = torch.linspace(left, right, n_spec, device=device)
         # Assign the "layer" to be duplicates of `style_variation`
         con_c[..., istyle] = style_variation[:, np.newaxis]
         con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
