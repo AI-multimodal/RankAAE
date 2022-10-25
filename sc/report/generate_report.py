@@ -75,7 +75,7 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
             descriptors[:,1] = 4
     
     # generate a figure object to host all the plots
-    fig = plt.figure(figsize=(12,24),constrained_layout=True, dpi=200)
+    fig = plt.figure(figsize=(12,24),constrained_layout=True, dpi=100)
     gs = fig.add_gridspec(12,6)
     ax1 = fig.add_subplot(gs[0:2,0:2])
     ax2 = fig.add_subplot(gs[0:2,2:4])
