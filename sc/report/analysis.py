@@ -342,6 +342,11 @@ def get_descriptor_style_correlation(
     style = style[sorted_index]
     descriptor = descriptor[sorted_index]
 
+    # mask out possible NaN values
+    mask_nan = ~ (np.isnan(descriptor) | np.isnan(style))
+    style = style[mask_nan]
+    descriptor = descriptor[mask_nan]
+
     # Initialize accuracy dictionary.
     accuracy = {
         "Spearman": None,
