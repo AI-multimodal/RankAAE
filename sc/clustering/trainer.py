@@ -115,87 +115,106 @@ class Trainer:
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
-                    self.zerograd()
-                    dis_loss_train = adversarial_loss(
-                        spec_in, styles, self.discriminator, alpha_,
-                        batch_size=self.batch_size, 
-                        nll_loss=bce_lgt_loss, 
-                        device=self.device
-                    )
-                    dis_loss_train.backward()
-                    self.optimizers["adversarial"].step()
+                    if self.lr_ratio_dis == 0: 
+                        dis_loss_train = torch.tensor(0)
+                    else:
+                        self.zerograd()
+                        dis_loss_train = adversarial_loss(
+                            spec_in, styles, self.discriminator, alpha_,
+                            batch_size=self.batch_size, 
+                            nll_loss=bce_lgt_loss, 
+                            device=self.device
+                        )
+                        dis_loss_train.backward()
+                        self.optimizers["adversarial"].step()
                     gen_loss_train = torch.tensor(0)
                 else:
                     # Init gradients, discriminator loss
-                    self.zerograd()
-                    styles = self.encoder(spec_in)
-
-                    dis_loss_train = discriminator_loss(
-                        styles, self.discriminator, 
-                        batch_size=self.batch_size, 
-                        loss_fn=bce_lgt_loss,
-                        device=self.device
-                    )
-                    dis_loss_train.backward()
-                    self.optimizers["discriminator"].step()
+                    if self.lr_ratio_dis == 0:
+                        dis_loss_train = torch.tensor(0)
+                    else:
+                        self.zerograd()
+                        dis_loss_train = discriminator_loss(
+                            styles, self.discriminator, 
+                            batch_size=self.batch_size, 
+                            loss_fn=bce_lgt_loss,
+                            device=self.device
+                        )
+                        dis_loss_train.backward()
+                        self.optimizers["discriminator"].step()
 
                     # Init gradients, generator loss
-                    self.zerograd()
-                    gen_loss_train = generator_loss(
-                        spec_in, self.encoder, self.discriminator, 
-                        loss_fn=nll_loss,
-                        device=self.device
-                    )
-                    gen_loss_train.backward()
-                    self.optimizers["generator"].step()
+                    if self.lr_ratio_gen == 0:
+                        gen_loss_train = torch.tensor(0)
+                    else:
+                        self.zerograd()
+                        gen_loss_train = generator_loss(
+                            spec_in, self.encoder, self.discriminator, 
+                            loss_fn=nll_loss,
+                            device=self.device
+                        )
+                        gen_loss_train.backward()
+                        self.optimizers["generator"].step()
 
                 # Kendall constraint
-                self.zerograd()
-                styles = self.encoder(spec_in)
-                aux_loss_train = kendall_constraint(
-                    aux_in, styles[:,:n_aux], 
-                    activate=self.kendall_activation,
-                    device=self.device
-                )
-                aux_loss_train.backward()
-                self.optimizers["correlation"].step()
+                if self.lr_ratio_Corr == 0:
+                    aux_loss_train = torch.tensor(0)
+                else:
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+                    aux_loss_train = kendall_constraint(
+                        aux_in, styles[:,:n_aux], 
+                        activate=self.kendall_activation,
+                        device=self.device
+                    )
+                    aux_loss_train.backward()
+                    self.optimizers["correlation"].step()
 
                 # Init gradients, reconstruction loss
-                self.zerograd()
-                spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
-                recon_loss_train = recon_loss(
-                    spec_in, spec_out, 
-                    scale=self.use_flex_spec_target,
-                    device=self.device
-                )
-                recon_loss_train.backward()
-                self.optimizers["reconstruction"].step()
-
+                if self.lr_ratio_Reconn == 0:
+                    recon_loss_train = torch.tensor(0)
+                else:
+                    self.zerograd()
+                    spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                    recon_loss_train = recon_loss(
+                        spec_in, spec_out, 
+                        scale=self.use_flex_spec_target,
+                        device=self.device
+                    )
+                    recon_loss_train.backward()
+                    self.optimizers["reconstruction"].step()
+                
                 # Init gradients, mutual information loss
-                self.zerograd()
-                styles = self.encoder(spec_in)
-                mutual_info_loss_train = mutual_info_loss(
-                    spec_in, styles,
-                    encoder=self.encoder, 
-                    decoder=self.decoder, 
-                    mse_loss=mse_loss, 
-                    device=self.device
-                )
-                mutual_info_loss_train.backward()
-                self.optimizers["mutual_info"].step()
+                if self.lr_ratio_Mutual == 0:
+                    mutual_info_loss = torch.tensor(0)
+                else:
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+                    mutual_info_loss_train = mutual_info_loss(
+                        spec_in, styles,
+                        encoder=self.encoder, 
+                        decoder=self.decoder, 
+                        mse_loss=mse_loss, 
+                        device=self.device
+                    )
+                    mutual_info_loss_train.backward()
+                    self.optimizers["mutual_info"].step()
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
                 if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
-                    self.zerograd()
-                    spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
-                    smooth_loss_train = smoothness_loss(
-                        spec_out, 
-                        gs_kernel_size=self.gau_kernel_size,
-                        device=self.device
-                    )
-                    smooth_loss_train.backward()
-                    self.optimizers["smoothness"].step()
+                    if self.lr_ratio_Smooth == 0:
+                        smooth_loss_train = torch.tensor(0)
+                    else:
+                        self.zerograd()
+                        spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                        smooth_loss_train = smoothness_loss(
+                            spec_out, 
+                            gs_kernel_size=self.gau_kernel_size,
+                            device=self.device
+                        )
+                        smooth_loss_train.backward()
+                        self.optimizers["smoothness"].step()
                 else:
                     smooth_loss_train = torch.tensor(0) 
                 
