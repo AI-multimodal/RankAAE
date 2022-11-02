@@ -458,11 +458,17 @@ class Trainer:
             device = torch.device("cpu")
 
         # Load encoder, decoder and discriminator
+        try:
+            encoder_last_batchnorm = p.encoder_last_batchnorm
+        except:
+            encoder_last_batchnorm = True
         encoder = AE_CLS_DICT[p.ae_form]["encoder"](
             nstyle = p.nstyle, 
             dropout_rate = p.dropout_rate, 
             dim_in = p.dim_in, 
-            n_layers = p.n_layers
+            n_layers = p.n_layers,
+            last_batchnorm = encoder_last_batchnorm 
+            # `last_batchnorm` is only available for FCencoder, remove this parameter otherwise.
         )
         decoder = AE_CLS_DICT[p.ae_form]["decoder"](
             nstyle = p.nstyle, 

@@ -339,7 +339,9 @@ class FCEncoder(nn.Module):
         nstyle=5, 
         dim_in=256, 
         n_layers=3,
-        hidden_size=64):
+        hidden_size=64,
+        last_batchnorm=True
+    ):
         super(FCEncoder, self).__init__()
 
         
@@ -363,10 +365,16 @@ class FCEncoder(nn.Module):
         sequential_layers.extend( # last layer
             [
                 nn.Linear(hidden_size, nstyle),
-                nn.BatchNorm1d(nstyle, affine=False)
                 # add this batchnorm layer to make sure the output is standardized.
             ]
         )
+
+        if last_batchnorm:
+            sequential_layers.extend(
+                [
+                    nn.BatchNorm1d(nstyle, affine=False)
+                ]
+            )
 
         self.main = nn.Sequential(*sequential_layers)
 
