@@ -19,6 +19,7 @@ gen_beta: 1.1
 output_name: report
 top_n: 5
 gpu: true
+plot_residual: false
 n_sampling: 0
 
 # Network Structure
