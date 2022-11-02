@@ -186,7 +186,7 @@ class Trainer:
                 
                 # Init gradients, mutual information loss
                 if self.lr_ratio_Mutual == 0:
-                    mutual_info_loss = torch.tensor(0)
+                    mutual_info_loss_train = torch.tensor(0)
                 else:
                     self.zerograd()
                     styles = self.encoder(spec_in)
