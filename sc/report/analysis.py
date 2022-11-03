@@ -133,7 +133,8 @@ def sort_all_models(
     plot_score = False,
     ascending = True,
     top_n = None, 
-    true_value = True # whether annotate tru value or z score
+    true_value = True, # whether annotate tru value or z score
+    sorting_weight = None
 ):
     """
     Given the input result dict, calculate (and plot) the score matrix.
@@ -183,7 +184,7 @@ def sort_all_models(
     
     # sort scroes
     if callable(sort_score):  # sort according to the `sort_score` algorithm 
-        final_score = sort_score(z_scores)
+        final_score = sort_score(z_scores, sorting_weight=sorting_weight)
     elif isinstance(sort_score, int) and sort_score>=0: # sort according to a single column
         final_score = scores[:, sort_score]
     else:

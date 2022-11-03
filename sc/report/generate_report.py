@@ -13,7 +13,7 @@ import sc.report.analysis_new as analysis_new
 from sc.utils.parameter import Parameters
 from sc.clustering.dataloader import AuxSpectraDataset
 
-def sorting_algorithm(x):
+def sorting_algorithm(x, sorting_weight=None):
     """
     columns of `x` respresents: 
         "Inter-style Corr", # 0
@@ -24,9 +24,11 @@ def sorting_algorithm(x):
         "Style-Descriptor Corr 4", # 5
         "Style-Descriptor Corr 5" # 6
     """
-
-    weight = [-1, 0, 1, 1, 1, 1, 1]
-#    weight = [-1, 0, 0, 0, 0, 0, 0]
+    if sorting_weight is None:
+        weight = [-1, 0, 1, 1, 1, 1, 1]
+    else:
+        weight = sorting_weight
+    assert len(weight) == 7
 
     # if only weight[1] is non zero, turn on offset so the final score is non zero.
     off_set = 0 
@@ -41,9 +43,7 @@ def sorting_algorithm(x):
     xx[:,5] = x[:,5] *  weight[5] # Style4 - Rstd Corr
     xx[:,6] = x[:,6] *  weight[6] # Style5 - MOOD Corr
     
-    
     return (off_set + xx[:,0] + np.sum(xx[:,2:], axis=1)) / xx[:,1]
-
 
 def plot_report(test_ds, model, config=None, title='report', device = torch.device("cpu")):
     n_aux = config.n_aux
@@ -226,7 +226,10 @@ def main():
     args = parser.parse_args()
     work_dir = os.path.abspath(os.path.expanduser(args.work_dir))
     config = Parameters.from_yaml(os.path.join(work_dir, args.config))
-    
+    try:
+        sorting_weight = config.sorting_weight
+    except:
+        sorting_weight = None
 
     jobs_dir = os.path.join(work_dir, "training")
     file_name = config.data_file
@@ -257,6 +260,7 @@ def main():
             top_n = config.top_n, 
             sort_score = sorting_algorithm,
             ascending = False, # best model has the highest score
+            sorting_weight = sorting_weight
         ) # models are sorted
         save_model_evaluations(work_dir, config.output_name, model_results)
         
