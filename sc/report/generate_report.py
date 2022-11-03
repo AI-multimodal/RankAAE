@@ -35,13 +35,13 @@ def sorting_algorithm(x, sorting_weight=None):
     if np.sum(weight) == weight[1]:
         off_set = 1
     xx = x.copy()
-    xx[:,0] = x[:,0] *  weight[0] # Inter-style Corr
-    xx[:,1] = x[:,1] ** weight[1] # Reconstion Err
-    xx[:,2] = x[:,2] *  weight[2] # Style1 - CT Corr
-    xx[:,3] = x[:,3] *  weight[3] # Style2 - CN Corr
-    xx[:,4] = x[:,4] *  weight[4] # Style3 - OCN Corr
-    xx[:,5] = x[:,5] *  weight[5] # Style4 - Rstd Corr
-    xx[:,6] = x[:,6] *  weight[6] # Style5 - MOOD Corr
+    xx[:,0] = abs(x[:,0]) *  weight[0] # Inter-style Corr
+    xx[:,1] = abs(x[:,1]) ** weight[1] # Reconstion Err
+    xx[:,2] = abs(x[:,2]) *  weight[2] # Style1 - CT Corr
+    xx[:,3] = abs(x[:,3]) *  weight[3] # Style2 - CN Corr
+    xx[:,4] = abs(x[:,4]) *  weight[4] # Style3 - OCN Corr
+    xx[:,5] = abs(x[:,5]) *  weight[5] # Style4 - Rstd Corr
+    xx[:,6] = abs(x[:,6]) *  weight[6] # Style5 - MOOD Corr
     
     return (off_set + xx[:,0] + np.sum(xx[:,2:], axis=1)) / xx[:,1]
 
