@@ -21,7 +21,15 @@ top_n: 5
 gpu: true
 plot_residual: false
 n_sampling: 0
-
+sorting_weight: # the weights of each descriptor used to select model
+ - -1  # Inter-style Corr
+ - 0 # Reconstion Err
+ - 1  # Style1 - CT Corr
+ - 1  # Style2 - CN Corr
+ - 1  # Style3 - OCN Corr
+ - 1  # Style4 - Rstd Corr
+ - 1  # Style5 - MOOD Corr
+ 
 # Network Structure
 n_aux: 5
 nstyle: 6
