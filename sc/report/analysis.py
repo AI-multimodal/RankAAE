@@ -42,6 +42,7 @@ def plot_spectra_variation(
     energy_grid = None,
     colors=None,
     plot_residual=False,
+    z_range=None,
     **kwargs
 ):
     """
@@ -62,10 +63,16 @@ def plot_spectra_variation(
         True. The `istyle`th column 
     plot_residual : bool
         Weather to plot out the difference between two extrema instead of all variations.
+    z_range: tuple(float, float)
+        The range in which z varies to drive the spectral variation.
     """
 
     decoder.eval()
-    left, right = np.percentile(styles[:, istyle], [5, 95])
+    if z_range is None:
+        left, right = np.percentile(styles[:, istyle], [5, 95])
+    else:
+        left, right = z_range
+
     if n_sampling == 0: 
         c = np.linspace(left, right, n_spec)
         c2 = np.stack([np.zeros_like(c)] * istyle + [c] + [np.zeros_like(c)] * (decoder.nstyle - istyle - 1), axis=1)
@@ -232,83 +239,90 @@ def sort_all_models(
     return result_dict, ranked_jobs, fig
 
 
-def get_confusion_matrix(cn, style_cn, ax=None):
+def get_confusion_matrix(true_labels, pred_styles, ax=None):
     """
     get donfusion matrix for a discrete descriptor, such as coordination number.
     """
     result = {
         "F1 score": None,
-        "CN45 Threshold": None,
-        "CN56 Threshold": None
+        "Thresholds": [],
     }
-    data_length = len(cn)
+    
+    data_length = len(true_labels)
     thresh_grid = np.linspace(-3.5, 3.5, 700)
-    cn_classes = (cn - 4).astype(int) # the minimum CN is 4 by default.
-    cn_class_sets = list(set(cn_classes))
-    if len(cn_class_sets) > 3: # in case the input descriptor is noise
-        return None
+    
+    true_labels = np.array(true_labels).astype(int)
+    true_label_sets = list(set(true_labels))
+    pred_styles = np.array(pred_styles)
 
-    cn4_f1_scores = [f1_score(style_cn < th, cn_classes<1,zero_division=0) for th in thresh_grid]
-    cn6_f1_scores = [f1_score(style_cn > th, cn_classes>1,zero_division=0) for th in thresh_grid]
-    cn45_thresh = thresh_grid[np.argmax(cn4_f1_scores)]
-    cn56_thresh = thresh_grid[np.argmax(cn6_f1_scores)]
+    true_classes = true_labels - min(true_labels)
+    true_class_sets = list(set(true_classes))
+    num_class = len(true_class_sets)
+
+    f1_scores, max_f1_scores, thresholds = [], [], []
+    for true_class in true_class_sets:
+        f1_score_ = [f1_score(pred_styles<=th, true_classes<=true_class, zero_division=0) for th in thresh_grid]
+        f1_scores.append(f1_score_)
+        thresholds.append(thresh_grid[np.argmax(f1_score_)])
+        max_f1_scores.append(np.max(f1_score_))
+    
+    pred_classes = np.zeros_like(pred_styles)
+    for threshold in thresholds[:-1]:
+        pred_classes += (pred_styles > threshold).astype('int')
+    pred_labels = pred_classes + min(true_labels)
 
     # calculate confusion matrix
-    sep_pred_cn_classes = (style_cn > cn45_thresh).astype('int') + (style_cn > cn56_thresh).astype('int')
-    sep_confusion_matrix_ = confusion_matrix(cn_classes, sep_pred_cn_classes)
-    if len(cn_class_sets)==1: # when only one class is available, special care is needed.
-        cn = cn_class_sets[0].astype(int)
-        sep_confusion_matrix = np.zeros((3,3),dtype=int)
-        sep_confusion_matrix[cn, cn] = sep_confusion_matrix_[0,0]
+    sep_confusion_matrix_ = confusion_matrix(true_labels, pred_labels)
+    if len(true_class_sets) > 10: # in case the input descriptor is noise
+        return None
+    elif len(true_class_sets)==1: # when only one class is available, special care is needed.
+        true_labels = true_class_sets[0].astype(int)
+        sep_confusion_matrix = np.zeros((num_class, num_class),dtype=int)
+        sep_confusion_matrix[true_labels, true_labels] = sep_confusion_matrix_[0,0]
     else:
         sep_confusion_matrix = sep_confusion_matrix_
     
-    sep_threshold_f1_score = f1_score(cn_classes, sep_pred_cn_classes, average='weighted')
+    average_f1_score = f1_score(true_labels, pred_labels, average='weighted')
 
-    result["F1 score"] = round(sep_threshold_f1_score.tolist(), 4)
-    result["CN45 Threshold"] = round(cn45_thresh.tolist(), 4)
-    result["CN56 Threshold"] = round(cn56_thresh.tolist(), 4)
+    print(thresholds, max_f1_scores)
+    result["F1 score"] = round(average_f1_score.tolist(), 4)
+    result["Thresholds"] = [round(thresh, 4) for thresh in thresholds]
 
     if ax is not None:
-        sns.set_palette('bright', 2)
-        ax[0].plot(thresh_grid, cn4_f1_scores, label='CN4')
-        ax[0].plot(thresh_grid, cn6_f1_scores, label='CN6')
-        ax[0].axvline(cn45_thresh, c='blue')
-        ax[0].axvline(cn56_thresh, c='orange')
+        colors = np.array(sns.color_palette("bright", len(true_class_sets)))
+        for i in range(len(f1_scores[:-1])):
+            ax[0].plot(thresh_grid, f1_scores[i], label=true_label_sets[i], color=colors[i])
+            ax[0].axvline(thresholds[i], color=colors[i])
         ax[0].legend(loc='lower left', fontsize=12)
 
         sns.heatmap(sep_confusion_matrix, cmap='Blues', annot=True, fmt='d', cbar=False, ax=ax[1],
-                    xticklabels=[f'CN{cn+4}' for cn in range(3)],
-                    yticklabels=[f'CN{cn+4}' for cn in range(3)])
-        ax[1].set_title(f"F1 Score = {sep_threshold_f1_score:.1%}",fontsize=12)
+                    xticklabels=[f'{label}' for label in true_label_sets],
+                    yticklabels=[f'{label}' for label in true_label_sets])
+        ax[1].set_title(f"F1 Score = {average_f1_score:.1%}",fontsize=12)
         ax[1].set_xlabel("Pred")
         ax[1].set_ylabel("True")
 
         # color splitting plot
-        cn_list = [4,5,6]
-        colors = np.array(sns.color_palette("bright", len(cn_list)))
-        test_colors = colors[cn_classes]
-        test_colors = np.array([mpl.colors.colorConverter.to_rgba(c, alpha=0.6) for c in test_colors])     
-
-        random_style = np.random.uniform(style_cn.min(),style_cn.max(),data_length)
-        ax[2].scatter(style_cn, random_style, s=10.0, color=test_colors, alpha=0.8)
+        test_colors = colors[true_classes]
+        test_colors = np.array([mpl.colors.colorConverter.to_rgba(c, alpha=0.8) for c in test_colors])
+        random_styles = np.random.uniform(pred_styles.min(),pred_styles.max(),data_length)
+        ax[2].scatter(pred_styles, random_styles, s=10.0, color=test_colors, alpha=0.8)
         ax[2].set_xlabel("Style 2")
         ax[2].set_ylabel("Random")
-        ax[2].set_xlim([style_cn.min()-1, style_cn.max()+1])
-        ax[2].set_ylim([style_cn.min()-2, style_cn.max()+1])
-        ax[2].axvline(cn45_thresh, c='gray')
-        ax[2].axvline(cn56_thresh, c='gray')
+        ax[2].set_xlim([pred_styles.min()-1, pred_styles.max()+1])
+        ax[2].set_ylim([pred_styles.min()-2, pred_styles.max()+1])
+        for threshold in thresholds[:-1]:
+            ax[2].axvline(threshold, c='gray')
 
         n = len(colors)
-        axins = ax[2].inset_axes([0.02, 0.06, 0.5, 0.1])
+        axins = ax[2].inset_axes([0.02, 0.08, 0.5, 0.1])
         axins.imshow(np.arange(n).reshape(1,n), cmap=mpl.colors.ListedColormap(list(colors)),
                     interpolation="nearest", aspect="auto")
         axins.set_xticks(list(range(n)))
-        axins.set_xticklabels([f"CN{i+4}" for i in range(n)])
+        axins.set_xticklabels([f"{label}" for label in true_label_sets])
         axins.tick_params(bottom=False, labelsize=10)
         axins.yaxis.set_major_locator(mpl.ticker.NullLocator())
 
-    
     return result
     
 def get_max_inter_style_correlation(styles):

@@ -96,6 +96,11 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
     axs_spec_all = [ax1, ax2, axa, ax3, ax4, axb]
     axs_spec = axs_spec_all[:n_styles]
     spectra_reconstructed = []
+    try:
+        z_range = config.z_range
+    except:
+        raise 
+        
     for istyle, ax in enumerate(axs_spec):
         _, spec_reconstructed = analysis.plot_spectra_variation(
             decoder, istyle, 
